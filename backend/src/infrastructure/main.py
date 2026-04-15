@@ -1,8 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from src.infrastructure.routers import user_router
 
 app = FastAPI(
-    title="Cartagena en Ruta API",
+    title="Karta API", # ¡Actualizamos el nombre aquí también!
     description="API Core para enrutamiento táctico y gestión UGC (Asset-Light)",
     version="1.0.0",
     openapi_url="/api/v1/openapi.json",
@@ -14,14 +15,16 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
+
+app.include_router(user_router.router)
 
 @app.get("/api/v1/health", tags=["System"])
 async def health_check():
     return {
         "status": "healthy",
-        "service": "Cartagena en Ruta Core",
+        "service": "Karta Core",
         "version": "1.0.0"
     }
