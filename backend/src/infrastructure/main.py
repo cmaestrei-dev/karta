@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from src.infrastructure.routers import user_router
+from src.infrastructure.routers import user_router, incident_router
 
 app = FastAPI(
     title="Karta API", # ¡Actualizamos el nombre aquí también!
@@ -20,6 +21,7 @@ app.add_middleware(
 )
 
 app.include_router(user_router.router)
+app.include_router(incident_router.router)
 
 @app.get("/api/v1/health", tags=["System"])
 async def health_check():
