@@ -23,3 +23,29 @@ class IncidentCreate {
     };
   }
 }
+
+class Incident {
+  final int id;
+  final String categoria;
+  final int intensidad;
+  final double latitud;
+  final double longitud;
+
+  Incident({
+    required this.id,
+    required this.categoria,
+    required this.intensidad,
+    required this.latitud,
+    required this.longitud,
+  });
+
+  factory Incident.fromJson(Map<String, dynamic> json) {
+    return Incident(
+      id: json['id_incidente'] as int,
+      categoria: json['categoria'] as String,
+      intensidad: json['intensidad'] as int,
+      latitud: (json['latitud'] as num).toDouble(),
+      longitud: (json['longitud'] as num).toDouble(),
+    );
+  }
+}
