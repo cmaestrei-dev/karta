@@ -10,7 +10,6 @@ class IncidentRepository {
       final response = await http.get(Uri.parse('$baseUrl/'));
       
       if (response.statusCode == 200) {
-        // Decodificamos usando utf8 para evitar problemas con las tildes (ej. "Tráfico")
         final List<dynamic> data = json.decode(utf8.decode(response.bodyBytes));
         return data.map((json) => Incident.fromJson(json)).toList();
       } else {
@@ -22,7 +21,7 @@ class IncidentRepository {
   }
 
   Future<void> reportIncident(IncidentCreate incident) async {
-    final url = Uri.parse('$baseUrl/incidents/');
+    final url = Uri.parse('$baseUrl/');
     
     try {
       final response = await http.post(
@@ -31,8 +30,8 @@ class IncidentRepository {
         body: jsonEncode(incident.toJson()),
       );
 
-      if (response.statusCode != 201) {
-        throw Exception('Fallo al registrar el incidente: ${response.statusCode}');
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw Exception('Fallo al registrar el incidente: Código ${response.statusCode}');
       }
     } catch (e) {
       throw Exception('Error de conexión con el servidor de Karta: $e');

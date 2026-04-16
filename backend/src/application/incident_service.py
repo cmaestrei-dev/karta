@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func # <-- 1. AGREGA ESTA IMPORTACIÓN
+from sqlalchemy import func
 from typing import List
 from geoalchemy2.elements import WKTElement
 from src.infrastructure.models import Incidente
@@ -32,3 +32,23 @@ class IncidentService:
             }
             for r in resultados
         ]
+
+    @classmethod
+    def create_incident(cls, db: Session, incident: IncidentCreate):
+        """Caso de Uso: Registrar un nuevo incidente convirtiendo lat/lon a Punto Espacial."""
+        
+        punto_wkt = f"POINT({incident.longitud} {incident.latitud})"
+        ubicacion_espacial = WKTElement(punto_wkt, srid=4326)
+
+        nuevo_incidente = Incidente(
+            id_usuario=incident.id_usuario,
+            categoria=incident.categoria,
+            intensidad=incident.intensidad,
+            ubicacion=ubicacion_espacial
+        )
+
+        db.add(nuevo_incidente)
+        db.commit()
+        db.refresh(nuevo_incidente)
+        
+        return nuevo_incidente

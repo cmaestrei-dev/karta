@@ -40,13 +40,18 @@ abstract class IncidentEvent extends Equatable {
 class SubmitIncidentEvent extends IncidentEvent {
   final String categoria;
   final int intensidad;
-  final double latitud = 10.4233; 
-  final double longitud = -75.5496;
+  final double latitud;
+  final double longitud;
 
-  SubmitIncidentEvent({required this.categoria, required this.intensidad});
+  SubmitIncidentEvent({
+    required this.categoria, 
+    required this.intensidad,
+    required this.latitud,
+    required this.longitud,
+  });
   
   @override
-  List<Object> get props => [categoria, intensidad];
+  List<Object> get props => [categoria, intensidad, latitud, longitud];
 }
 
 class LoadIncidentsEvent extends IncidentEvent {}
