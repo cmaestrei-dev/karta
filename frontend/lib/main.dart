@@ -5,6 +5,10 @@ import 'features/routing/data/repositories/route_repository.dart';
 import 'features/routing/presentation/bloc/route_bloc.dart';
 import 'features/routing/presentation/screens/route_evaluation_screen.dart';
 
+import 'features/incidents/data/repositories/incident_repository.dart';
+import 'features/incidents/presentation/bloc/incident_bloc.dart';
+import 'features/incidents/presentation/widgets/incident_bottom_sheet.dart';
+
 void main() {
   runApp(const KartaApp());
 }
@@ -14,19 +18,19 @@ class KartaApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 1. Proveemos el Repositorio a nivel global (Capa de Datos)
-    return RepositoryProvider(
-      create: (context) => RouteRepository(),
-      
-      // 2. Proveemos el BLoC, inyectándole el Repositorio (Capa de Lógica)
-      child: BlocProvider(
-        create: (context) => RouteBloc(
-          routeRepository: context.read<RouteRepository>(),
-        ),
+    return MultiRepositoryProvider(
+      providers: [
+        RepositoryProvider(create: (context) => RouteRepository()),
+        RepositoryProvider(create: (context) => IncidentRepository()),
+      ],
+      child: MultiBlocProvider(
+        providers: [
+          BlocProvider(create: (context) => RouteBloc(routeRepository: context.read<RouteRepository>())),
+          BlocProvider(create: (context) => IncidentBloc(repository: context.read<IncidentRepository>())),
+        ],
         
-        // 3. Configuramos la App con el tema Minimalista Urbano Premium
         child: MaterialApp(
-          title: 'Cartagena en Ruta',
+          title: 'Karta',
           debugShowCheckedModeBanner: false,
           theme: ThemeData(
             brightness: Brightness.dark,

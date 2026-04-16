@@ -6,16 +6,24 @@ import '../bloc/route_event.dart';
 import '../bloc/route_state.dart';
 import '../../domain/models/route_models.dart';
 
+import '../../../incidents/presentation/widgets/incident_bottom_sheet.dart';
+
 class RouteEvaluationScreen extends StatelessWidget {
   const RouteEvaluationScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: AppBar(        
         title: const Text('Ruta Estratégica', style: TextStyle(fontWeight: FontWeight.w300)),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.warning_rounded, color: Colors.amberAccent),
+            onPressed: () => IncidentBottomSheet.show(context),
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -41,7 +49,6 @@ class RouteEvaluationScreen extends StatelessWidget {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
               onPressed: () {
-
                 context.read<RouteBloc>().add(const EvaluateTacticalJumpEvent(distanceKm: 8.5));
               },
               child: const Text('Analizar Eficiencia', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
