@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
+from typing import List
+
 
 class IncidentCreate(BaseModel):
     """Payload del frontend con coordenadas flotantes."""
@@ -10,12 +12,22 @@ class IncidentCreate(BaseModel):
     longitud: float
 
 class IncidentResponse(BaseModel):
-    """Respuesta del API ocultando la complejidad espacial."""
+    """Respuesta del API. Agregamos lat/lon para que el Radar las vea."""
     id_incidente: int
     id_usuario: int
     categoria: str
     intensidad: int
+
+    latitud: float 
+    longitud: float
     fecha_reporte: datetime
 
     class Config:
         from_attributes = True
+
+class RoutePoint(BaseModel):
+    lat: float
+    lon: float
+
+class RouteEvaluationRequest(BaseModel):
+    route: List[RoutePoint]

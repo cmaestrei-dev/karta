@@ -1,11 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from src.infrastructure.routers import user_router
-from src.infrastructure.routers import user_router, incident_router
 from src.infrastructure.routers import user_router, incident_router, route_router
 
 app = FastAPI(
-    title="Karta API", # ¡Actualizamos el nombre aquí también!
+    title="Karta API",
     description="API Core para enrutamiento táctico y gestión UGC (Asset-Light)",
     version="1.0.0",
     openapi_url="/api/v1/openapi.json",

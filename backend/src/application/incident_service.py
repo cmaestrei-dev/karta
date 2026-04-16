@@ -3,10 +3,54 @@ from sqlalchemy import func
 from typing import List
 from geoalchemy2.elements import WKTElement
 from src.infrastructure.models import Incidente
-from src.domain.schemas.incident_schema import IncidentCreate
-
+from src.domain.schemas.incident_schema import IncidentCreate, RouteEvaluationRequest
 
 class IncidentService:
+
+    @classmethod
+    def evaluate_route_risk(cls, db: Session, route_request: RouteEvaluationRequest):
+        """
+        Analiza cada punto de la ruta y calcula un nivel de riesgo
+        basado en la cercanía y gravedad de los incidentes.
+        """
+        total_risk_score = 0
+        incidents_found = []
+        radio_busqueda = 500
+
+        for point in route_request.route:
+            punto_actual = WKTElement(f"POINT({point.lon} {point.lat})", srid=4326)
+
+            cercanos = db.query(Incidente).filter(
+                func.ST_DWithin(
+                    func.ST_Transform(Incidente.ubicacion, 3857),
+                    func.ST_Transform(punto_actual, 3857), 
+                    radio_busqueda
+                )
+            ).all()
+
+            for inc in cercanos:
+                if inc.id_incidente not in [i["id"] for i in incidents_found]:
+                    peso_categoria = 5 if inc.categoria.lower() == "seguridad" else 1
+                    puntos_riesgo = inc.intensidad * peso_categoria
+                    
+                    total_risk_score += puntos_riesgo
+                    incidents_found.append({
+                        "id": inc.id_incidente,
+                        "categoria": inc.categoria,
+                        "intensidad": inc.intensidad
+                    })
+
+        nivel = "BAJO"
+        if total_risk_score > 10: nivel = "MEDIO"
+        if total_risk_score > 25: nivel = "ALTO"
+        if total_risk_score > 50: nivel = "CRÍTICO"
+
+        return {
+            "score": total_risk_score,
+            "nivel": nivel,
+            "total_incidentes": len(incidents_found),
+            "detalle_incidentes": incidents_found
+        }
 
     @classmethod
     def get_active_incidents(cls, db: Session):
