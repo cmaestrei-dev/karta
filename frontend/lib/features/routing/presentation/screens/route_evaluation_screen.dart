@@ -1,3 +1,6 @@
+import '../../../incidents/presentation/bloc/incident_bloc.dart';
+import '../../../incidents/domain/models/incident_models.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -17,18 +20,46 @@ class RouteEvaluationScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          FlutterMap(
-            options: const MapOptions(
-              initialCenter: LatLng(10.4233, -75.5496),
-              initialZoom: 13.5,
-            ),
-            children: [
-              TileLayer(
-                urlTemplate: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-                subdomains: const ['a', 'b', 'c', 'd'],
-                userAgentPackageName: 'com.karta.app',
-              ),
-            ],
+          BlocBuilder<IncidentBloc, IncidentState>(
+            builder: (context, incidentState) {
+              
+              List<Marker> mapMarkers = [];
+
+              if (incidentState is IncidentsLoaded) {
+                mapMarkers = incidentState.incidents.map((incident) {
+                  return Marker(
+                    point: LatLng(incident.latitud, incident.longitud),
+                    width: 40,
+                    height: 40,
+                    child: Tooltip(
+                      message: 'Alerta: ${incident.categoria}',
+                      child: const Icon(
+                        Icons.location_on,
+                        color: Colors.redAccent,
+                        size: 40,
+                      ),
+                    ),
+                  );
+                }).toList();
+              }
+
+              return FlutterMap(
+                options: const MapOptions(
+                  initialCenter: LatLng(10.4233, -75.5496),
+                  initialZoom: 13.5,
+                ),
+                children: [
+                  TileLayer(
+                    urlTemplate: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+                    subdomains: const ['a', 'b', 'c', 'd'],
+                    userAgentPackageName: 'com.karta.app',
+                  ),
+                  MarkerLayer(
+                    markers: mapMarkers,
+                  ),
+                ],
+              );
+            },
           ),
 
           Positioned(
