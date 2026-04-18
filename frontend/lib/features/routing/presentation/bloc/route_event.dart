@@ -25,3 +25,8 @@ class EvaluateRouteRiskEvent extends RouteEvent {
   @override
   List<Object> get props => [routePoints];
 }
+
+class ResetRouteEvent extends RouteEvent {
+  @override
+  List<Object> get props => [];
+}

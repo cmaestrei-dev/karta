@@ -1,5 +1,6 @@
 import '../../../incidents/presentation/bloc/incident_bloc.dart';
 import '../../../incidents/domain/models/incident_models.dart';
+import '../../../routing/domain/models/route_risk.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -102,6 +103,8 @@ class RouteEvaluationScreen extends StatelessWidget {
                   return _buildDecisionCard(state.decision);
                 } else if (state is RouteError) {
                   return _buildErrorCard(state.message);
+                } else if (state is RouteRiskEvaluated) {
+                  return _buildRiskCard(state.routeRisk, context);
                 }
                 return const SizedBox.shrink();
               },
@@ -111,7 +114,6 @@ class RouteEvaluationScreen extends StatelessWidget {
       ),
     );
   }
-
 
   Widget _buildInitialCard(BuildContext context) {
     return Container(
@@ -134,6 +136,7 @@ class RouteEvaluationScreen extends StatelessWidget {
           const SizedBox(height: 4),
           const Text('Desde Terminal de Transportes (8.5 km)', style: TextStyle(color: Colors.grey, fontSize: 14)),
           const SizedBox(height: 24),
+          
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -149,6 +152,100 @@ class RouteEvaluationScreen extends StatelessWidget {
               child: const Text('Simular Ruta y Tráfico', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ),
           ),
+          const SizedBox(height: 12),
+          
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.redAccent,
+                side: const BorderSide(color: Colors.redAccent),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              icon: const Icon(Icons.radar),
+              label: const Text('Escanear Riesgo Táctico', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              onPressed: () {
+                final mockRoutePoints = [
+                  const LatLng(10.4238, -75.5500),
+                  const LatLng(10.4245, -75.5510),
+                  const LatLng(10.4250, -75.5520)
+                ];
+                context.read<RouteBloc>().add(EvaluateRouteRiskEvent(routePoints: mockRoutePoints));
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRiskCard(RouteRisk risk, BuildContext context) {
+    Color riskColor;
+    IconData riskIcon;
+
+    switch (risk.nivel.toUpperCase()) {
+      case 'ALTO':
+        riskColor = Colors.redAccent;
+        riskIcon = Icons.warning_amber_rounded;
+        break;
+      case 'MEDIO':
+        riskColor = Colors.orangeAccent;
+        riskIcon = Icons.privacy_tip_outlined;
+        break;
+      default:
+        riskColor = Colors.green;
+        riskIcon = Icons.verified_user_outlined;
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E1E).withOpacity(0.95),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: riskColor.withOpacity(0.5), width: 2),
+        boxShadow: [
+          BoxShadow(color: riskColor.withOpacity(0.15), blurRadius: 20, offset: const Offset(0, 5))
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(riskIcon, color: riskColor, size: 32),
+              const SizedBox(width: 12),
+              Text('Alerta: ${risk.nivel}', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: riskColor)),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(color: riskColor.withOpacity(0.15), borderRadius: BorderRadius.circular(20)),
+                child: Text('Score: ${risk.score}', style: TextStyle(color: riskColor, fontWeight: FontWeight.bold)),
+              )
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'El escáner de PostGIS detectó ${risk.totalIncidentes} anomalías u obstáculos en este perímetro.',
+            style: const TextStyle(fontSize: 16, height: 1.5, color: Colors.white),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: riskColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () {
+                context.read<RouteBloc>().add(ResetRouteEvent());
+              },
+              child: const Text('Comprendido', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ),
+          )
         ],
       ),
     );
@@ -175,7 +272,7 @@ class RouteEvaluationScreen extends StatelessWidget {
         color: Colors.redAccent.withOpacity(0.9),
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Text('Error: $message', style: const TextStyle(color: Colors.white)),
+      child: Text('Error del radar: $message', style: const TextStyle(color: Colors.white)),
     );
   }
 

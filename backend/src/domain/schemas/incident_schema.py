@@ -1,7 +1,6 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import List
-
+from typing import List, Optional
 
 class IncidentCreate(BaseModel):
     """Payload del frontend con coordenadas flotantes."""
@@ -20,7 +19,7 @@ class IncidentResponse(BaseModel):
 
     latitud: float 
     longitud: float
-    fecha_reporte: datetime
+    fecha_reporte: Optional[datetime] = None
 
     class Config:
         from_attributes = True

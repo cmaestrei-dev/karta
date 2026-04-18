@@ -33,5 +33,9 @@ class RouteBloc extends Bloc<RouteEvent, RouteState> {
         emit(RouteError(message: e.toString()));
       }
     });
+
+    on<ResetRouteEvent>((event, emit) {
+      emit(RouteInitial()); // Volvemos a la pantalla principal
+    });
   }
 }
