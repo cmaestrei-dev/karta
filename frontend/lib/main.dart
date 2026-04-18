@@ -26,9 +26,11 @@ class KartaApp extends StatelessWidget {
       child: MultiBlocProvider(
         providers: [
           BlocProvider(
-            create: (context) => RouteBloc(routeRepository: context.read<RouteRepository>())
+            create: (context) => RouteBloc(
+              routeRepository: context.read<RouteRepository>(),
+              incidentRepository: context.read<IncidentRepository>(),
+            )
           ),
-          // Aquí aplicamos el operador en cascada para lanzar el evento inicial
           BlocProvider(
             create: (context) => IncidentBloc(repository: context.read<IncidentRepository>())
               ..add(LoadIncidentsEvent())

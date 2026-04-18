@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import '../../domain/models/route_models.dart';
+import '../../domain/models/route_risk.dart';
 
 abstract class RouteState extends Equatable {
   const RouteState();
@@ -19,6 +20,15 @@ class RouteLoaded extends RouteState {
 
   @override
   List<Object> get props => [decision];
+}
+
+class RouteRiskEvaluated extends RouteState {
+  final RouteRisk routeRisk;
+
+  const RouteRiskEvaluated({required this.routeRisk});
+
+  @override
+  List<Object> get props => [routeRisk];
 }
 
 class RouteError extends RouteState {
