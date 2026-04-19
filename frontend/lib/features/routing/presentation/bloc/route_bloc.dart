@@ -23,19 +23,28 @@ class RouteBloc extends Bloc<RouteEvent, RouteState> {
       }
     });
 
+    on<TraceRealRouteEvent>((event, emit) async {
+      emit(RouteLoading());
+      try {
+        final routePoints = await routeRepository.getRealRoute(event.start, event.end);
+        emit(RouteTraced(routePoints: routePoints));
+      } catch (e) {
+        emit(RouteError(message: e.toString()));
+      }
+    });
+
     on<EvaluateRouteRiskEvent>((event, emit) async {
       emit(RouteLoading());
-      
       try {
         final risk = await incidentRepository.evaluateRoute(event.routePoints);
-        emit(RouteRiskEvaluated(routeRisk: risk));
+        emit(RouteRiskEvaluated(routeRisk: risk, routePoints: event.routePoints));
       } catch (e) {
         emit(RouteError(message: e.toString()));
       }
     });
 
     on<ResetRouteEvent>((event, emit) {
-      emit(RouteInitial()); // Volvemos a la pantalla principal
+      emit(RouteInitial());
     });
   }
 }

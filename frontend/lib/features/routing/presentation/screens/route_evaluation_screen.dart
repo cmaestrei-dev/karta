@@ -21,44 +21,65 @@ class RouteEvaluationScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          BlocBuilder<IncidentBloc, IncidentState>(
-            builder: (context, incidentState) {
+          BlocBuilder<RouteBloc, RouteState>(
+            builder: (context, routeState) {
               
-              List<Marker> mapMarkers = [];
-
-              if (incidentState is IncidentsLoaded) {
-                mapMarkers = incidentState.incidents.map((incident) {
-                  return Marker(
-                    point: LatLng(incident.latitud, incident.longitud),
-                    width: 40,
-                    height: 40,
-                    child: Tooltip(
-                      message: 'Alerta: ${incident.categoria}',
-                      child: const Icon(
-                        Icons.location_on,
-                        color: Colors.redAccent,
-                        size: 40,
-                      ),
-                    ),
-                  );
-                }).toList();
+              List<LatLng> currentRoute = [];
+              if (routeState is RouteTraced) {
+                currentRoute = routeState.routePoints;
+              } else if (routeState is RouteRiskEvaluated) {
+                currentRoute = routeState.routePoints;
               }
 
-              return FlutterMap(
-                options: const MapOptions(
-                  initialCenter: LatLng(10.4233, -75.5496),
-                  initialZoom: 13.5,
-                ),
-                children: [
-                  TileLayer(
-                    urlTemplate: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-                    subdomains: const ['a', 'b', 'c', 'd'],
-                    userAgentPackageName: 'com.karta.app',
-                  ),
-                  MarkerLayer(
-                    markers: mapMarkers,
-                  ),
-                ],
+              return BlocBuilder<IncidentBloc, IncidentState>(
+                builder: (context, incidentState) {
+                  List<Marker> mapMarkers = [];
+
+                  if (incidentState is IncidentsLoaded) {
+                    mapMarkers = incidentState.incidents.map((incident) {
+                      return Marker(
+                        point: LatLng(incident.latitud, incident.longitud),
+                        width: 40,
+                        height: 40,
+                        child: Tooltip(
+                          message: 'Alerta: ${incident.categoria}',
+                          child: const Icon(
+                            Icons.location_on,
+                            color: Colors.redAccent,
+                            size: 40,
+                          ),
+                        ),
+                      );
+                    }).toList();
+                  }
+
+                  return FlutterMap(
+                    options: const MapOptions(
+                      initialCenter: LatLng(10.4233, -75.5496),
+                      initialZoom: 13.5,
+                    ),
+                    children: [
+                      TileLayer(
+                        urlTemplate: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+                        subdomains: const ['a', 'b', 'c', 'd'],
+                        userAgentPackageName: 'com.karta.app',
+                      ),
+                      PolylineLayer(
+                        polylines: [
+                          if (currentRoute.isNotEmpty)
+                            Polyline(
+                              points: currentRoute,
+                              color: Colors.blueAccent,
+                              strokeWidth: 4.0,
+                            ),
+                        ],
+                      ),
+                      MarkerLayer(
+                        markers: mapMarkers,
+                      ),
+                    ],
+                  );
+                },
               );
             },
           ),
@@ -96,11 +117,13 @@ class RouteEvaluationScreen extends StatelessWidget {
             child: BlocBuilder<RouteBloc, RouteState>(
               builder: (context, state) {
                 if (state is RouteInitial) {
-                  return _buildInitialCard(context);
+                  return _buildInitialCard(context, null);
                 } else if (state is RouteLoading) {
                   return _buildLoadingCard();
+                } else if (state is RouteTraced) {
+                  return _buildInitialCard(context, state.routePoints);
                 } else if (state is RouteLoaded) {
-                  return _buildDecisionCard(state.decision);
+                  return _buildDecisionCard(state.decision, context);
                 } else if (state is RouteError) {
                   return _buildErrorCard(state.message);
                 } else if (state is RouteRiskEvaluated) {
@@ -115,7 +138,9 @@ class RouteEvaluationScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildInitialCard(BuildContext context) {
+  Widget _buildInitialCard(BuildContext context, List<LatLng>? currentRoute) {
+    final bool isRouteTraced = currentRoute != null && currentRoute.isNotEmpty;
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -134,9 +159,29 @@ class RouteEvaluationScreen extends StatelessWidget {
           const SizedBox(height: 8),
           const Text('Bocagrande', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
           const SizedBox(height: 4),
-          const Text('Desde Terminal de Transportes (8.5 km)', style: TextStyle(color: Colors.grey, fontSize: 14)),
+          const Text('Desde Terminal de Transportes', style: TextStyle(color: Colors.grey, fontSize: 14)),
           const SizedBox(height: 24),
           
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blueAccent,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              icon: const Icon(Icons.map),
+              label: Text(isRouteTraced ? 'Ruta Satelital Trazada' : 'Trazar Ruta Satelital', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              onPressed: isRouteTraced ? null : () { 
+                const start = LatLng(10.3995, -75.4746); // Terminal 
+                const end = LatLng(10.3986, -75.5532);   // Bocagrande
+                context.read<RouteBloc>().add(const TraceRealRouteEvent(start: start, end: end));
+              },
+            ),
+          ),
+          const SizedBox(height: 12),
+
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -149,7 +194,7 @@ class RouteEvaluationScreen extends StatelessWidget {
               onPressed: () {
                 context.read<RouteBloc>().add(const EvaluateTacticalJumpEvent(distanceKm: 8.5));
               },
-              child: const Text('Simular Ruta y Tráfico', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              child: const Text('Simular Tráfico Económico', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ),
           ),
           const SizedBox(height: 12),
@@ -158,21 +203,18 @@ class RouteEvaluationScreen extends StatelessWidget {
             width: double.infinity,
             child: OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.redAccent,
-                side: const BorderSide(color: Colors.redAccent),
+                foregroundColor: isRouteTraced ? Colors.redAccent : Colors.grey,
+                side: BorderSide(color: isRouteTraced ? Colors.redAccent : Colors.grey),
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               icon: const Icon(Icons.radar),
               label: const Text('Escanear Riesgo Táctico', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              onPressed: () {
-                final mockRoutePoints = [
-                  const LatLng(10.4238, -75.5500),
-                  const LatLng(10.4245, -75.5510),
-                  const LatLng(10.4250, -75.5520)
-                ];
-                context.read<RouteBloc>().add(EvaluateRouteRiskEvent(routePoints: mockRoutePoints));
-              },
+              onPressed: isRouteTraced 
+                ? () {
+                    context.read<RouteBloc>().add(EvaluateRouteRiskEvent(routePoints: currentRoute));
+                  }
+                : null,
             ),
           ),
         ],
@@ -276,7 +318,7 @@ class RouteEvaluationScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDecisionCard(DecisionResponse decision) {
+  Widget _buildDecisionCard(DecisionResponse decision, BuildContext context) {
     if (!decision.sugiereSalto) {
       return Container(
         padding: const EdgeInsets.all(24),
@@ -329,7 +371,9 @@ class RouteEvaluationScreen extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              onPressed: () {},
+              onPressed: () {
+                context.read<RouteBloc>().add(ResetRouteEvent());
+              },
               child: Text(
                 'Pedir ${decision.opcionAlternativa.modalidad}', 
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)

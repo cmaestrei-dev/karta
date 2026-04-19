@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:latlong2/latlong.dart';
 import '../../domain/models/route_models.dart';
 import '../../domain/models/route_risk.dart';
 
@@ -6,7 +7,7 @@ abstract class RouteState extends Equatable {
   const RouteState();
   
   @override
-  List<Object> get props => [];
+  List<Object?> get props => [];
 }
 
 class RouteInitial extends RouteState {}
@@ -22,13 +23,26 @@ class RouteLoaded extends RouteState {
   List<Object> get props => [decision];
 }
 
-class RouteRiskEvaluated extends RouteState {
-  final RouteRisk routeRisk;
+class RouteTraced extends RouteState {
+  final List<LatLng> routePoints;
 
-  const RouteRiskEvaluated({required this.routeRisk});
+  const RouteTraced({required this.routePoints});
 
   @override
-  List<Object> get props => [routeRisk];
+  List<Object> get props => [routePoints];
+}
+
+class RouteRiskEvaluated extends RouteState {
+  final RouteRisk routeRisk;
+  final List<LatLng> routePoints;
+
+  const RouteRiskEvaluated({
+    required this.routeRisk, 
+    required this.routePoints
+  });
+
+  @override
+  List<Object> get props => [routeRisk, routePoints];
 }
 
 class RouteError extends RouteState {

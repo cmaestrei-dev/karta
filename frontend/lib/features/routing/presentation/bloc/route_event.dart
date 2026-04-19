@@ -30,3 +30,13 @@ class ResetRouteEvent extends RouteEvent {
   @override
   List<Object> get props => [];
 }
+
+class TraceRealRouteEvent extends RouteEvent {
+  final LatLng start;
+  final LatLng end;
+
+  const TraceRealRouteEvent({required this.start, required this.end});
+
+  @override
+  List<Object> get props => [start, end];
+}
