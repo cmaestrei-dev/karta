@@ -174,9 +174,8 @@ class RouteEvaluationScreen extends StatelessWidget {
               icon: const Icon(Icons.map),
               label: Text(isRouteTraced ? 'Ruta Satelital Trazada' : 'Trazar Ruta Satelital', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               onPressed: isRouteTraced ? null : () { 
-                const start = LatLng(10.3995, -75.4746); // Terminal 
-                const end = LatLng(10.3986, -75.5532);   // Bocagrande
-                context.read<RouteBloc>().add(const TraceRealRouteEvent(start: start, end: end));
+                const end = LatLng(10.3986, -75.5532); 
+                context.read<RouteBloc>().add(const TraceRealRouteEvent(end: end));
               },
             ),
           ),
