@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:latlong2/latlong.dart';
+
 import '../../../../core/location_service.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../../places/data/places_repository.dart';
+import '../../domain/models/incident_models.dart';
 import '../bloc/incident_bloc.dart';
 
+/// Reportar un incidente: categoría, intensidad y dónde, en tres toques.
 class IncidentBottomSheet extends StatefulWidget {
   const IncidentBottomSheet({super.key});
 
@@ -12,10 +17,6 @@ class IncidentBottomSheet extends StatefulWidget {
       context: context,
       // Permite que la hoja crezca y se desplace en pantallas bajas o en horizontal.
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF1E1E1E),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
       builder: (context) => const IncidentBottomSheet(),
     );
   }
@@ -25,150 +26,196 @@ class IncidentBottomSheet extends StatefulWidget {
 }
 
 class _IncidentBottomSheetState extends State<IncidentBottomSheet> {
-  String _selectedCategory = 'Tráfico';
-  int _intensity = 3;
-  bool _isFetchingLocation = false;
+  String _categoria = 'Tráfico';
+  int _intensidad = 3;
+  LatLng? _punto;
+  bool _esRespaldo = false;
+  String? _nombreLugar;
+  String? _errorUbicacion;
 
-  Future<void> _submitWithLocation() async {
-    // Se capturan antes del await para no usar el BuildContext tras un hueco asíncrono.
-    final messenger = ScaffoldMessenger.of(context);
-    final incidentBloc = context.read<IncidentBloc>();
-    setState(() => _isFetchingLocation = true);
+  @override
+  void initState() {
+    super.initState();
+    _ubicar();
+  }
 
+  Future<void> _ubicar() async {
+    final places = context.read<PlacesRepository>();
+    setState(() {
+      _punto = null;
+      _errorUbicacion = null;
+    });
     try {
-      final location = await LocationService.getCurrentLocation();
-
-      if (location.isFallback) {
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('GPS no detectado. Usando coordenadas de respaldo (Modo Dev).', style: TextStyle(color: Colors.black)),
-            backgroundColor: Colors.amberAccent,
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-
-      incidentBloc.add(
-        SubmitIncidentEvent(
-          categoria: _selectedCategory,
-          intensidad: _intensity,
-          latitud: location.point.latitude,
-          longitud: location.point.longitude,
-        )
-      );
-
+      final ubicacion = await LocationService.getCurrentLocation();
+      if (!mounted) return;
+      setState(() {
+        _punto = ubicacion.point;
+        _esRespaldo = ubicacion.isFallback;
+      });
+      final lugar = await places.reverse(ubicacion.point);
+      if (mounted) setState(() => _nombreLugar = lugar.nombre);
     } catch (e) {
-      messenger.showSnackBar(
-        SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: Colors.redAccent),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _isFetchingLocation = false);
-      }
+      // Sin nombre del lugar igual se puede reportar; sin ubicación, no.
+      if (mounted && _punto == null) setState(() => _errorUbicacion = e.toString().replaceAll('Exception: ', ''));
     }
+  }
+
+  void _enviar() {
+    final punto = _punto;
+    if (punto == null) return;
+    context.read<IncidentBloc>().add(SubmitIncidentEvent(
+          categoria: _categoria,
+          intensidad: _intensidad,
+          latitud: punto.latitude,
+          longitud: punto.longitude,
+        ));
   }
 
   @override
   Widget build(BuildContext context) {
+    final texto = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
+
     return SafeArea(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
+        padding: EdgeInsets.fromLTRB(24, 0, 24, 24 + MediaQuery.viewInsetsOf(context).bottom),
         child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text('Reportar Incidente', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
-          const SizedBox(height: 24),
-          
-          Row(
-            children: [
-              _buildCategoryChip('Tráfico', Icons.directions_car),
-              const SizedBox(width: 12),
-              _buildCategoryChip('Seguridad', Icons.warning_amber_rounded),
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          const Text('Intensidad (1 a 5)', style: TextStyle(color: Colors.grey)),
-          Slider(
-            value: _intensity.toDouble(),
-            min: 1,
-            max: 5,
-            divisions: 4,
-            activeColor: Colors.amberAccent,
-            label: _intensity.toString(),
-            onChanged: (val) => setState(() => _intensity = val.toInt()),
-          ),
-          const SizedBox(height: 24),
-
-          BlocConsumer<IncidentBloc, IncidentState>(
-            listener: (context, state) {
-              if (state is IncidentSuccess) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Alerta enviada. Gracias por cuidar a la comunidad.', style: TextStyle(color: Colors.white)), backgroundColor: Colors.green),
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Reportar incidente', style: texto.headlineSmall),
+            const SizedBox(height: 20),
+            Text('¿Qué está pasando?', style: texto.titleSmall),
+            const SizedBox(height: 8),
+            SegmentedButton<String>(
+              segments: [
+                for (final estilo in const [IncidentCategoryStyle.trafico, IncidentCategoryStyle.seguridad])
+                  ButtonSegment(value: estilo.nombre, label: Text(estilo.nombre), icon: Icon(estilo.icono)),
+              ],
+              selected: {_categoria},
+              onSelectionChanged: (seleccion) => setState(() => _categoria = seleccion.first),
+            ),
+            const SizedBox(height: 20),
+            Text('¿Qué tan fuerte?', style: texto.titleSmall),
+            const SizedBox(height: 8),
+            SegmentedButton<int>(
+              showSelectedIcon: false,
+              segments: [
+                for (final nivel in etiquetasIntensidad.keys)
+                  ButtonSegment(
+                    value: nivel,
+                    label: Text('$nivel', semanticsLabel: '$nivel, ${etiquetasIntensidad[nivel]}'),
+                  ),
+              ],
+              selected: {_intensidad},
+              onSelectionChanged: (seleccion) => setState(() => _intensidad = seleccion.first),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Leve', style: texto.labelSmall?.copyWith(color: scheme.onSurfaceVariant)),
+                  Text(etiquetasIntensidad[_intensidad]!, style: texto.labelMedium?.copyWith(fontWeight: FontWeight.w700)),
+                  Text('Grave', style: texto.labelSmall?.copyWith(color: scheme.onSurfaceVariant)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            _UbicacionDelReporte(
+              cargando: _punto == null && _errorUbicacion == null,
+              error: _errorUbicacion,
+              nombre: _nombreLugar,
+              esRespaldo: _esRespaldo,
+              onReintentar: _ubicar,
+            ),
+            const SizedBox(height: 20),
+            BlocConsumer<IncidentBloc, IncidentState>(
+              listener: (context, state) {
+                if (state is IncidentSuccess) {
+                  final messenger = ScaffoldMessenger.of(context);
+                  Navigator.pop(context);
+                  messenger.showSnackBar(const SnackBar(content: Text('Reporte enviado. Gracias por avisar.')));
+                } else if (state is IncidentError && state.sessionExpired) {
+                  Navigator.pop(context);
+                  context.read<AuthBloc>().add(LogoutRequested(message: state.message));
+                } else if (state is IncidentError) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message)));
+                }
+              },
+              builder: (context, state) {
+                final enviando = state is IncidentSubmitting;
+                return FilledButton.icon(
+                  onPressed: _punto == null || enviando ? null : _enviar,
+                  icon: enviando
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.send),
+                  label: Text(enviando ? 'Enviando…' : 'Enviar reporte'),
                 );
-              } else if (state is IncidentError && state.sessionExpired) {
-                Navigator.pop(context);
-                context.read<AuthBloc>().add(LogoutRequested(message: state.message));
-              } else if (state is IncidentError) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(state.message), backgroundColor: Colors.red),
-                );
-              }
-            },
-            builder: (context, state) {
-              if (state is IncidentSubmitting || _isFetchingLocation) {
-                return Column(
-                  children: [
-                    const CircularProgressIndicator(color: Colors.amberAccent),
-                    const SizedBox(height: 8),
-                    Text(
-                      _isFetchingLocation ? 'Buscando satélites GPS...' : 'Conectando con el Cerebro Digital...', 
-                      style: const TextStyle(color: Colors.grey, fontSize: 12)
-                    )
-                  ],
-                );
-              }
-              
-              return ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                onPressed: _submitWithLocation,
-                child: const Text('Difundir Alerta', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              );
-            },
-          )
-        ],
+              },
+            ),
+          ],
         ),
       ),
     );
   }
+}
 
-  Widget _buildCategoryChip(String label, IconData icon) {
-    final isSelected = _selectedCategory == label;
-    return Expanded(
-      child: InkWell(
-        onTap: () => setState(() => _selectedCategory = label),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: isSelected ? Colors.amberAccent.withValues(alpha: 0.2) : Colors.transparent,
-            border: Border.all(color: isSelected ? Colors.amberAccent : Colors.white24),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Column(
-            children: [
-              Icon(icon, color: isSelected ? Colors.amberAccent : Colors.grey),
-              const SizedBox(height: 4),
-              Text(label, style: TextStyle(color: isSelected ? Colors.amberAccent : Colors.grey, fontWeight: FontWeight.bold)),
-            ],
-          ),
+class _UbicacionDelReporte extends StatelessWidget {
+  final bool cargando;
+  final String? error;
+  final String? nombre;
+  final bool esRespaldo;
+  final VoidCallback onReintentar;
+
+  const _UbicacionDelReporte({
+    required this.cargando,
+    required this.error,
+    required this.nombre,
+    required this.esRespaldo,
+    required this.onReintentar,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final texto = Theme.of(context).textTheme;
+
+    final Widget contenido;
+    if (cargando) {
+      contenido = Row(children: [
+        const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+        const SizedBox(width: 12),
+        Expanded(child: Text('Buscando tu ubicación…', style: texto.bodyMedium)),
+      ]);
+    } else if (error != null) {
+      contenido = Row(children: [
+        Icon(Icons.location_off_outlined, color: scheme.error),
+        const SizedBox(width: 12),
+        Expanded(child: Text(error!, style: texto.bodyMedium)),
+        TextButton(onPressed: onReintentar, child: const Text('Reintentar')),
+      ]);
+    } else {
+      contenido = Row(children: [
+        Icon(Icons.place, color: scheme.primary),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text.rich(TextSpan(children: [
+            const TextSpan(text: 'Se reportará en '),
+            TextSpan(text: nombre ?? 'tu ubicación actual', style: const TextStyle(fontWeight: FontWeight.w700)),
+            if (esRespaldo) const TextSpan(text: ' (ubicación de prueba)'),
+          ])),
         ),
+      ]);
+    }
+    return Semantics(
+      liveRegion: true,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainer,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Padding(padding: const EdgeInsets.all(12), child: contenido),
       ),
     );
   }

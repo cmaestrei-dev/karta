@@ -31,9 +31,6 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.8
   http: ^1.6.0
   flutter_bloc: ^9.1.1
   equatable: ^2.0.8
@@ -63,6 +60,16 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  # Source Serif 4 (OFL, ver assets/fonts/OFL.txt): letra de las placas. Va empaquetada
+  # para no descargar fuentes con datos móviles.
+  fonts:
+    - family: SourceSerif
+      fonts:
+        - asset: assets/fonts/SourceSerif4-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/SourceSerif4-Bold.ttf
+          weight: 700
 
   # To add assets to your application, add an assets section, like this:
   # assets:
