@@ -1,0 +1,77 @@
+@startuml colecciones
+!include estilo.iuml
+title Karta · Modelo de documentos en MongoDB
+hide empty methods
+hide circle
+
+class users <<colección>> {
+  _id: ObjectId
+  email: string  «índice único»
+  {field} password_hash: string  (Argon2id)
+  nombre: string
+  tipo_viajero: "Residente" | "Turista"
+  {field} reputacion: int  (100 al registrarse)
+  {field} terminos_aceptados_en: Date  (Ley 1581)
+  creado_en: Date
+  lugares_guardados: LugarGuardado[0..10]
+}
+
+class LugarGuardado <<subdocumento embebido>> {
+  _id: ObjectId
+  nombre: string
+  icono: "casa" | "trabajo" | "estudio" | "favorito"
+  ubicacion: { type: "Point", coordinates: [lon, lat] }
+}
+
+class incidents <<colección>> {
+  _id: ObjectId
+  reportado_por: ObjectId  → users._id
+  categoria: "Tráfico" | "Seguridad"
+  {field} intensidad: int  (1..5)
+  ubicacion: GeoJSON Point  «índice 2dsphere»
+  creado_en: Date
+  expira_en: Date  «índice TTL»
+}
+
+class places <<colección de referencia>> {
+  _id: "osm-w49551791"
+  nombre: string
+  tipo: "Barrio" | "Sitio turístico" | ...
+  ubicacion: GeoJSON Point  «índice 2dsphere»
+  {field} tokens: string[]  «índice» (búsqueda por prefijo)
+}
+
+class stations <<colección de referencia>> {
+  _id: "bazurto"
+  nombre: string
+  ubicacion: GeoJSON Point  «índice 2dsphere»
+  {field} rutas: string[]  ("T101", "X104", ...)
+}
+
+class transit_routes <<colección de referencia>> {
+  _id: "T103"
+  nombre: string
+  tipo: "troncal" | "pretroncal" | "alimentadora" | "complementaria"
+  desde: string
+  hasta: string
+  geometria: GeoJSON LineString  «índice 2dsphere»
+  cortes_en_osm: int
+  osm_id: int
+}
+
+users *-- "0..10" LugarGuardado : embebido\n(máximo garantizado con un\n$push condicional atómico)
+incidents --> users : reportado_por\n(referencia)
+stations ..> transit_routes : rutas[] contiene\ncódigos de ruta
+
+note bottom of incidents
+  El índice TTL borra cada incidente
+  cuando pasa expira_en:
+  Tráfico 3 h · Seguridad 12 h
+end note
+
+note bottom of transit_routes
+  Datos de referencia generados desde
+  OpenStreetMap (ODbL) con
+  scripts/importar_osm.py
+end note
+@enduml

@@ -1,0 +1,102 @@
+@startuml clases-frontend
+!include estilo.iuml
+title Karta · App Flutter por capas (patrón BLoC)
+left to right direction
+hide empty members
+skinparam nodesep 14
+skinparam ranksep 60
+
+package "Pantallas" as pantallas {
+  class HomeScreen
+  class PlaceSearchScreen
+  class PickOnMapScreen
+  class PlanRouteScreen
+  class RouteDetailScreen
+  class SavedPlacesScreen
+  class "Login / RegisterScreen" as AuthScreens
+}
+
+package "Estado (Bloc / Cubit)" as estado {
+  class AuthBloc
+  class IncidentBloc
+  class PlaceSearchCubit {
+    espera 350 ms al escribir
+  }
+  class SavedPlacesCubit
+  class TripPlanCubit
+  class NearbyStopsCubit
+}
+
+package "Datos (repositorios)" as datos {
+  class AuthRepository {
+    + login() · register()
+    + restoreSession() · logout()
+  }
+  class IncidentRepository {
+    + getActiveIncidents()
+    + reportIncident()
+  }
+  class PlacesRepository {
+    + search() · reverse()
+    + list/add/update/deleteSaved()
+  }
+  class TripRepository {
+    + suggest(origen, destino)
+    + nearbyStops(punto)
+  }
+}
+
+package "core" as core {
+  class ApiClient {
+    + get · post · patch · delete
+    Bearer, 15 s, errores claros
+  }
+  class "flutter_secure_storage" as Secure <<Keystore>>
+  class LocationService <<geolocator>>
+}
+
+package "Modelos" as modelos {
+  class "auth" as MA {
+    Usuario
+  }
+  class "places" as MP {
+    Place, SavedPlace, TripPoint
+  }
+  class "trip" as MT {
+    RouteSuggestions, RouteOption,
+    Leg, RiskSummary, Stop
+  }
+  class "incidents" as MI {
+    Incident, IncidentCreate
+  }
+}
+
+AuthScreens ..> AuthBloc
+HomeScreen ..> IncidentBloc
+HomeScreen ..> NearbyStopsCubit
+HomeScreen ..> SavedPlacesCubit
+HomeScreen ..> LocationService
+PlaceSearchScreen ..> PlaceSearchCubit
+PickOnMapScreen ..> PlacesRepository
+PlanRouteScreen ..> TripPlanCubit
+RouteDetailScreen ..> IncidentBloc
+SavedPlacesScreen ..> SavedPlacesCubit
+
+AuthBloc --> AuthRepository
+IncidentBloc --> IncidentRepository
+PlaceSearchCubit --> PlacesRepository
+SavedPlacesCubit --> PlacesRepository
+TripPlanCubit --> TripRepository
+NearbyStopsCubit --> TripRepository
+
+IncidentRepository --> ApiClient
+PlacesRepository --> ApiClient
+TripRepository --> ApiClient
+ApiClient --> AuthRepository : lee el token
+AuthRepository --> Secure
+
+AuthRepository ..> MA
+PlacesRepository ..> MP
+TripRepository ..> MT
+IncidentRepository ..> MI
+@enduml

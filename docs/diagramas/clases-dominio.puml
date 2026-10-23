@@ -1,0 +1,87 @@
+@startuml clases-dominio
+!include estilo.iuml
+title Karta · Modelo de dominio del backend (src/domain)
+hide empty members
+hide circle
+
+enum TipoViajero {
+  RESIDENTE
+  TURISTA
+}
+enum CategoriaIncidente {
+  {field} TRAFICO (vigencia 3 h)
+  {field} SEGURIDAD (vigencia 12 h)
+}
+enum IconoLugar {
+  CASA · TRABAJO
+  ESTUDIO · FAVORITO
+}
+
+class Usuario <<entidad>> {
+  id: str
+  email: str
+  nombre: str
+  tipo_viajero: TipoViajero
+  reputacion: int
+  password_hash: str
+  creado_en: datetime
+}
+class LugarGuardado <<entidad>> {
+  id: str
+  nombre: str
+  icono: IconoLugar
+  latitud, longitud: float
+}
+class Incidente <<entidad>> {
+  id: str
+  reportado_por: str
+  categoria: CategoriaIncidente
+  intensidad: int [1..5]
+  latitud, longitud: float
+  creado_en, expira_en: datetime
+}
+class Lugar <<entidad>> {
+  id: str
+  nombre: str
+  tipo: str
+  latitud, longitud: float
+}
+class Estacion <<entidad>> {
+  id: str
+  nombre: str
+  latitud, longitud: float
+  rutas: list[str]
+}
+class RutaTransporte <<entidad>> {
+  {field} id: str  (p. ej. "T103")
+  nombre: str
+  tipo: troncal | pretroncal | alimentadora | complementaria
+  {field} coordenadas: list[(lon, lat)]
+  cortes_en_osm: int
+}
+class OpcionViaje <<objeto de valor>> {
+  tramos: tuple[Tramo]
+  tiempo_total_min(): float
+  distancia_caminata_m(): float
+}
+class Tramo <<objeto de valor>> {
+  modo: caminata | bus
+  {field} coordenadas: tuple[(lon, lat)]
+  distancia_m, duracion_min, espera_min: float
+  desde, hasta: str
+}
+class ResultadoRiesgo <<objeto de valor>> {
+  score: int
+  nivel: BAJO | MEDIO | ALTO | CRÍTICO
+}
+
+Usuario --> TipoViajero
+Usuario "1" *-- "0..10" LugarGuardado : embebido >
+LugarGuardado --> IconoLugar
+Usuario "1" -- "*" Incidente : reporta >
+Incidente --> CategoriaIncidente
+Estacion "*" -- "*" RutaTransporte : sirve >
+OpcionViaje "1" *-- "1..3" Tramo
+Tramo --> "0..1" RutaTransporte : en bus usa >
+ResultadoRiesgo ..> "*" Incidente : se calcula con
+@enduml

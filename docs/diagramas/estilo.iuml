@@ -1,0 +1,29 @@
+' Estilo común de los diagramas de Karta (tinta de azulejo sobre cal).
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "DejaVu Sans"
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam roundCorner 6
+skinparam ArrowColor #1D3A8A
+skinparam ArrowFontColor #1B1B1F
+skinparam ClassBorderColor #1D3A8A
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ClassHeaderBackgroundColor #E8ECF8
+skinparam ClassAttributeIconSize 0
+skinparam ClassStereotypeFontColor #4A4B55
+skinparam PackageBorderColor #75767F
+skinparam PackageBackgroundColor #FBFAF6
+skinparam PackageFontColor #1D3A8A
+skinparam PackageFontSize 14
+skinparam NoteBackgroundColor #FBE7BC
+skinparam NoteBorderColor #E3A72F
+skinparam SequenceLifeLineBorderColor #1D3A8A
+skinparam SequenceParticipantBorderColor #1D3A8A
+skinparam SequenceParticipantBackgroundColor #E8ECF8
+skinparam SequenceActorBorderColor #1D3A8A
+skinparam SequenceActorBackgroundColor #E8ECF8
+skinparam SequenceGroupBorderColor #75767F
+skinparam SequenceGroupBackgroundColor #FBFAF6
+skinparam SequenceBoxBorderColor #75767F
+skinparam DatabaseBorderColor #1D3A8A
+skinparam DatabaseBackgroundColor #E8ECF8

@@ -1,0 +1,98 @@
+@startuml clases-backend
+!include estilo.iuml
+title Karta · Backend por capas (arquitectura hexagonal: puertos y adaptadores)
+left to right direction
+hide empty members
+skinparam nodesep 18
+skinparam ranksep 70
+
+package "infrastructure\n(entrada)" as entrada {
+  class "Routers FastAPI" as Api <<REST /api/v1>> {
+    auth_router
+    user_router
+    incident_router
+    route_router
+    place_router
+    stop_router
+    --
+    get_current_user() «JWT»
+    esquemas Pydantic
+  }
+}
+
+package "application\n(casos de uso)" as application {
+  class AuthService {
+    + register(...)
+    + login(email, password)
+  }
+  class IncidentService {
+    + report(usuario, datos)
+    + list_active()
+    + evaluate_route_risk(ruta)
+  }
+  class PlaceService {
+    + search(consulta)
+    + reverse(lat, lon)
+    + list/add/update/delete_saved()
+  }
+  class TripService {
+    + suggest(origen, destino)
+    + nearby_stations(lat, lon)
+  }
+}
+
+package "domain\n(reglas y puertos)" as domain {
+  class "Reglas de negocio" as Reglas <<módulos puros>> {
+    trip_planning: planificar(), caminata_entre()
+    route_risk: evaluar_riesgo()
+    geo: en_cobertura(), corredor_de_ruta()
+    texto: normalizar(), tokens()
+  }
+  interface "Puertos" as Puertos <<Protocols>> {
+    UserRepository
+    IncidentRepository
+    PlaceRepository
+    SavedPlaceRepository
+    TransitRepository
+    PasswordHasher
+    TokenIssuer
+  }
+  class "Entidades" as Entidades <<ver modelo de dominio>> {
+    Usuario, LugarGuardado, Incidente,
+    Lugar, Estacion, RutaTransporte,
+    OpcionViaje, Tramo, ResultadoRiesgo
+  }
+}
+
+package "infrastructure\n(salida)" as salida {
+  class "Adaptadores" as Adaptadores <<implementan los puertos>> {
+    MongoUserRepository
+    MongoIncidentRepository
+    MongoPlaceRepository
+    MongoSavedPlaceRepository
+    MongoTransitRepository
+    Argon2PasswordHasher (pwdlib)
+    JwtTokenIssuer (PyJWT, HS256)
+  }
+}
+
+Api ..> AuthService
+Api ..> IncidentService
+Api ..> PlaceService
+Api ..> TripService
+AuthService ..> Puertos
+IncidentService ..> Puertos
+PlaceService ..> Puertos
+TripService ..> Puertos
+IncidentService ..> Reglas
+TripService ..> Reglas
+Puertos ..> Entidades
+Adaptadores .up.|> Puertos
+
+note bottom of domain
+  El dominio no importa FastAPI ni PyMongo:
+  los casos de uso dependen de puertos y la
+  infraestructura los implementa. Las reglas
+  se prueban sin base de datos.
+end note
+@enduml

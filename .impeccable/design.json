@@ -1,0 +1,688 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-23T22:50:22+00:00",
+  "title": "Design System: Karta",
+  "extensions": {
+    "colorMeta": {
+      "cal": {
+        "role": "neutral",
+        "displayName": "Cal",
+        "canonical": "#FBFAF6",
+        "tonalRamp": [
+          "#0C0B09",
+          "#252421",
+          "#40403D",
+          "#5E5E5A",
+          "#7E7D7A",
+          "#9F9E9B",
+          "#C5C4C0",
+          "#EFEEEA"
+        ]
+      },
+      "azulejo": {
+        "role": "neutral",
+        "displayName": "Azulejo",
+        "canonical": "#FFFFFF",
+        "tonalRamp": [
+          "#0B0B0B",
+          "#242424",
+          "#404040",
+          "#5D5D5D",
+          "#7D7D7D",
+          "#9E9E9E",
+          "#C4C4C4",
+          "#EEEEEE"
+        ]
+      },
+      "cal-baja": {
+        "role": "neutral",
+        "displayName": "Cal baja",
+        "canonical": "#F6F4EE",
+        "tonalRamp": [
+          "#0C0B07",
+          "#252420",
+          "#41403B",
+          "#5F5D58",
+          "#7F7D78",
+          "#A09E99",
+          "#C6C4BE",
+          "#F0EEE8"
+        ]
+      },
+      "cal-media": {
+        "role": "neutral",
+        "displayName": "Cal media",
+        "canonical": "#F0EEE7",
+        "tonalRamp": [
+          "#0C0B07",
+          "#25241F",
+          "#41403A",
+          "#5F5E58",
+          "#7F7D77",
+          "#A09E98",
+          "#C6C4BD",
+          "#F0EEE7"
+        ]
+      },
+      "cal-alta": {
+        "role": "neutral",
+        "displayName": "Cal alta",
+        "canonical": "#EAE7DF",
+        "tonalRamp": [
+          "#0D0B06",
+          "#26241E",
+          "#424039",
+          "#605D57",
+          "#807D76",
+          "#A19E97",
+          "#C7C4BC",
+          "#F1EEE6"
+        ]
+      },
+      "tinta": {
+        "role": "neutral",
+        "displayName": "Tinta",
+        "canonical": "#1B1B1F",
+        "tonalRamp": [
+          "#0B0B0E",
+          "#242428",
+          "#3F3F44",
+          "#5D5D62",
+          "#7D7D82",
+          "#9E9EA3",
+          "#C3C3C9",
+          "#EEEEF4"
+        ]
+      },
+      "tinta-suave": {
+        "role": "neutral",
+        "displayName": "Tinta suave",
+        "canonical": "#4A4B55",
+        "tonalRamp": [
+          "#0A0A12",
+          "#22232C",
+          "#3E3F49",
+          "#5C5D67",
+          "#7B7C87",
+          "#9C9DA9",
+          "#C2C3CF",
+          "#ECEDFA"
+        ]
+      },
+      "filete-gris": {
+        "role": "neutral",
+        "displayName": "Filete gris",
+        "canonical": "#75767F",
+        "tonalRamp": [
+          "#0A0B11",
+          "#23232B",
+          "#3E3F47",
+          "#5C5D65",
+          "#7B7C86",
+          "#9D9EA7",
+          "#C2C3CD",
+          "#ECEEF8"
+        ]
+      },
+      "junta": {
+        "role": "neutral",
+        "displayName": "Junta",
+        "canonical": "#D5D2C8",
+        "tonalRamp": [
+          "#0D0B05",
+          "#26241C",
+          "#424038",
+          "#605E55",
+          "#807D74",
+          "#A19E95",
+          "#C7C4BA",
+          "#F2EEE4"
+        ]
+      },
+      "cobalto": {
+        "role": "primary",
+        "displayName": "Cobalto de azulejo",
+        "canonical": "#1D3A8A",
+        "tonalRamp": [
+          "#010039",
+          "#041665",
+          "#1B3787",
+          "#3758AB",
+          "#5579CF",
+          "#749BF4",
+          "#ABC4FA",
+          "#E7EFFF"
+        ]
+      },
+      "cobalto-claro": {
+        "role": "primary",
+        "displayName": "Cobalto claro",
+        "canonical": "#DCE3F7",
+        "tonalRamp": [
+          "#070A17",
+          "#1F2332",
+          "#3A3F4F",
+          "#575D6E",
+          "#777D8F",
+          "#979EB1",
+          "#BDC4D7",
+          "#E8EEFF"
+        ]
+      },
+      "cobalto-hondo": {
+        "role": "primary",
+        "displayName": "Cobalto hondo",
+        "canonical": "#0D1F52",
+        "tonalRamp": [
+          "#010233",
+          "#0D1F52",
+          "#273C72",
+          "#435B94",
+          "#617CB7",
+          "#819DDB",
+          "#A9C4FD",
+          "#E7EFFE"
+        ]
+      },
+      "ocre": {
+        "role": "secondary",
+        "displayName": "Ocre de fachada",
+        "canonical": "#E3A72F",
+        "tonalRamp": [
+          "#150800",
+          "#322000",
+          "#553A00",
+          "#7A560B",
+          "#A27412",
+          "#CD9201",
+          "#F5B845",
+          "#FFECCD"
+        ]
+      },
+      "tinta-sobre-ocre": {
+        "role": "secondary",
+        "displayName": "Tinta sobre ocre",
+        "canonical": "#2A1E00",
+        "tonalRamp": [
+          "#130900",
+          "#2E2203",
+          "#4B3E1F",
+          "#6A5C3D",
+          "#8A7C5B",
+          "#AC9D7B",
+          "#D2C3A0",
+          "#FDEDC9"
+        ]
+      },
+      "ocre-claro": {
+        "role": "secondary",
+        "displayName": "Ocre claro",
+        "canonical": "#FBE7BC",
+        "tonalRamp": [
+          "#130900",
+          "#302200",
+          "#4E3D16",
+          "#6D5B35",
+          "#8D7B53",
+          "#AF9C74",
+          "#D5C298",
+          "#FFEDC6"
+        ]
+      },
+      "balcon": {
+        "role": "tertiary",
+        "displayName": "Verde de balcón",
+        "canonical": "#2E7D4F",
+        "tonalRamp": [
+          "#001004",
+          "#022C16",
+          "#0B4D2A",
+          "#1C6F42",
+          "#429060",
+          "#65B281",
+          "#8BD9A5",
+          "#C6FFD8"
+        ]
+      },
+      "ladrillo": {
+        "role": "tertiary",
+        "displayName": "Ladrillo",
+        "canonical": "#B23A26",
+        "tonalRamp": [
+          "#230000",
+          "#4B0200",
+          "#7A0D00",
+          "#A42C19",
+          "#CA513B",
+          "#F1735C",
+          "#FBAE9E",
+          "#FEE9E5"
+        ]
+      },
+      "ladrillo-profundo": {
+        "role": "tertiary",
+        "displayName": "Ladrillo profundo",
+        "canonical": "#7F1D12",
+        "tonalRamp": [
+          "#220000",
+          "#4C0000",
+          "#77140A",
+          "#9B382B",
+          "#C05A4A",
+          "#E67C6B",
+          "#FDAC9E",
+          "#FFE9E5"
+        ]
+      },
+      "ladrillo-claro": {
+        "role": "tertiary",
+        "displayName": "Ladrillo claro",
+        "canonical": "#F8DCD6",
+        "tonalRamp": [
+          "#170604",
+          "#321E1A",
+          "#4F3A35",
+          "#6F5752",
+          "#8F7771",
+          "#B29892",
+          "#D8BDB7",
+          "#FEE9E5"
+        ]
+      },
+      "troncal": {
+        "role": "code",
+        "displayName": "Verde mar (troncal)",
+        "canonical": "#0B6E6E",
+        "tonalRamp": [
+          "#000F0F",
+          "#022A2A",
+          "#0A4949",
+          "#056C6C",
+          "#378C8C",
+          "#5CAEAE",
+          "#82D5D4",
+          "#B4FFFD"
+        ]
+      },
+      "pretroncal": {
+        "role": "code",
+        "displayName": "Pretroncal",
+        "canonical": "#A61E5A",
+        "tonalRamp": [
+          "#21000A",
+          "#470122",
+          "#750A3C",
+          "#A51C59",
+          "#CB4478",
+          "#F26899",
+          "#FCA8C1",
+          "#FFE8ED"
+        ]
+      },
+      "alimentadora": {
+        "role": "code",
+        "displayName": "Madera de balcón (alimentadora)",
+        "canonical": "#7A4A1C",
+        "tonalRamp": [
+          "#1A0500",
+          "#3A1B00",
+          "#603200",
+          "#815123",
+          "#A47044",
+          "#C79265",
+          "#EFB789",
+          "#FFEADA"
+        ]
+      },
+      "complementaria": {
+        "role": "code",
+        "displayName": "Complementaria",
+        "canonical": "#5B3A8C",
+        "tonalRamp": [
+          "#120029",
+          "#2F0559",
+          "#4B297A",
+          "#69499C",
+          "#8969C0",
+          "#AA8BE4",
+          "#CDB7FA",
+          "#F1EBFF"
+        ]
+      },
+      "noche": {
+        "role": "neutral",
+        "displayName": "Noche",
+        "canonical": "#12141B",
+        "tonalRamp": [
+          "#090B11",
+          "#21242B",
+          "#3D3F48",
+          "#5B5D66",
+          "#7A7D86",
+          "#9B9EA8",
+          "#C1C4CE",
+          "#EBEEF9"
+        ]
+      },
+      "noche-azulejo": {
+        "role": "neutral",
+        "displayName": "Azulejo de noche",
+        "canonical": "#282A32",
+        "tonalRamp": [
+          "#090B12",
+          "#22242B",
+          "#3D3F48",
+          "#5B5D66",
+          "#7A7D86",
+          "#9B9EA8",
+          "#C1C4CE",
+          "#EBEEF9"
+        ]
+      },
+      "noche-tinta": {
+        "role": "neutral",
+        "displayName": "Tinta de noche",
+        "canonical": "#E6E4DD",
+        "tonalRamp": [
+          "#0C0B07",
+          "#25241F",
+          "#41403A",
+          "#5F5E58",
+          "#7F7D77",
+          "#A09E98",
+          "#C6C4BD",
+          "#F0EEE7"
+        ]
+      },
+      "cobalto-farol": {
+        "role": "primary",
+        "displayName": "Cobalto bajo farol",
+        "canonical": "#B7C6F5",
+        "tonalRamp": [
+          "#040627",
+          "#182145",
+          "#323D64",
+          "#4F5B84",
+          "#6E7BA6",
+          "#8F9DCA",
+          "#B4C2F1",
+          "#E8EEFF"
+        ]
+      },
+      "ocre-farol": {
+        "role": "secondary",
+        "displayName": "Ocre bajo farol",
+        "canonical": "#F0C064",
+        "tonalRamp": [
+          "#140900",
+          "#312100",
+          "#533B06",
+          "#795700",
+          "#9E761F",
+          "#C49637",
+          "#ECBC60",
+          "#FFECCB"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "headline-lg": {
+        "displayName": "Headline grande",
+        "purpose": "Título de las pantallas de entrada, en cobalto dentro de una placa."
+      },
+      "headline-md": {
+        "displayName": "Headline mediano",
+        "purpose": "Minutos grandes y tabulares de cada placa de opción."
+      },
+      "headline-sm": {
+        "displayName": "Headline pequeño",
+        "purpose": "Títulos de hoja y tiempo total del detalle de ruta."
+      },
+      "title-lg": {
+        "displayName": "Título grande",
+        "purpose": "«¿A dónde vas?», cabecera «Origen → Destino», barra superior."
+      },
+      "title-md": {
+        "displayName": "Título mediano",
+        "purpose": "Nombres en placas: estación, «Sube en…», «Bájate en…»."
+      },
+      "title-sm": {
+        "displayName": "Título pequeño",
+        "purpose": "Subtítulos de sección en mayúscula inicial; cápsula de ruta grande."
+      },
+      "body-lg": {
+        "displayName": "Cuerpo grande",
+        "purpose": "Resumen junto al tiempo total; subtítulos de entrada."
+      },
+      "body-md": {
+        "displayName": "Cuerpo",
+        "purpose": "Texto secundario por defecto, en tinta suave."
+      },
+      "body-sm": {
+        "displayName": "Cuerpo pequeño",
+        "purpose": "Nombre largo de la ruta, distancia a pie de una estación."
+      },
+      "label-lg": {
+        "displayName": "Etiqueta grande",
+        "purpose": "Botones, mini-placas y secuencia de tramos."
+      },
+      "label-md": {
+        "displayName": "Etiqueta",
+        "purpose": "Cápsulas de ruta (800, tabular) e insignias de riesgo (700)."
+      },
+      "label-sm": {
+        "displayName": "Etiqueta pequeña",
+        "purpose": "«min aprox.» y atribución de OpenStreetMap."
+      }
+    },
+    "shadows": [
+      {
+        "name": "placa-sobre-mapa",
+        "value": "Material elevation 4, shadowColor rgba(0,0,0,0.35)",
+        "purpose": "Placa de búsqueda y mini-placas que flotan sobre el mapa."
+      },
+      {
+        "name": "boton-sobre-mapa",
+        "value": "Material elevation 3, shadowColor rgba(0,0,0,0.35)",
+        "purpose": "Botones redondos de volver, cuenta y centrar."
+      },
+      {
+        "name": "hoja-sobre-mapa",
+        "value": "Material elevation 8, shadowColor rgba(0,0,0,0.40)",
+        "purpose": "Hojas arrastrables sobre el mapa."
+      },
+      {
+        "name": "baldosa-incidente",
+        "value": "0 2px 6px rgba(0,0,0,0.35)",
+        "purpose": "Baldosa de incidente sobre el mapa."
+      },
+      {
+        "name": "punto-ubicacion",
+        "value": "0 1px 4px rgba(0,0,0,0.25)",
+        "purpose": "Punto de «tu ubicación»."
+      }
+    ],
+    "motion": [
+      {
+        "name": "trazo-recorrido",
+        "value": "900ms cubic-bezier(0.33, 1, 0.68, 1)",
+        "purpose": "Dibujo único del recorrido de origen a destino en el detalle de ruta; sin animación si el sistema la desactiva."
+      }
+    ],
+    "mapFilters": [
+      {
+        "name": "cal",
+        "value": "ColorFilter.matrix saturación 55 %",
+        "purpose": "Teselas OSM de día."
+      },
+      {
+        "name": "cal-bajo-farol",
+        "value": "ColorFilter.matrix saturación 35 %, tono cálido, desplazamiento −140 por canal",
+        "purpose": "Teselas OSM de noche, nunca invertidas."
+      }
+    ],
+    "knownGaps": [
+      "Sin captura de dispositivo o emulador Android: insets, teclado (IME) y Atrás predictivo sin verificar (fix 8 de la revisión final, abierto)."
+    ]
+  },
+  "components": [
+    {
+      "name": "Botón principal",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Acción principal de un formulario u hoja; cobalto, 48 dp de alto.",
+      "html": "<button class=\"ds-btn-primary\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M2.01 21 23 12 2.01 3 2 10l15 2-15 2z\"/></svg>Enviar reporte</button>",
+      "css": ".ds-btn-primary{display:inline-flex;align-items:center;gap:8px;min-height:48px;padding:0 24px;background:#1D3A8A;color:#FFFFFF;border:none;border-radius:8px;font-family:Roboto,sans-serif;font-size:14px;font-weight:500;letter-spacing:.1px;cursor:pointer;transition:background .15s} .ds-btn-primary:hover{background:#2B4796} .ds-btn-primary:active{background:#0D1F52} .ds-btn-primary:focus-visible{outline:2px solid #1D3A8A;outline-offset:2px}"
+    },
+    {
+      "name": "Botón de contorno",
+      "kind": "button",
+      "refersTo": "button-outlined",
+      "description": "Acción secundaria; contorno cobalto de 1,5 dp.",
+      "html": "<button class=\"ds-btn-outlined\">Elegir el origen</button>",
+      "css": ".ds-btn-outlined{min-height:48px;padding:0 24px;background:transparent;color:#1D3A8A;border:1.5px solid #1D3A8A;border-radius:8px;font-family:Roboto,sans-serif;font-size:14px;font-weight:500;cursor:pointer;transition:background .15s} .ds-btn-outlined:hover{background:#DCE3F7} .ds-btn-outlined:focus-visible{outline:2px solid #1D3A8A;outline-offset:2px}"
+    },
+    {
+      "name": "Reportar",
+      "kind": "button",
+      "refersTo": "fab-reportar",
+      "description": "Botón extendido ocre sobre el mapa, al alcance del pulgar; el único ocre que no codifica un nivel.",
+      "html": "<button class=\"ds-fab\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M3 10v4h3l6 4V6L6 10H3z\"/><path d=\"M16 9a4 4 0 0 1 0 6\"/></svg>Reportar</button>",
+      "css": ".ds-fab{display:inline-flex;align-items:center;gap:12px;height:56px;padding:0 20px;background:#E3A72F;color:#2A1E00;border:none;border-radius:12px;font-family:Roboto,sans-serif;font-size:14px;font-weight:700;letter-spacing:.4px;box-shadow:0 3px 6px rgba(0,0,0,.25);cursor:pointer;transition:background .15s} .ds-fab:hover{background:#D69A22} .ds-fab:focus-visible{outline:2px solid #1D3A8A;outline-offset:2px}"
+    },
+    {
+      "name": "Placa",
+      "kind": "card",
+      "refersTo": "plaque",
+      "description": "Contenedor de todo lugar con nombre: doble filete cobalto (2 dp, 2 dp de aire, 1 dp).",
+      "html": "<div class=\"ds-plaque\" tabindex=\"0\"><div class=\"ds-plaque-in\">Bazurto</div></div>",
+      "css": ".ds-plaque{background:#FFFFFF;border:2px solid #1D3A8A;border-radius:6px;padding:2px;display:inline-block;cursor:pointer;transition:background .15s} .ds-plaque-in{border:1px solid #1D3A8A;border-radius:3px;padding:10px 14px;font-family:'Source Serif 4',Georgia,serif;font-weight:600;font-size:16px;color:#1D3A8A} .ds-plaque:hover{background:#F0EEE7} .ds-plaque:focus-visible{outline:2px solid #1D3A8A;outline-offset:2px}"
+    },
+    {
+      "name": "Placa de búsqueda",
+      "kind": "input",
+      "refersTo": "plaque",
+      "description": "Placa elevada sobre el mapa que abre el buscador «¿A dónde vas?».",
+      "html": "<button class=\"ds-search\"><span class=\"ds-search-in\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"#1D3A8A\"><path d=\"M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z\"/></svg>¿A dónde vas?</span></button>",
+      "css": ".ds-search{width:340px;min-height:56px;background:#FFFFFF;border:2px solid #1D3A8A;border-radius:6px;padding:2px;box-shadow:0 2px 4px rgba(0,0,0,.35);cursor:text} .ds-search-in{display:flex;align-items:center;gap:12px;border:1px solid #1D3A8A;border-radius:3px;padding:10px 14px;font-family:'Source Serif 4',Georgia,serif;font-weight:600;font-size:22px;color:#1D3A8A} .ds-search:hover{background:#F6F4EE} .ds-search:focus-visible{outline:2px solid #1D3A8A;outline-offset:2px}"
+    },
+    {
+      "name": "Cápsula de ruta",
+      "kind": "chip",
+      "refersTo": "route-capsule-troncal",
+      "description": "Código de la ruta en blanco sobre el color de su tipo, como el letrero del bus.",
+      "html": "<span class=\"ds-cap ds-cap-t\">T103</span> <span class=\"ds-cap ds-cap-p\">X105</span> <span class=\"ds-cap ds-cap-a\">A112</span> <span class=\"ds-cap ds-cap-c\">C001</span>",
+      "css": ".ds-cap{display:inline-block;padding:2px 7px;border-radius:6px;color:#FFFFFF;font-family:Roboto,sans-serif;font-size:12px;font-weight:800;letter-spacing:.3px;font-variant-numeric:tabular-nums} .ds-cap-t{background:#0B6E6E} .ds-cap-p{background:#A61E5A} .ds-cap-a{background:#7A4A1C} .ds-cap-c{background:#5B3A8C}"
+    },
+    {
+      "name": "Insignia de riesgo",
+      "kind": "chip",
+      "refersTo": "risk-badge-alto",
+      "description": "Nivel de riesgo con ícono y texto, en la escala única; nunca solo color.",
+      "html": "<span class=\"ds-risk ds-risk-bajo\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5z\"/><path d=\"m9 12 2 2 4-4\"/></svg>Riesgo bajo</span> <span class=\"ds-risk ds-risk-medio\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 7v6M12 16v.5\"/></svg>Riesgo medio</span> <span class=\"ds-risk ds-risk-alto\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M12 3 2 20h20z\"/><path d=\"M12 10v4M12 17v.5\"/></svg>Riesgo alto · 3 reportes</span> <span class=\"ds-risk ds-risk-critico\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M8 2h8l6 6v8l-6 6H8l-6-6V8z\"/><path d=\"m9 9 6 6M15 9l-6 6\"/></svg>Riesgo crítico</span> <span class=\"ds-risk ds-risk-nd\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6M12 17v.5\"/></svg>Riesgo sin datos</span>",
+      "css": ".ds-risk{display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:6px;font-family:Roboto,sans-serif;font-size:12px;font-weight:700;letter-spacing:.5px;color:#FFFFFF} .ds-risk-bajo{background:#2E7D4F} .ds-risk-medio{background:#E3A72F;color:#2A1E00} .ds-risk-alto{background:#B23A26} .ds-risk-critico{background:#7F1D12} .ds-risk-nd{background:#4A4B55}"
+    },
+    {
+      "name": "Baldosa de incidente",
+      "kind": "custom",
+      "refersTo": "risk-badge-critico",
+      "description": "Marcador del mapa: glifo de la categoría sobre el color de su intensidad, con la cifra 1–5 en una pastilla blanca.",
+      "html": "<span class=\"ds-tile\"><span class=\"ds-tile-sq\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"#FFFFFF\"><path d=\"M18.92 6.01A1.5 1.5 0 0 0 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm11 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zM5 11l1.5-4.5h11L19 11H5z\"/></svg></span><span class=\"ds-tile-n\">5</span></span>",
+      "css": ".ds-tile{position:relative;display:inline-block;width:39px;height:39px} .ds-tile-sq{position:absolute;left:0;bottom:0;width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:#7F1D12;border:2px solid #FFFFFF;border-radius:7px;box-shadow:0 2px 6px rgba(0,0,0,.35);box-sizing:border-box} .ds-tile-n{position:absolute;right:0;top:0;width:16px;height:16px;display:flex;align-items:center;justify-content:center;background:#FFFFFF;border:1.5px solid #7F1D12;border-radius:50%;box-sizing:border-box;font-family:Roboto,sans-serif;font-size:11px;font-weight:800;color:#1B1B1F;font-variant-numeric:tabular-nums} .ds-tile:hover .ds-tile-sq{filter:brightness(1.1)}"
+    },
+    {
+      "name": "Campo de texto",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Campo relleno en azulejo con contorno gris; cobalto de 2 dp al enfocar.",
+      "html": "<input class=\"ds-input\" placeholder=\"Correo\" />",
+      "css": ".ds-input{min-height:56px;width:280px;padding:0 16px;background:#FFFFFF;border:1px solid #75767F;border-radius:6px;font-family:Roboto,sans-serif;font-size:16px;color:#1B1B1F;transition:border-color .15s} .ds-input:hover{border-color:#1B1B1F} .ds-input:focus-visible{outline:none;border:2px solid #1D3A8A;padding:0 15px}"
+    },
+    {
+      "name": "Botón redondo sobre el mapa",
+      "kind": "nav",
+      "refersTo": "map-icon-button",
+      "description": "Volver, cuenta y centrar ubicación sobre el mapa; 48 dp con borde cobalto.",
+      "html": "<button class=\"ds-mapbtn\" aria-label=\"Volver\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"#1D3A8A\"><path d=\"M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z\"/></svg></button>",
+      "css": ".ds-mapbtn{width:48px;height:48px;display:inline-flex;align-items:center;justify-content:center;background:#FBFAF6;border:1.5px solid #1D3A8A;border-radius:50%;box-shadow:0 2px 3px rgba(0,0,0,.35);cursor:pointer;transition:background .15s} .ds-mapbtn:hover{background:#DCE3F7} .ds-mapbtn:focus-visible{outline:2px solid #1D3A8A;outline-offset:2px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Cal y azulejo",
+    "overview": "**Creative North Star: \"Cal y azulejo\"**\n\nKarta lee Cartagena como sus propios muros: cada lugar, estación y forma de llegar lleva su placa de azulejo sobre cal blanca, como las placas con el nombre de las calles del Centro. El fondo es cal cálida, la tinta es el azul cobalto del azulejo y los colores de fachada (ocre, ladrillo, verde de balcón, verde mar, madera) aparecen solo cuando codifican algo: tipo de ruta, nivel de riesgo, intensidad de un incidente. El mapa de OpenStreetMap va a sangre, claro y algo desaturado, para que esos códigos se lean sobre él a pleno sol.\n\nLa densidad es la de una herramienta de calle: pocas piezas por pantalla, cifras grandes y tabulares, objetivos de 48 dp o más y una sola acción de color cálido, el botón ocre «Reportar». La jerarquía la dan el serif de las placas (Source Serif 4) contra el Roboto del sistema, y el doble filete de las placas, no la sombra ni el color de relleno. El esquema claro es el principal por la luz solar; el oscuro es secundario y se llama «cal bajo farol»: el mismo mundo de noche, nunca un mapa invertido.\n\nEl sistema rechaza el default de la categoría: mapa oscuro invertido, tarjetas flotantes con sombra difusa y acento neón.",
+    "keyCharacteristics": [
+      "Placa de azulejo con doble filete en tinta cobalto como contenedor de todo lo que tiene nombre.",
+      "Colores de fachada como código, nunca como adorno, siempre con ícono y texto o cifra.",
+      "Una sola escala de color para riesgo de ruta e intensidad de incidente.",
+      "Serif de placa para títulos y cifras grandes; Roboto del sistema para cuerpo y etiquetas.",
+      "Cifras tabulares y espacio no separable entre número y unidad («90 m», «23 min»).",
+      "Mapa claro desaturado de día y «cal bajo farol» de noche, nunca invertido."
+    ],
+    "rules": [
+      {
+        "name": "The Fachada Es Código Rule",
+        "body": "Ocre, ladrillo, verde de balcón y los cuatro colores de ruta solo aparecen para codificar tipo de ruta, riesgo, intensidad o la acción de reportar. Nunca como fondo decorativo, ilustración o acento de marca.",
+        "section": "colors"
+      },
+      {
+        "name": "The Una Escala Rule",
+        "body": "Riesgo e intensidad comparten escala: BAJO e intensidad 1–2 en verde de balcón; MEDIO e intensidad 3 en ocre con tinta oscura; ALTO e intensidad 4 en ladrillo; CRÍTICO e intensidad 5 en ladrillo profundo. Un nivel desconocido se pinta en tinta suave, nunca como seguro.",
+        "section": "colors"
+      },
+      {
+        "name": "The Nunca Solo Color Rule",
+        "body": "El color nunca lleva el significado solo: el riesgo va con ícono y texto («Riesgo alto · 3 reportes»), la intensidad con su cifra 1–5 en la pastilla blanca y su categoría con el glifo.",
+        "section": "colors"
+      },
+      {
+        "name": "The Ruta No Es Botón Rule",
+        "body": "Ningún color de ruta repite el cobalto de la interfaz ni un color de riesgo: una cápsula nunca debe parecer un botón ni una alerta.",
+        "section": "colors"
+      },
+      {
+        "name": "The Placa Lleva Serif Rule",
+        "body": "Todo nombre propio que vive en una placa (lugar, estación, parada) y todo título va en Source Serif 4; el cuerpo, las etiquetas y los controles se quedan en Roboto.",
+        "section": "typography"
+      },
+      {
+        "name": "The Cifra Tabular Rule",
+        "body": "Minutos, metros y códigos de ruta usan cifras tabulares, y la cifra va unida a su unidad por un espacio no separable: con letra grande, «90 m» nunca se parte en dos renglones.",
+        "section": "typography"
+      },
+      {
+        "name": "The Letra Del Sistema Manda Rule",
+        "body": "El texto respeta el tamaño de fuente del sistema (verificado a 1,3×); los contenedores crecen y las filas bajan de renglón en vez de recortar. La única excepción es la cifra de intensidad dentro de la pastilla del marcador, que no escala porque mide lo mismo que el marcador.",
+        "section": "typography"
+      },
+      {
+        "name": "The Filete Antes Que Sombra Rule",
+        "body": "Una placa en una lista o una hoja nunca lleva sombra; solo la lleva cuando flota directamente sobre el mapa.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Cal Bajo Farol Rule",
+        "body": "De noche el mapa no se invierte: se desatura al 35 %, se calienta un poco y se oscurece restando luz (desplazamiento de −140), para que calles, agua y manzanas sigan distinguiéndose. De día el mapa se desatura al 55 %, para que no compita con los códigos de ruta y riesgo.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do poner todo lugar, estación, opción de ruta y tramo en bus dentro de una placa con doble filete (2 dp, 2 dp, 1 dp) en la tinta primaria.",
+      "Do pintar el riesgo y la intensidad con la escala única (balcón, ocre, ladrillo, ladrillo profundo) y el riesgo desconocido en tinta suave.",
+      "Do acompañar cada color de código con ícono y texto, o con su cifra.",
+      "Do usar cifras tabulares y el espacio no separable entre número y unidad en minutos y distancias.",
+      "Do mantener objetivos táctiles de 48 dp o más, incluidos marcadores, segmentos y botones de texto.",
+      "Do dejar visible la atribución de OpenStreetMap en todo mapa.",
+      "Do respetar la desactivación de animaciones del sistema: el recorrido aparece completo.",
+      "Do rotular los tiempos como aproximados («min aprox.», «Espera aprox.»)."
+    ],
+    "donts": [
+      "Don't invertir el mapa en modo oscuro; usar la matriz «cal bajo farol».",
+      "Don't usar ocre, ladrillo, verde de balcón ni colores de ruta como decoración o acento de marca.",
+      "Don't dar a un color de ruta el cobalto de la interfaz ni un color de riesgo.",
+      "Don't poner texto blanco sobre ocre; va la tinta sobre ocre.",
+      "Don't presentar un riesgo sin datos como bajo o seguro.",
+      "Don't poner sombra a una placa que vive dentro de una lista u hoja.",
+      "Don't usar Source Serif 4 en cuerpo, etiquetas o controles, ni Roboto en nombres de placa y títulos."
+    ]
+  }
+}

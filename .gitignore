@@ -48,3 +48,6 @@ ios/Flutter/Flutter.podspec
 *.sw?
 .DS_Store
 Thumbs.db
+# Artefactos locales de Impeccable (capturas de revisión y registros de preguntas)
+.impeccable/review/
+.impeccable/questions/
