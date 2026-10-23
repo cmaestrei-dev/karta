@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
-/// Estructura común de las pantallas de inicio de sesión y registro.
+import '../../../../core/widgets/plaque.dart';
+
+/// Estructura común de las pantallas de inicio de sesión y registro: la marca en su placa.
 class AuthLayout extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -10,6 +12,8 @@ class AuthLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final texto = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -20,9 +24,15 @@ class AuthLayout extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(title, style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 2, color: Colors.white)),
-                  const SizedBox(height: 8),
-                  Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 15)),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Plaque(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      child: Text(title, style: texto.headlineLarge?.copyWith(color: scheme.primary)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(subtitle, style: texto.bodyLarge?.copyWith(color: scheme.onSurfaceVariant)),
                   const SizedBox(height: 32),
                   ...children,
                 ],
@@ -35,16 +45,6 @@ class AuthLayout extends StatelessWidget {
   }
 }
 
-InputDecoration authInputDecoration(String label, IconData icon) {
-  return InputDecoration(
-    labelText: label,
-    prefixIcon: Icon(icon),
-    filled: true,
-    fillColor: const Color(0xFF1E1E1E),
-    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-  );
-}
-
 /// Botón principal que se reemplaza por un indicador mientras la petición está en curso.
 class AuthSubmitButton extends StatelessWidget {
   final String label;
@@ -55,17 +55,14 @@ class AuthSubmitButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ElevatedButton(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.blueAccent,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
+    return FilledButton(
       onPressed: loading ? null : onPressed,
       child: loading
-          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-          : Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          ? Semantics(
+              label: 'Cargando',
+              child: const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+            )
+          : Text(label),
     );
   }
 }
@@ -77,11 +74,26 @@ class AuthErrorText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
-      child: Text(message, style: const TextStyle(color: Colors.redAccent)),
+      child: Semantics(
+        liveRegion: true,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.error_outline, size: 20, color: scheme.error),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message, style: TextStyle(color: scheme.error))),
+          ],
+        ),
+      ),
     );
   }
+}
+
+InputDecoration authInputDecoration(String label, IconData icon) {
+  return InputDecoration(labelText: label, prefixIcon: Icon(icon));
 }
 
 String? validateEmail(String? value) {

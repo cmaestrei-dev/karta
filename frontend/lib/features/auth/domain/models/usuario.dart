@@ -25,6 +25,14 @@ class Usuario extends Equatable {
     );
   }
 
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'email': email,
+        'nombre': nombre,
+        'tipo_viajero': tipoViajero,
+        'reputacion': reputacion,
+      };
+
   @override
   List<Object> get props => [id, email, nombre, tipoViajero, reputacion];
 }

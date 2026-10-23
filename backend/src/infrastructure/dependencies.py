@@ -5,9 +5,14 @@ from pymongo.database import Database
 
 from src.application.auth_service import AuthService
 from src.application.incident_service import IncidentService
+from src.application.place_service import PlaceService
+from src.application.trip_service import TripService
 from src.domain.models import Usuario
 from src.infrastructure.database import get_database
-from src.infrastructure.repositories import MongoIncidentRepository, MongoUserRepository
+from src.infrastructure.repositories import (
+    MongoIncidentRepository, MongoPlaceRepository, MongoSavedPlaceRepository, MongoTransitRepository,
+    MongoUserRepository,
+)
 from src.infrastructure.security import password_hasher, token_issuer
 
 _bearer = HTTPBearer(auto_error=False)
@@ -27,6 +32,14 @@ def get_auth_service(users: MongoUserRepository = Depends(get_user_repository)) 
 
 def get_incident_service(db: Database = Depends(get_db)) -> IncidentService:
     return IncidentService(MongoIncidentRepository(db))
+
+
+def get_place_service(db: Database = Depends(get_db)) -> PlaceService:
+    return PlaceService(MongoPlaceRepository(db), MongoSavedPlaceRepository(db))
+
+
+def get_trip_service(db: Database = Depends(get_db)) -> TripService:
+    return TripService(MongoTransitRepository(db), MongoPlaceRepository(db), MongoIncidentRepository(db))
 
 
 def get_current_user(

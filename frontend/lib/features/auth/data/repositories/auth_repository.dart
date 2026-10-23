@@ -10,7 +10,9 @@ import '../../domain/models/usuario.dart';
 /// seguro de cada plataforma (Keystore en Android, Keychain en iOS, libsecret en Linux).
 class AuthRepository {
   static const _tokenKey = 'karta_access_token';
+  static const _usuarioKey = 'karta_usuario';
   static const _timeout = Duration(seconds: 15);
+  static const _timeoutAlAbrir = Duration(seconds: 6);
 
   final FlutterSecureStorage _storage;
   String? _token;
@@ -39,15 +41,24 @@ class AuthRepository {
     });
   }
 
-  /// Recupera la sesión guardada. Devuelve null si no hay sesión o ya no es válida.
+  /// Recupera la sesión guardada. Devuelve null si no hay sesión o el servidor la rechazó.
+  /// Sin señal se entra con el perfil guardado: una mala conexión no debe cerrar la sesión.
   Future<Usuario?> restoreSession() async {
     final saved = await _storage.read(key: _tokenKey);
     if (saved == null) return null;
+    final guardado = await _storage.read(key: _usuarioKey);
+    final usuarioGuardado = guardado == null ? null : Usuario.fromJson(json.decode(guardado));
 
-    final response = await _send(() => http.get(
-          Uri.parse('$apiBaseUrl/users/me'),
-          headers: {'Authorization': 'Bearer $saved'},
-        ));
+    final http.Response response;
+    try {
+      response = await http
+          .get(Uri.parse('$apiBaseUrl/users/me'), headers: {'Authorization': 'Bearer $saved'})
+          .timeout(_timeoutAlAbrir);
+    } catch (_) {
+      if (usuarioGuardado == null) throw Exception('No se pudo conectar con el servidor de Karta.');
+      _token = saved;
+      return usuarioGuardado;
+    }
 
     if (response.statusCode == 401) {
       await logout();
@@ -57,12 +68,15 @@ class AuthRepository {
       throw Exception(apiErrorMessage(response));
     }
     _token = saved;
-    return Usuario.fromJson(json.decode(utf8.decode(response.bodyBytes)));
+    final usuario = Usuario.fromJson(json.decode(utf8.decode(response.bodyBytes)));
+    await _storage.write(key: _usuarioKey, value: json.encode(usuario.toJson()));
+    return usuario;
   }
 
   Future<void> logout() async {
     _token = null;
     await _storage.delete(key: _tokenKey);
+    await _storage.delete(key: _usuarioKey);
   }
 
   Future<Usuario> _startSession(String path, Map<String, dynamic> body) async {
@@ -77,8 +91,10 @@ class AuthRepository {
     }
     final data = json.decode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
     _token = data['access_token'] as String;
+    final usuario = Usuario.fromJson(data['usuario']);
     await _storage.write(key: _tokenKey, value: _token);
-    return Usuario.fromJson(data['usuario']);
+    await _storage.write(key: _usuarioKey, value: json.encode(usuario.toJson()));
+    return usuario;
   }
 
   Future<http.Response> _send(Future<http.Response> Function() request) async {

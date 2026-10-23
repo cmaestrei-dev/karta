@@ -1,0 +1,50 @@
+@startuml secuencia-reportar-incidente
+!include estilo.iuml
+skinparam maxMessageSize 170
+title Caso de uso 2 · Reportar un incidente (con sesión JWT)
+autonumber "<b>0."
+
+actor "Viajero" as V
+box "App Flutter" #FBFAF6
+  participant "Hoja «Reportar»\nIncidentBloc" as UI
+  participant "IncidentRepository\nApiClient" as IR
+end box
+box "API FastAPI" #FBFAF6
+  participant "incident_router\nget_current_user" as RT
+  participant "IncidentService" as IS
+end box
+database "MongoDB" as DB
+
+V -> UI : toca «Reportar»
+UI -> RT : GET /places/reverse (nombre del lugar)
+RT --> UI : «Se reportará en Estación Bazurto»
+V -> UI : elige Tráfico o Seguridad, intensidad 1–5 y envía
+UI -> IR : SubmitIncidentEvent
+IR -> RT : POST /incidents con Authorization: Bearer <JWT>
+RT -> RT : verifica firma HS256 y expiración del token
+RT -> DB : users.find_one({_id: sub del token})
+alt token ausente, inválido, vencido o usuario borrado
+  RT --> IR : 401 Unauthorized
+  IR --> UI : SessionExpiredException: se pide iniciar sesión de nuevo
+else sesión válida
+  RT -> RT : Pydantic valida categoría, intensidad 1–5 y geocerca
+  RT -> IS : report(usuario del token, datos)
+  note right of IS
+    El autor sale del token, nunca
+    del cuerpo: nadie puede reportar
+    a nombre de otro.
+  end note
+  IS -> IS : expira_en = ahora + 3 h (Tráfico) o 12 h (Seguridad)
+  IS -> DB : incidents.insert_one({reportado_por, categoria, intensidad, ubicacion GeoJSON, creado_en, expira_en})
+  DB --> IS : _id
+  IS --> RT : Incidente
+  RT --> IR : 201 Created
+  IR --> UI : IncidentSuccess y recarga GET /incidents
+  UI --> V : «Reporte enviado»; la baldosa aparece en el mapa
+end
+... cuando pasa expira_en ...
+note over DB
+  El índice TTL elimina
+  el incidente vencido
+end note
+@enduml

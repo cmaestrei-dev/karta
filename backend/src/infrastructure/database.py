@@ -16,3 +16,7 @@ def ensure_indexes(db: Database) -> None:
     db.incidents.create_index([("ubicacion", GEOSPHERE)])
     # TTL: MongoDB elimina cada incidente cuando pasa su fecha `expira_en`.
     db.incidents.create_index([("expira_en", ASCENDING)], expireAfterSeconds=0)
+    db.places.create_index([("ubicacion", GEOSPHERE)])
+    db.places.create_index([("tokens", ASCENDING)])  # búsqueda por prefijo de palabra
+    db.stations.create_index([("ubicacion", GEOSPHERE)])
+    db.transit_routes.create_index([("geometria", GEOSPHERE)])

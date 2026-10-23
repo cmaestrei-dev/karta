@@ -24,6 +24,16 @@ class IncidentsLoaded extends IncidentState {
   List<Object> get props => [incidents];
 }
 
+/// No se pudo actualizar la lista: el mapa conserva lo último que tenía y lo avisa.
+class IncidentsLoadFailed extends IncidentState {
+  final String message;
+
+  IncidentsLoadFailed(this.message);
+
+  @override
+  List<Object> get props => [message];
+}
+
 class IncidentError extends IncidentState {
   final String message;
   final bool sessionExpired;
@@ -90,7 +100,7 @@ class IncidentBloc extends Bloc<IncidentEvent, IncidentState> {
         final incidents = await repository.getActiveIncidents();
         emit(IncidentsLoaded(incidents));
       } catch (e) {
-        emit(IncidentError(e.toString()));
+        emit(IncidentsLoadFailed(e.toString()));
       }
     });
     

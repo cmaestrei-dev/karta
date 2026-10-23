@@ -2,9 +2,10 @@
 
 Proyecto de aula de **Ingeniería de Servicios de Internet**, Universidad de Cartagena (2026-2).
 
-Karta ayuda al viajero de Cartagena a moverse con menos incertidumbre: muestra en un mapa los
-incidentes que reporta la comunidad (tráfico y seguridad) y evalúa el riesgo de una ruta antes de tomarla.
-El alcance del prototipo es el área urbana de Cartagena de Indias.
+Karta ayuda al viajero de Cartagena a moverse en Transcaribe con menos incertidumbre: busca su destino,
+le sugiere cómo llegar (caminata + ruta + caminata) con el riesgo de cada opción y muestra en el mapa los
+incidentes que reporta la comunidad (tráfico y seguridad). El alcance del prototipo es el área urbana de
+Cartagena de Indias.
 
 ## Estado actual
 
@@ -13,24 +14,28 @@ El alcance del prototipo es el área urbana de Cartagena de Indias.
 | Registro e inicio de sesión (JWT, sesión guardada en almacenamiento seguro) | ✅ |
 | Reportar incidente (Tráfico / Seguridad, intensidad 1–5, ubicación GPS) | ✅ requiere sesión |
 | Ver los incidentes vigentes en el mapa | ✅ expiran solos (Tráfico 3 h, Seguridad 12 h) |
-| Trazar una ruta desde la ubicación actual (OSRM) | ✅ destino fijo de prueba: Bocagrande |
-| Escanear el riesgo de la ruta | ✅ una sola consulta geoespacial |
+| Buscar un lugar de Cartagena o elegir el punto en el mapa | ✅ 453 lugares de OpenStreetMap |
+| Rutas sugeridas de Transcaribe con su riesgo | ✅ 24 rutas y 17 estaciones de OpenStreetMap |
+| Estaciones cercanas con sus rutas | ✅ |
+| Lugares guardados (Casa, Trabajo…) | ✅ CRUD, máximo 10 por viajero |
 | Validación de incidentes por la comunidad | ⏳ pendiente |
+| Límite de frecuencia de peticiones (rate limiting) | ⏳ pendiente |
 
 ## Arquitectura
 
 ```
 Flutter (BLoC) ──HTTP/JSON + Bearer JWT──▶ FastAPI ──PyMongo──▶ MongoDB
       │
-      └──HTTP──▶ OSRM (servidor público de rutas)
+      └──HTTPS──▶ teselas de OpenStreetMap (solo el mapa de fondo)
 ```
 
 El backend sigue una arquitectura hexagonal (puertos y adaptadores):
 
 | Carpeta | Contenido |
 |---|---|
-| `backend/src/domain` | Entidades, reglas de negocio (`route_risk.py`), puertos (`ports.py`) y esquemas Pydantic de la API. No depende de FastAPI ni de MongoDB |
-| `backend/src/application` | Casos de uso: `AuthService` (registro, login) e `IncidentService` (reportar, listar, riesgo de ruta) |
+| `backend/src/domain` | Entidades, reglas de negocio (`trip_planning.py`, `route_risk.py`, `geo.py`), puertos (`ports.py`) y esquemas Pydantic de la API. No depende de FastAPI ni de MongoDB |
+| `backend/src/application` | Casos de uso: `AuthService`, `IncidentService`, `PlaceService` (buscador y lugares guardados) y `TripService` (rutas sugeridas, estaciones cercanas) |
+| `backend/data`, `backend/scripts` | Rutas, estaciones y lugares importados de OpenStreetMap (`importar_osm.py`); se cargan al arrancar la API |
 | `backend/src/infrastructure` | Adaptadores: FastAPI y routers, repositorios MongoDB, Argon2 + JWT, configuración |
 | `frontend/lib/core` | Configuración y servicios compartidos (URL de la API, GPS, errores de la API) |
 | `frontend/lib/features/<funcionalidad>` | `data` (repositorios HTTP), `domain` (modelos), `presentation` (BLoC y pantallas) |
@@ -39,11 +44,18 @@ El backend sigue una arquitectura hexagonal (puertos y adaptadores):
 
 | Colección | Documento | Índices |
 |---|---|---|
-| `users` | `email`, `password_hash` (Argon2id), `nombre`, `tipo_viajero`, `reputacion`, `terminos_aceptados_en`, `creado_en` | único en `email` |
+| `users` | `email`, `password_hash` (Argon2id), `nombre`, `tipo_viajero`, `reputacion`, `terminos_aceptados_en`, `creado_en`, `lugares_guardados` (embebidos, máx. 10) | único en `email` |
 | `incidents` | `reportado_por` (ObjectId), `categoria`, `intensidad`, `ubicacion` (GeoJSON Point), `creado_en`, `expira_en` | `2dsphere` en `ubicacion`; TTL en `expira_en` |
+| `places` | `nombre`, `tipo`, `ubicacion` (Point), `tokens` (palabras normalizadas) | `2dsphere`; `tokens` |
+| `stations` | `nombre`, `ubicacion` (Point), `rutas` | `2dsphere` |
+| `transit_routes` | `nombre`, `tipo`, `desde`, `hasta`, `geometria` (LineString) | `2dsphere` en `geometria` |
 
 El riesgo de una ruta se calcula trazando un corredor de 500 m alrededor de la polilínea
 (en UTM 18N, EPSG:32618, para medir en metros) y consultándolo con `$geoWithin` sobre el índice `2dsphere`.
+Las rutas sugeridas parten de las rutas que pasan a menos de 800 m del origen y del destino (`$geoIntersects`),
+eligen la mejor subida y bajada en cada una y se ordenan por tiempo más una penalización por riesgo.
+
+Los diagramas de clases, del modelo de datos y de secuencia (PlantUML y PNG) están en [`docs/diagramas`](docs/diagramas).
 
 ## Puesta en marcha
 
@@ -126,6 +138,14 @@ firewall del computador permita conexiones entrantes al puerto 8000.
 | POST | `/api/v1/incidents/` | ✅ | Reportar un incidente (el autor sale del token) |
 | GET | `/api/v1/incidents/` | — | Listar los incidentes vigentes (sin datos del autor) |
 | POST | `/api/v1/routes/risk` | — | Calcular el riesgo de una ruta a partir de sus puntos (lat/lon) |
+| POST | `/api/v1/routes/suggest` | — | Rutas sugeridas de Transcaribe entre dos puntos, con tramos GeoJSON y riesgo |
+| GET | `/api/v1/places/search?q=` | — | Buscar lugares de Cartagena (sin tildes, por prefijo de palabra) |
+| GET | `/api/v1/places/reverse?lat=&lon=` | — | Nombre del punto elegido en el mapa |
+| GET | `/api/v1/stops/nearby?lat=&lon=` | — | Estaciones cercanas, con sus rutas y la distancia a pie |
+| GET | `/api/v1/users/me/places` | ✅ | Listar los lugares guardados |
+| POST | `/api/v1/users/me/places` | ✅ | Guardar un lugar (409 si ya hay 10) |
+| PATCH | `/api/v1/users/me/places/{id}` | ✅ | Editar nombre, ícono o ubicación de un lugar propio |
+| DELETE | `/api/v1/users/me/places/{id}` | ✅ | Eliminar un lugar propio |
 
 Documentación interactiva (Swagger): <http://127.0.0.1:8000/api/v1/docs>. Para probar los endpoints
 con sesión, inicia sesión, copia el `access_token` y pégalo en el botón **Authorize**.
@@ -142,6 +162,17 @@ cd frontend
 flutter analyze
 flutter test
 ```
+
+## Diseño
+
+| Inicio | Buscar | Cómo llegar | Recorrido |
+|---|---|---|---|
+| ![Inicio](docs/capturas/inicio.jpg) | ![Buscar](docs/capturas/buscar.jpg) | ![Cómo llegar](docs/capturas/como-llegar.jpg) | ![Recorrido](docs/capturas/detalle-ruta.jpg) |
+
+La app sigue la dirección visual «Cal y azulejo» (placas de nombres de calle del Centro Histórico):
+[`DESIGN.md`](DESIGN.md) describe el sistema de diseño, [`PRODUCT.md`](PRODUCT.md) el contexto del producto y
+[`docs/auditoria-diseno.md`](docs/auditoria-diseno.md) la auditoría de usabilidad que motivó el rediseño.
+Los datos de rutas, estaciones, lugares y el mapa de fondo son © colaboradores de OpenStreetMap (ODbL).
 
 ## Convenciones
 

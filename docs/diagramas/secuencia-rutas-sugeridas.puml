@@ -1,0 +1,49 @@
+@startuml secuencia-rutas-sugeridas
+!include estilo.iuml
+skinparam maxMessageSize 170
+title Caso de uso 1 · Consultar rutas sugeridas
+autonumber "<b>0."
+
+actor "Viajero" as V
+box "App Flutter" #FBFAF6
+  participant "Pantallas\n(buscar, cómo llegar)" as UI
+  participant "TripPlanCubit\nTripRepository" as TC
+end box
+box "API FastAPI" #FBFAF6
+  participant "Routers\n(Pydantic)" as RT
+  participant "PlaceService\nTripService" as TS
+  participant "Dominio\n(trip_planning,\nroute_risk)" as DOM
+end box
+database "MongoDB" as DB
+
+V -> UI : escribe «boca»
+UI -> RT : GET /places/search?q=boca
+RT -> TS : search("boca")
+TS -> DB : places.find({tokens: {$all: [/^boca/]}})
+DB --> TS : coincidencias
+TS --> UI : 200 lugares ordenados
+V -> UI : elige «Bocagrande» (o lo marca en el mapa: GET /places/reverse)
+UI -> TC : plan(mi ubicación, Bocagrande)
+TC -> RT : POST /routes/suggest {origen, destino}
+RT -> RT : valida el cuerpo y la geocerca de Cartagena
+alt fuera de Cartagena
+  RT --> TC : 422 «fuera de cobertura»
+  TC --> UI : TripPlanFailed con el mensaje
+else dentro de la cobertura
+  RT -> TS : suggest(origen, destino)
+  TS -> DB : transit_routes con $geoIntersects en círculos de 800 m del origen y del destino
+  DB --> TS : rutas que pasan cerca de ambos
+  TS -> DOM : planificar(rutas, estaciones, origen, destino)
+  DOM --> TS : opciones caminata + bus + caminata
+  loop 5 opciones más rápidas
+    TS -> DB : incidents con $geoWithin en el corredor de 500 m, vigentes
+    TS -> DOM : evaluar_riesgo(incidentes)
+    DOM --> TS : score y nivel
+  end
+  TS -> TS : ordena por tiempo + penalización por riesgo y nombra paradas
+  TS --> RT : 3 mejores opciones
+  RT --> TC : 200 opciones con tramos GeoJSON y riesgo
+  TC --> UI : TripPlanLoaded
+  UI --> V : placas con minutos, tramos y riesgo; al tocar una, el recorrido en el mapa
+end
+@enduml

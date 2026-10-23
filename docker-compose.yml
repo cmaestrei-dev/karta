@@ -37,6 +37,7 @@ services:
         condition: service_healthy
     volumes:
       - ./backend/src:/app/src # recarga en caliente al editar el código
+      - ./backend/data:/app/data:ro
     command: >
       sh -c "python -m src.infrastructure.seed &&
              uvicorn src.infrastructure.main:app --host 0.0.0.0 --port 8000 --reload"

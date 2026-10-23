@@ -5,7 +5,8 @@ import pytest
 from shapely.geometry import Point, shape
 
 from src.domain.models import CategoriaIncidente, Incidente
-from src.domain.route_risk import corredor_de_ruta, evaluar_riesgo
+from src.domain.geo import corredor_de_ruta, en_cobertura
+from src.domain.route_risk import evaluar_riesgo
 
 METROS_POR_GRADO_LAT = 110_600  # aprox. a la latitud de Cartagena
 
@@ -39,3 +40,9 @@ def test_corredor_incluye_lo_cercano_y_excluye_lo_lejano():
 
     assert corredor.contains(a_400_m)
     assert not corredor.contains(a_700_m)
+
+
+def test_cobertura_solo_cartagena():
+    assert en_cobertura(10.4236, -75.5510)        # Centro Histórico
+    assert not en_cobertura(11.2408, -74.1990)    # Santa Marta
+    assert not en_cobertura(4.7110, -74.0721)     # Bogotá
