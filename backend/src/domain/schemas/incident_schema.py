@@ -1,32 +1,22 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
-from typing import List, Optional
+from src.domain.models import CategoriaIncidente
 
 class IncidentCreate(BaseModel):
-    """Payload del frontend con coordenadas flotantes."""
-    id_usuario: int
-    categoria: str = Field(..., max_length=50, description="Ej: Seguridad, Tráfico")
+    """Payload del frontend. El autor se toma del token de sesión, nunca del cuerpo."""
+    categoria: CategoriaIncidente
     intensidad: int = Field(..., ge=1, le=5, description="Escala de 1 a 5")
-    latitud: float
-    longitud: float
+    latitud: float = Field(..., ge=-90, le=90)
+    longitud: float = Field(..., ge=-180, le=180)
 
 class IncidentResponse(BaseModel):
-    """Respuesta del API. Agregamos lat/lon para que el Radar las vea."""
-    id_incidente: int
-    id_usuario: int
-    categoria: str
+    """Incidente visible en el mapa. No expone quién lo reportó."""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    categoria: CategoriaIncidente
     intensidad: int
-
-    latitud: float 
+    latitud: float
     longitud: float
-    fecha_reporte: Optional[datetime] = None
-
-    class Config:
-        from_attributes = True
-
-class RoutePoint(BaseModel):
-    lat: float
-    lon: float
-
-class RouteEvaluationRequest(BaseModel):
-    route: List[RoutePoint]
+    creado_en: datetime
+    expira_en: datetime

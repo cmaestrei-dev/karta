@@ -25,7 +25,7 @@ class RouteRisk {
 }
 
 class IncidentDetail {
-  final int id;
+  final String id;
   final String categoria;
   final int intensidad;
 
@@ -37,7 +37,7 @@ class IncidentDetail {
 
   factory IncidentDetail.fromJson(Map<String, dynamic> json) {
     return IncidentDetail(
-      id: json['id'] ?? 0,
+      id: json['id'] ?? '',
       categoria: json['categoria'] ?? '',
       intensidad: json['intensidad'] ?? 1,
     );

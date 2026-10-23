@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:geolocator/geolocator.dart';
+import '../../../../core/location_service.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../bloc/incident_bloc.dart';
 
 class IncidentBottomSheet extends StatefulWidget {
@@ -9,6 +10,8 @@ class IncidentBottomSheet extends StatefulWidget {
   static void show(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      // Permite que la hoja crezca y se desplace en pantallas bajas o en horizontal.
+      isScrollControlled: true,
       backgroundColor: const Color(0xFF1E1E1E),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -26,68 +29,36 @@ class _IncidentBottomSheetState extends State<IncidentBottomSheet> {
   int _intensity = 3;
   bool _isFetchingLocation = false;
 
-  Future<void> _submitWithLocation(BuildContext context) async {
+  Future<void> _submitWithLocation() async {
+    // Se capturan antes del await para no usar el BuildContext tras un hueco asíncrono.
+    final messenger = ScaffoldMessenger.of(context);
+    final incidentBloc = context.read<IncidentBloc>();
     setState(() => _isFetchingLocation = true);
 
     try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        throw Exception('El GPS está apagado. Enciéndelo para reportar.');
+      final location = await LocationService.getCurrentLocation();
+
+      if (location.isFallback) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('GPS no detectado. Usando coordenadas de respaldo (Modo Dev).', style: TextStyle(color: Colors.black)),
+            backgroundColor: Colors.amberAccent,
+            duration: Duration(seconds: 2),
+          ),
+        );
       }
 
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          throw Exception('Permisos de ubicación denegados.');
-        }
-      }
-      
-      if (permission == LocationPermission.deniedForever) {
-        throw Exception('Los permisos de GPS están bloqueados permanentemente.');
-      }
-
-      // PLAN DE CONTINGENCIA: Intentamos buscar el GPS con un límite de 5 segundos
-      double finalLat;
-      double finalLng;
-
-      try {
-        Position position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high,
-        ).timeout(const Duration(seconds: 5)); // ¡Si tarda más de 5s, salta al catch!
-        
-        finalLat = position.latitude;
-        finalLng = position.longitude;
-      } catch (e) {
-        // Fallback temporal para Linux (Coordenada alternativa en Cartagena)
-        finalLat = 10.4225; 
-        finalLng = -75.5410;
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('GPS no detectado. Usando coordenadas de respaldo (Modo Dev).', style: TextStyle(color: Colors.black)), 
-              backgroundColor: Colors.amberAccent,
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-      }
-
-      if (!mounted) return;
-
-      context.read<IncidentBloc>().add(
+      incidentBloc.add(
         SubmitIncidentEvent(
           categoria: _selectedCategory,
           intensidad: _intensity,
-          latitud: finalLat,
-          longitud: finalLng,
+          latitud: location.point.latitude,
+          longitud: location.point.longitude,
         )
       );
 
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: Colors.redAccent),
       );
     } finally {
@@ -99,9 +70,10 @@ class _IncidentBottomSheetState extends State<IncidentBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -136,6 +108,9 @@ class _IncidentBottomSheetState extends State<IncidentBottomSheet> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Alerta enviada. Gracias por cuidar a la comunidad.', style: TextStyle(color: Colors.white)), backgroundColor: Colors.green),
                 );
+              } else if (state is IncidentError && state.sessionExpired) {
+                Navigator.pop(context);
+                context.read<AuthBloc>().add(LogoutRequested(message: state.message));
               } else if (state is IncidentError) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text(state.message), backgroundColor: Colors.red),
@@ -163,12 +138,13 @@ class _IncidentBottomSheetState extends State<IncidentBottomSheet> {
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
-                onPressed: () => _submitWithLocation(context),
+                onPressed: _submitWithLocation,
                 child: const Text('Difundir Alerta', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               );
             },
           )
         ],
+        ),
       ),
     );
   }
@@ -181,7 +157,7 @@ class _IncidentBottomSheetState extends State<IncidentBottomSheet> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: isSelected ? Colors.amberAccent.withOpacity(0.2) : Colors.transparent,
+            color: isSelected ? Colors.amberAccent.withValues(alpha: 0.2) : Colors.transparent,
             border: Border.all(color: isSelected ? Colors.amberAccent : Colors.white24),
             borderRadius: BorderRadius.circular(8),
           ),

@@ -1,5 +1,5 @@
 name: karta
-description: "A new Flutter project."
+description: "Karta: app de movilidad y reporte de incidentes para Cartagena."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -40,6 +40,7 @@ dependencies:
   flutter_map: ^8.3.0
   latlong2: ^0.9.1
   geolocator: ^14.0.2
+  flutter_secure_storage: ^11.2.0
 
 dev_dependencies:
   flutter_test:
