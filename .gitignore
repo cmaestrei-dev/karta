@@ -1,5 +1,6 @@
 .env
 .env.*
+!.env.example
 *.pem
 *.key
 *.cert
@@ -25,6 +26,7 @@ htmlcov/
 build/
 .flutter-plugins
 .flutter-plugins-dependencies
+.kotlin/
 
 *.crash
 flutter_*.log
