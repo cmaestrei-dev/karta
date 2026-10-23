@@ -7,7 +7,6 @@ import 'features/routing/presentation/screens/route_evaluation_screen.dart';
 
 import 'features/incidents/data/repositories/incident_repository.dart';
 import 'features/incidents/presentation/bloc/incident_bloc.dart';
-import 'features/incidents/presentation/widgets/incident_bottom_sheet.dart';
 
 void main() {
   runApp(const KartaApp());
@@ -28,7 +27,6 @@ class KartaApp extends StatelessWidget {
           BlocProvider(
             create: (context) => RouteBloc(
               routeRepository: context.read<RouteRepository>(),
-              incidentRepository: context.read<IncidentRepository>(),
             )
           ),
           BlocProvider(

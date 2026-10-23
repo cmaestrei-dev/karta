@@ -8,15 +8,6 @@ abstract class RouteEvent extends Equatable {
   List<Object> get props => [];
 }
 
-class EvaluateTacticalJumpEvent extends RouteEvent {
-  final double distanceKm;
-
-  const EvaluateTacticalJumpEvent({required this.distanceKm});
-
-  @override
-  List<Object> get props => [distanceKm];
-}
-
 class EvaluateRouteRiskEvent extends RouteEvent {
   final List<LatLng> routePoints;
 
