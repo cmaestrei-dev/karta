@@ -1,39 +1,45 @@
-# Entorno de desarrollo: PostgreSQL + PostGIS y la API de Karta.
+# Entorno de desarrollo: MongoDB y la API de Karta.
 # Uso: docker compose up --build   →   Swagger en http://localhost:8000/api/v1/docs
 services:
-  db:
-    image: postgis/postgis:16-3.4
+  mongo:
+    image: mongo:8
+    # Caché pequeña para equipos con poca RAM; suficiente para desarrollo.
+    command: ["--wiredTigerCacheSizeGB", "0.25"]
     environment:
-      POSTGRES_USER: karta
-      POSTGRES_PASSWORD: karta
-      POSTGRES_DB: karta_db
+      MONGO_INITDB_ROOT_USERNAME: karta
+      MONGO_INITDB_ROOT_PASSWORD: karta
+      # MongoDB 8 se niega a arrancar en kernels Linux >= 6.19 (SERVER-121912);
+      # esta opción lo permite y no afecta a kernels anteriores ni a Docker Desktop.
+      GLIBC_TUNABLES: glibc.pthread.rseq=1
     ports:
-      - "5433:5432" # 5433 en el host para no chocar con un PostgreSQL local
+      - "127.0.0.1:27017:27017" # solo accesible desde este equipo (Compass, pruebas)
     volumes:
-      - karta_pgdata:/var/lib/postgresql/data
+      - karta_mongo:/data/db
     healthcheck:
-      # Por TCP: durante la inicialización el servidor temporal solo escucha por socket.
-      test: ["CMD-SHELL", "pg_isready -h localhost -U karta -d karta_db"]
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 12
 
   api:
     build: ./backend
     environment:
-      DATABASE_URL: postgresql://karta:karta@db:5432/karta_db
+      MONGO_URI: mongodb://karta:karta@mongo:27017/?authSource=admin
+      MONGO_DB: karta
+      JWT_SECRET: ${JWT_SECRET:-secreto-de-desarrollo-no-usar-en-produccion-123}
       CORS_ORIGINS: "*"
+      DEMO_EMAIL: demo@karta.app
+      DEMO_PASSWORD: KartaDemo2026
     ports:
-      - "8000:8000"
+      - "8000:8000" # abierto a la red local para probar desde el celular
     depends_on:
-      db:
+      mongo:
         condition: service_healthy
     volumes:
       - ./backend/src:/app/src # recarga en caliente al editar el código
     command: >
-      sh -c "python -m src.infrastructure.init_db &&
-             python -m src.infrastructure.seed &&
+      sh -c "python -m src.infrastructure.seed &&
              uvicorn src.infrastructure.main:app --host 0.0.0.0 --port 8000 --reload"
 
 volumes:
-  karta_pgdata:
+  karta_mongo:

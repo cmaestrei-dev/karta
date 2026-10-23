@@ -10,69 +10,70 @@ El alcance del prototipo es el área urbana de Cartagena de Indias.
 
 | Funcionalidad | Estado |
 |---|---|
-| Reportar incidente (Tráfico / Seguridad, intensidad 1–5, ubicación GPS) | ✅ |
-| Ver los incidentes en el mapa | ✅ |
+| Registro e inicio de sesión (JWT, sesión guardada en almacenamiento seguro) | ✅ |
+| Reportar incidente (Tráfico / Seguridad, intensidad 1–5, ubicación GPS) | ✅ requiere sesión |
+| Ver los incidentes vigentes en el mapa | ✅ expiran solos (Tráfico 3 h, Seguridad 12 h) |
 | Trazar una ruta desde la ubicación actual (OSRM) | ✅ destino fijo de prueba: Bocagrande |
-| Escanear el riesgo de la ruta | ✅ |
-| Registro e inicio de sesión | ⏳ pendiente — la app reporta como `id_usuario=1` |
+| Escanear el riesgo de la ruta | ✅ una sola consulta geoespacial |
 | Validación de incidentes por la comunidad | ⏳ pendiente |
-| Migración a MongoDB | ⏳ pendiente — hoy usa PostgreSQL + PostGIS |
 
 ## Arquitectura
 
 ```
-Flutter (BLoC) ──HTTP/JSON──▶ FastAPI ──SQLAlchemy + GeoAlchemy2──▶ PostgreSQL + PostGIS
+Flutter (BLoC) ──HTTP/JSON + Bearer JWT──▶ FastAPI ──PyMongo──▶ MongoDB
       │
       └──HTTP──▶ OSRM (servidor público de rutas)
 ```
 
+El backend sigue una arquitectura hexagonal (puertos y adaptadores):
+
 | Carpeta | Contenido |
 |---|---|
-| `backend/src/domain` | Esquemas Pydantic: contratos y validación de la API |
-| `backend/src/application` | Servicios con la lógica de negocio |
-| `backend/src/infrastructure` | FastAPI, routers, modelos ORM, conexión a la BD y scripts de arranque |
-| `frontend/lib/core` | Configuración y servicios compartidos (URL de la API, GPS) |
+| `backend/src/domain` | Entidades, reglas de negocio (`route_risk.py`), puertos (`ports.py`) y esquemas Pydantic de la API. No depende de FastAPI ni de MongoDB |
+| `backend/src/application` | Casos de uso: `AuthService` (registro, login) e `IncidentService` (reportar, listar, riesgo de ruta) |
+| `backend/src/infrastructure` | Adaptadores: FastAPI y routers, repositorios MongoDB, Argon2 + JWT, configuración |
+| `frontend/lib/core` | Configuración y servicios compartidos (URL de la API, GPS, errores de la API) |
 | `frontend/lib/features/<funcionalidad>` | `data` (repositorios HTTP), `domain` (modelos), `presentation` (BLoC y pantallas) |
+
+### Modelo de datos (MongoDB)
+
+| Colección | Documento | Índices |
+|---|---|---|
+| `users` | `email`, `password_hash` (Argon2id), `nombre`, `tipo_viajero`, `reputacion`, `terminos_aceptados_en`, `creado_en` | único en `email` |
+| `incidents` | `reportado_por` (ObjectId), `categoria`, `intensidad`, `ubicacion` (GeoJSON Point), `creado_en`, `expira_en` | `2dsphere` en `ubicacion`; TTL en `expira_en` |
+
+El riesgo de una ruta se calcula trazando un corredor de 500 m alrededor de la polilínea
+(en UTM 18N, EPSG:32618, para medir en metros) y consultándolo con `$geoWithin` sobre el índice `2dsphere`.
 
 ## Puesta en marcha
 
 ### Opción A: Docker (recomendada)
 
-Requiere Docker Desktop, o Docker Engine con Compose. Desde la raíz del repositorio:
+Requiere Docker Engine con Compose. Desde la raíz del repositorio:
 
 ```bash
 docker compose up --build
 ```
 
 - API: <http://localhost:8000> (redirige a Swagger, en `/api/v1/docs`)
-- PostgreSQL: `localhost:5433` — usuario, clave y base: `karta` / `karta` / `karta_db`
+- MongoDB: `localhost:27017`, solo accesible desde el mismo equipo. Credenciales en `docker-compose.yml`
 
-Al arrancar, la API crea las tablas y carga los datos semilla (modalidades y el usuario de
-desarrollo `id_usuario=1`); ambos pasos son idempotentes. Los cambios en `backend/src` recargan la API solos.
+Al arrancar se crean los índices y se cargan datos de demostración: un usuario demo (credenciales en
+`backend/.env.example`) y algunos incidentes en Cartagena. Los cambios en `backend/src` recargan la API solos.
 
 ### Opción B: instalación local
 
-Requiere Python 3.12 y PostgreSQL con la extensión PostGIS.
+Requiere Python 3.12 y un MongoDB 7 u 8 (local o un clúster gratuito M0 de MongoDB Atlas).
+Desde la carpeta `backend/` (los imports parten de `src.`, así que los comandos deben correr ahí):
 
-1. Crea la base de datos y habilita PostGIS (sin esto no se pueden crear las tablas):
-
-   ```sql
-   CREATE DATABASE karta_db;
-   \c karta_db
-   CREATE EXTENSION postgis;
-   ```
-
-2. Desde la carpeta `backend/` (los imports parten de `src.`, así que los comandos deben correr ahí):
-
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate          # Windows: .venv\Scripts\activate
-   pip install -r requirements.txt
-   cp .env.example .env               # Windows: copy .env.example .env — luego ajusta DATABASE_URL
-   python -m src.infrastructure.init_db
-   python -m src.infrastructure.seed
-   uvicorn src.infrastructure.main:app --reload
-   ```
+```bash
+python -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -r requirements-dev.txt
+cp .env.example .env               # Windows: copy .env.example .env — luego ajusta MONGO_URI y JWT_SECRET
+python -m src.infrastructure.seed  # opcional: datos de demostración
+uvicorn src.infrastructure.main:app --reload
+```
 
 ### App Flutter
 
@@ -81,7 +82,7 @@ Desde la carpeta `frontend/`:
 ```bash
 flutter pub get
 flutter run -d chrome     # la forma más rápida de probar
-flutter run -d linux      # escritorio Linux
+flutter run -d linux      # escritorio Linux (requiere libsecret-1-dev)
 ```
 
 La URL de la API se define con `--dart-define`; por defecto es `http://127.0.0.1:8000/api/v1`.
@@ -90,26 +91,53 @@ La URL de la API se define con `--dart-define`; por defecto es `http://127.0.0.1
 |---|---|
 | Chrome o escritorio, en el mismo equipo que la API | `flutter run` sin parámetros extra |
 | Emulador de Android | `flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000/api/v1` |
-| Celular físico en la misma red Wi-Fi | `flutter run --dart-define=API_BASE_URL=http://<IP-de-tu-PC>:8000/api/v1`, con uvicorn arrancado con `--host 0.0.0.0` |
+| Celular físico en la misma red Wi-Fi | ver la sección siguiente |
 
-En modo debug, si el GPS no responde en 5 segundos (común en Linux de escritorio), la app usa una
-coordenada de respaldo en Cartagena y lo avisa. En release nunca inventa la ubicación.
+En modo debug, si el GPS no responde (común en Linux de escritorio) y no hay una ubicación conocida,
+la app usa una coordenada de respaldo en Cartagena y lo avisa. En release nunca inventa la ubicación.
+
+### Probar en un celular Android (APK de prueba)
+
+El celular y el computador con la API deben estar en la misma red (sirve el hotspot del propio celular).
+
+1. Levanta el backend con `docker compose up` (publica el puerto 8000 en la red local).
+2. Averigua la IP del computador: `hostname -I` en Linux, `ipconfig` en Windows.
+3. Compila el APK apuntando a esa IP:
+
+   ```bash
+   flutter build apk --debug --target-platform android-arm64 \
+     --dart-define=API_BASE_URL=http://<IP-del-computador>:8000/api/v1
+   ```
+
+4. Instala `build/app/outputs/flutter-apk/app-debug.apk` en el celular (por cable con
+   `adb install`, o copiándolo y permitiendo "instalar apps de origen desconocido").
+
+Si la IP del computador cambia, hay que recompilar el APK. Si la app no conecta, revisa que el
+firewall del computador permita conexiones entrantes al puerto 8000.
 
 ## Endpoints
 
-| Método | Ruta | Descripción |
-|---|---|---|
-| GET | `/api/v1/health` | Estado del servicio |
-| POST | `/api/v1/users/` | Registrar un viajero (`tipo_viajero`: `Residente` o `Turista`) |
-| POST | `/api/v1/incidents/` | Reportar un incidente |
-| GET | `/api/v1/incidents/` | Listar los incidentes |
-| POST | `/api/v1/routes/risk` | Calcular el riesgo de una ruta a partir de sus puntos (lat/lon) |
+| Método | Ruta | Sesión | Descripción |
+|---|---|---|---|
+| GET | `/api/v1/health` | — | Estado del servicio y de la base de datos |
+| POST | `/api/v1/auth/register` | — | Registrar un viajero (exige `acepta_terminos: true`); devuelve el token |
+| POST | `/api/v1/auth/login` | — | Iniciar sesión; devuelve un token Bearer (JWT) |
+| GET | `/api/v1/users/me` | ✅ | Perfil del viajero autenticado |
+| POST | `/api/v1/incidents/` | ✅ | Reportar un incidente (el autor sale del token) |
+| GET | `/api/v1/incidents/` | — | Listar los incidentes vigentes (sin datos del autor) |
+| POST | `/api/v1/routes/risk` | — | Calcular el riesgo de una ruta a partir de sus puntos (lat/lon) |
 
-Documentación interactiva (Swagger): <http://127.0.0.1:8000/api/v1/docs>
+Documentación interactiva (Swagger): <http://127.0.0.1:8000/api/v1/docs>. Para probar los endpoints
+con sesión, inicia sesión, copia el `access_token` y pégalo en el botón **Authorize**.
 
 ## Pruebas
 
 ```bash
+# Backend: las pruebas de integración necesitan MongoDB (docker compose up -d mongo)
+cd backend
+pytest
+
+# Frontend
 cd frontend
 flutter analyze
 flutter test
