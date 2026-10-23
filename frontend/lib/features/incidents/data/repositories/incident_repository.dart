@@ -1,11 +1,16 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
+import '../../../../core/api_errors.dart';
 import '../../../../core/config.dart';
+import '../../../auth/data/repositories/auth_repository.dart';
 import '../../domain/models/incident_models.dart';
 
 class IncidentRepository {
+  final AuthRepository authRepository;
   final String baseUrl = '$apiBaseUrl/incidents';
+
+  IncidentRepository({required this.authRepository});
 
   Future<List<Incident>> getActiveIncidents() async {
     try {
@@ -23,20 +28,26 @@ class IncidentRepository {
   }
 
   Future<void> reportIncident(IncidentCreate incident) async {
-    final url = Uri.parse('$baseUrl/');
+    final token = authRepository.token;
+    if (token == null) throw SessionExpiredException();
 
+    final http.Response response;
     try {
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
+      response = await http.post(
+        Uri.parse('$baseUrl/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
         body: jsonEncode(incident.toJson()),
       );
-
-      if (response.statusCode != 200 && response.statusCode != 201) {
-        throw Exception('Fallo al registrar el incidente: Código ${response.statusCode}');
-      }
     } catch (e) {
       throw Exception('Error de conexión con el servidor de Karta: $e');
+    }
+
+    if (response.statusCode == 401) throw SessionExpiredException();
+    if (response.statusCode != 201) {
+      throw Exception(apiErrorMessage(response, fallback: 'Fallo al registrar el incidente.'));
     }
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/location_service.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../bloc/incident_bloc.dart';
 
 class IncidentBottomSheet extends StatefulWidget {
@@ -9,6 +10,8 @@ class IncidentBottomSheet extends StatefulWidget {
   static void show(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      // Permite que la hoja crezca y se desplace en pantallas bajas o en horizontal.
+      isScrollControlled: true,
       backgroundColor: const Color(0xFF1E1E1E),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -67,9 +70,10 @@ class _IncidentBottomSheetState extends State<IncidentBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -104,6 +108,9 @@ class _IncidentBottomSheetState extends State<IncidentBottomSheet> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Alerta enviada. Gracias por cuidar a la comunidad.', style: TextStyle(color: Colors.white)), backgroundColor: Colors.green),
                 );
+              } else if (state is IncidentError && state.sessionExpired) {
+                Navigator.pop(context);
+                context.read<AuthBloc>().add(LogoutRequested(message: state.message));
               } else if (state is IncidentError) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text(state.message), backgroundColor: Colors.red),
@@ -137,6 +144,7 @@ class _IncidentBottomSheetState extends State<IncidentBottomSheet> {
             },
           )
         ],
+        ),
       ),
     );
   }

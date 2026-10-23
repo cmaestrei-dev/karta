@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
+import '../../../../core/api_errors.dart';
 import '../../data/repositories/incident_repository.dart';
 import '../../domain/models/incident_models.dart';
 
@@ -25,11 +26,12 @@ class IncidentsLoaded extends IncidentState {
 
 class IncidentError extends IncidentState {
   final String message;
+  final bool sessionExpired;
   
-  IncidentError(this.message);
+  IncidentError(this.message, {this.sessionExpired = false});
   
   @override
-  List<Object> get props => [message];
+  List<Object> get props => [message, sessionExpired];
 }
 
 abstract class IncidentEvent extends Equatable {
@@ -65,7 +67,6 @@ class IncidentBloc extends Bloc<IncidentEvent, IncidentState> {
       emit(IncidentSubmitting());
       try {
         final newIncident = IncidentCreate(
-          idUsuario: 1,
           categoria: event.categoria,
           intensidad: event.intensidad,
           latitud: event.latitud,
@@ -76,6 +77,8 @@ class IncidentBloc extends Bloc<IncidentEvent, IncidentState> {
         
         add(LoadIncidentsEvent()); 
         
+      } on SessionExpiredException catch (e) {
+        emit(IncidentError(e.toString(), sessionExpired: true));
       } catch (e) {
         emit(IncidentError(e.toString()));
       }

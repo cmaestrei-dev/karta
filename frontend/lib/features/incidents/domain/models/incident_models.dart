@@ -1,21 +1,19 @@
 class IncidentCreate {
-  final int idUsuario;
   final String categoria;
   final int intensidad;
   final double latitud;
   final double longitud;
 
   IncidentCreate({
-    required this.idUsuario,
     required this.categoria,
     required this.intensidad,
     required this.latitud,
     required this.longitud,
   });
 
+  /// El autor no viaja en el cuerpo: la API lo toma del token de sesión.
   Map<String, dynamic> toJson() {
     return {
-      'id_usuario': idUsuario,
       'categoria': categoria,
       'intensidad': intensidad,
       'latitud': latitud,
@@ -25,7 +23,7 @@ class IncidentCreate {
 }
 
 class Incident {
-  final int id;
+  final String id;
   final String categoria;
   final int intensidad;
   final double latitud;
@@ -41,7 +39,7 @@ class Incident {
 
   factory Incident.fromJson(Map<String, dynamic> json) {
     return Incident(
-      id: json['id_incidente'] as int,
+      id: json['id'] as String,
       categoria: json['categoria'] as String,
       intensidad: json['intensidad'] as int,
       latitud: (json['latitud'] as num).toDouble(),

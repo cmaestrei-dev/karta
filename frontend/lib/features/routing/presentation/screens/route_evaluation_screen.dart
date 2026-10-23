@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../incidents/presentation/bloc/incident_bloc.dart';
 import '../../../incidents/presentation/widgets/incident_bottom_sheet.dart';
 import '../../domain/models/route_risk.dart';
@@ -100,6 +101,21 @@ class RouteEvaluationScreen extends StatelessWidget {
                 backgroundColor: Colors.transparent,
                 elevation: 0,
                 actions: [
+                  Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E1E1E).withValues(alpha: 0.9),
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.logout, color: Colors.white70),
+                      tooltip: 'Cerrar sesión',
+                      onPressed: () {
+                        context.read<RouteBloc>().add(ResetRouteEvent());
+                        context.read<AuthBloc>().add(const LogoutRequested());
+                      },
+                    ),
+                  ),
                   Container(
                     margin: const EdgeInsets.only(right: 16),
                     decoration: BoxDecoration(
