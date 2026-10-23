@@ -1,5 +1,6 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import List
+from src.domain.models import CategoriaIncidente
 
 class RoutePoint(BaseModel):
     lat: float = Field(..., ge=-90, le=90)
@@ -10,8 +11,10 @@ class RouteRiskRequest(BaseModel):
     route: List[RoutePoint] = Field(..., min_length=2, max_length=5000)
 
 class IncidentRiskDetail(BaseModel):
-    id: int
-    categoria: str
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    categoria: CategoriaIncidente
     intensidad: int
 
 class RouteRiskResponse(BaseModel):

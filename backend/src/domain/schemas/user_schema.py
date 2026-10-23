@@ -1,15 +1,32 @@
-from pydantic import BaseModel
-from src.infrastructure.models import TipoViajero
+from typing import Literal
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from src.domain.models import TipoViajero
 
-class UserCreate(BaseModel):
-    """Esquema de entrada: Lo que el Frontend (Karta App) nos envía."""
+class RegisterRequest(BaseModel):
+    """Datos del formulario de registro (Caso de Uso #1)."""
+    email: EmailStr
+    password: str = Field(..., min_length=8, max_length=128)
+    nombre: str = Field(..., min_length=1, max_length=80)
     tipo_viajero: TipoViajero
+    acepta_terminos: Literal[True] = Field(
+        ..., description="Consentimiento para el tratamiento de datos personales (Ley 1581 de 2012)."
+    )
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(..., min_length=1, max_length=128)
 
 class UserResponse(BaseModel):
-    """Esquema de salida: Lo que el Backend le responde al Frontend."""
-    id_usuario: int
-    tipo_viajero: TipoViajero
-    reputacion_puntos: int
+    """Perfil público del viajero. Nunca incluye el hash de la contraseña."""
+    model_config = ConfigDict(from_attributes=True)
 
-    class Config:
-        from_attributes = True
+    id: str
+    email: str
+    nombre: str
+    tipo_viajero: TipoViajero
+    reputacion: int
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    usuario: UserResponse

@@ -1,31 +1,47 @@
-from src.infrastructure.database import SessionLocal
-from src.infrastructure.models import Modalidad, Usuario, TipoViajero
+"""
+Datos de demostración para desarrollo: un usuario demo y algunos incidentes en Cartagena.
+Es idempotente: no duplica el usuario y solo crea incidentes si no hay ninguno vigente.
+"""
+import os
+
+from src.application.auth_service import AuthService
+from src.application.incident_service import IncidentService
+from src.domain.models import CategoriaIncidente, TipoViajero
+from src.domain.schemas.incident_schema import IncidentCreate
+from src.infrastructure.database import ensure_indexes, get_database
+from src.infrastructure.repositories import MongoIncidentRepository, MongoUserRepository
+from src.infrastructure.security import password_hasher, token_issuer
+
+INCIDENTES_DEMO = [
+    (CategoriaIncidente.SEGURIDAD, 4, 10.4236, -75.5510),  # Centro Histórico
+    (CategoriaIncidente.TRAFICO, 3, 10.4205, -75.5465),    # Getsemaní
+    (CategoriaIncidente.TRAFICO, 5, 10.4150, -75.5250),    # Av. Pedro de Heredia
+    (CategoriaIncidente.SEGURIDAD, 2, 10.4000, -75.5560),  # Bocagrande
+]
 
 def seed():
-    db = SessionLocal()
-    try:
-        if db.query(Modalidad).count() == 0:
-            print("Iniciando inyección de datos semilla en Karta...")
-            modalidades_base = [
-                Modalidad(nombre_servicio="Transcaribe", tipo_servicio="Público"),
-                Modalidad(nombre_servicio="Caminata", tipo_servicio="Físico")
-            ]
-            db.add_all(modalidades_base)
-            print("✅ Catálogo de modalidades listo.")
-        else:
-            print("⚠️ Las modalidades ya estaban registradas. No se requiere acción.")
+    email, password = os.getenv("DEMO_EMAIL"), os.getenv("DEMO_PASSWORD")
+    if not email or not password:
+        print("⚠️ DEMO_EMAIL o DEMO_PASSWORD no están definidos: no se cargan datos demo.")
+        return
 
-        # Usuario de desarrollo: la app aún reporta como id_usuario=1 hasta que exista login.
-        if db.query(Usuario).count() == 0:
-            db.add(Usuario(tipo_viajero=TipoViajero.RESIDENTE))
-            print("✅ Usuario de desarrollo creado (id_usuario=1).")
+    db = get_database()
+    ensure_indexes(db)
 
-        db.commit()
-    except Exception as e:
-        print(f"❌ Error al poblar la base de datos: {e}")
-        db.rollback()
-    finally:
-        db.close()
+    users = MongoUserRepository(db)
+    usuario = users.get_by_email(email.lower())
+    if usuario is None:
+        auth = AuthService(users, password_hasher, token_issuer)
+        usuario, _ = auth.register(email=email, password=password, nombre="Viajero Demo",
+                                   tipo_viajero=TipoViajero.RESIDENTE)
+        print("✅ Usuario demo creado.")
+
+    incidents = IncidentService(MongoIncidentRepository(db))
+    if not incidents.list_active():
+        for categoria, intensidad, lat, lon in INCIDENTES_DEMO:
+            incidents.report(usuario, IncidentCreate(categoria=categoria, intensidad=intensidad,
+                                                     latitud=lat, longitud=lon))
+        print("✅ Incidentes demo creados (expiran según su categoría).")
 
 if __name__ == "__main__":
     seed()

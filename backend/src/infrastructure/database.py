@@ -1,28 +1,18 @@
-import os
-from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
-from dotenv import load_dotenv
+from pymongo import ASCENDING, GEOSPHERE, MongoClient
+from pymongo.database import Database
+from src.infrastructure import config
 
-load_dotenv()
+# El cliente mantiene un pool de conexiones y es seguro entre hilos: uno por proceso.
+client = MongoClient(config.MONGO_URI, tz_aware=True, serverSelectionTimeoutMS=5000)
 
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
 
-if not SQLALCHEMY_DATABASE_URL:
-    raise ValueError("Error Crítico: DATABASE_URL no está configurada en el entorno.")
+def get_database() -> Database:
+    return client[config.MONGO_DB]
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL, echo=False)
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-Base = declarative_base()
-
-def get_db():
-    """
-    Genera una sesión de base de datos aislada por cada petición HTTP.
-    Garantiza el cierre de la conexión incluso si ocurre un error (Clean Architecture).
-    """
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+def ensure_indexes(db: Database) -> None:
+    """Crea los índices de las colecciones. Es idempotente: se ejecuta en cada arranque."""
+    db.users.create_index([("email", ASCENDING)], unique=True)
+    db.incidents.create_index([("ubicacion", GEOSPHERE)])
+    # TTL: MongoDB elimina cada incidente cuando pasa su fecha `expira_en`.
+    db.incidents.create_index([("expira_en", ASCENDING)], expireAfterSeconds=0)
