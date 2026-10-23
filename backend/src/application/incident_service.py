@@ -2,7 +2,8 @@ from datetime import datetime, timezone
 
 from src.domain.models import VIGENCIA_POR_CATEGORIA, Incidente, Usuario
 from src.domain.ports import IncidentRepository
-from src.domain.route_risk import ResultadoRiesgo, corredor_de_ruta, evaluar_riesgo
+from src.domain.geo import corredor_de_ruta
+from src.domain.route_risk import RADIO_BUSQUEDA_M, ResultadoRiesgo, evaluar_riesgo
 from src.domain.schemas.incident_schema import IncidentCreate
 from src.domain.schemas.route_schema import RouteRiskRequest
 
@@ -36,6 +37,6 @@ class IncidentService:
         Construye un corredor de 500 m alrededor de la ruta y lo consulta en una sola
         búsqueda geoespacial, en lugar de una consulta por cada punto.
         """
-        area = corredor_de_ruta([(p.lon, p.lat) for p in request.route])
+        area = corredor_de_ruta([(p.lon, p.lat) for p in request.route], RADIO_BUSQUEDA_M)
         cercanos = self.incidents.find_active_within(area, datetime.now(timezone.utc))
         return evaluar_riesgo(cercanos)

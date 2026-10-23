@@ -1,5 +1,6 @@
 """
-Datos de demostración para desarrollo: un usuario demo y algunos incidentes en Cartagena.
+Carga los datos de referencia (rutas, estaciones y lugares) y, en desarrollo, datos de
+demostración: un usuario demo y algunos incidentes en Cartagena.
 Es idempotente: no duplica el usuario y solo crea incidentes si no hay ninguno vigente.
 """
 import os
@@ -9,6 +10,7 @@ from src.application.incident_service import IncidentService
 from src.domain.models import CategoriaIncidente, TipoViajero
 from src.domain.schemas.incident_schema import IncidentCreate
 from src.infrastructure.database import ensure_indexes, get_database
+from src.infrastructure.reference_data import cargar_datos_de_referencia
 from src.infrastructure.repositories import MongoIncidentRepository, MongoUserRepository
 from src.infrastructure.security import password_hasher, token_issuer
 
@@ -20,13 +22,15 @@ INCIDENTES_DEMO = [
 ]
 
 def seed():
+    db = get_database()
+    ensure_indexes(db)
+    cargar_datos_de_referencia(db, forzar=True)
+    print("✅ Rutas, estaciones y lugares de Cartagena actualizados.")
+
     email, password = os.getenv("DEMO_EMAIL"), os.getenv("DEMO_PASSWORD")
     if not email or not password:
         print("⚠️ DEMO_EMAIL o DEMO_PASSWORD no están definidos: no se cargan datos demo.")
         return
-
-    db = get_database()
-    ensure_indexes(db)
 
     users = MongoUserRepository(db)
     usuario = users.get_by_email(email.lower())
