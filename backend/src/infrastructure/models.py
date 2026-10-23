@@ -19,8 +19,8 @@ class Modalidad(Base):
     __tablename__ = "modalidades"
     
     id_modalidad = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    nombre_servicio = Column(String(50), unique=True, nullable=False) # Ej: Transcaribe, Didi
-    tipo_servicio = Column(String(20), nullable=False) # Público, Privado, Físico
+    nombre_servicio = Column(String(50), unique=True, nullable=False) # Ej: Transcaribe, Caminata
+    tipo_servicio = Column(String(20), nullable=False) # Público, Físico
 
 class Incidente(Base):
     """

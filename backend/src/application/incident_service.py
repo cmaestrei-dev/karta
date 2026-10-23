@@ -3,12 +3,13 @@ from sqlalchemy import func
 from typing import List
 from geoalchemy2.elements import WKTElement
 from src.infrastructure.models import Incidente
-from src.domain.schemas.incident_schema import IncidentCreate, RouteEvaluationRequest
+from src.domain.schemas.incident_schema import IncidentCreate
+from src.domain.schemas.route_schema import RouteRiskRequest
 
 class IncidentService:
 
     @classmethod
-    def evaluate_route_risk(cls, db: Session, route_request: RouteEvaluationRequest):
+    def evaluate_route_risk(cls, db: Session, route_request: RouteRiskRequest):
         """
         Analiza cada punto de la ruta y calcula un nivel de riesgo
         basado en la cercanía y gravedad de los incidentes.
@@ -62,7 +63,8 @@ class IncidentService:
             Incidente.categoria,
             Incidente.intensidad,
             func.ST_Y(Incidente.ubicacion).label('latitud'),
-            func.ST_X(Incidente.ubicacion).label('longitud')
+            func.ST_X(Incidente.ubicacion).label('longitud'),
+            Incidente.fecha_reporte
         ).all()
 
         return [
@@ -72,7 +74,8 @@ class IncidentService:
                 "categoria": r.categoria,
                 "intensidad": r.intensidad,
                 "latitud": r.latitud,
-                "longitud": r.longitud
+                "longitud": r.longitud,
+                "fecha_reporte": r.fecha_reporte
             }
             for r in resultados
         ]
@@ -94,5 +97,14 @@ class IncidentService:
         db.add(nuevo_incidente)
         db.commit()
         db.refresh(nuevo_incidente)
-        
-        return nuevo_incidente
+
+        # El modelo ORM solo guarda la geometría; la respuesta expone lat/lon planos.
+        return {
+            "id_incidente": nuevo_incidente.id_incidente,
+            "id_usuario": nuevo_incidente.id_usuario,
+            "categoria": nuevo_incidente.categoria,
+            "intensidad": nuevo_incidente.intensidad,
+            "latitud": incident.latitud,
+            "longitud": incident.longitud,
+            "fecha_reporte": nuevo_incidente.fecha_reporte
+        }
