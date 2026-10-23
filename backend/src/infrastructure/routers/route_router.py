@@ -9,13 +9,13 @@ from src.domain.schemas.route_schema import (
 from src.domain.trip_planning import OpcionViaje
 from src.infrastructure.dependencies import get_incident_service, get_trip_service
 
-router = APIRouter(prefix="/api/v1/routes", tags=["Rutas y Enrutamiento"])
+router = APIRouter(prefix="/api/v1/routes", tags=["Rutas"])
 
 NOTA_ESTIMACION = ("Tiempos estimados con velocidades promedio y caminatas en línea recta con rodeo; "
                    "no incluyen transbordos entre rutas.")
 FUENTE_RUTAS = "Rutas de Transcaribe: © colaboradores de OpenStreetMap (ODbL)."
 
-@router.post("/risk", response_model=RouteRiskResponse)
+@router.post("/risk", summary="Riesgo de un recorrido", response_model=RouteRiskResponse)
 def evaluate_route_risk(request: RouteRiskRequest, service: IncidentService = Depends(get_incident_service)):
     """Escanea la ruta trazada y calcula su nivel de riesgo según los incidentes a menos de 500 m."""
     resultado = service.evaluate_route_risk(request)
@@ -26,7 +26,7 @@ def evaluate_route_risk(request: RouteRiskRequest, service: IncidentService = De
         detalle_incidentes=[IncidentRiskDetail.model_validate(i) for i in resultado.incidentes],
     )
 
-@router.post("/suggest", response_model=RouteSuggestResponse)
+@router.post("/suggest", summary="Rutas sugeridas", response_model=RouteSuggestResponse)
 def suggest_routes(request: RouteSuggestRequest, service: TripService = Depends(get_trip_service)):
     """
     Rutas sugeridas entre dos puntos de Cartagena: a pie o en Transcaribe (caminata + una ruta + caminata).

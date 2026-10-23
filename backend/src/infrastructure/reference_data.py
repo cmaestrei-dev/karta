@@ -27,4 +27,6 @@ def _leer(nombre: str) -> dict:
 
 
 def _reemplazar(coleccion: Collection, documentos: list[dict]) -> None:
+    """Deja la colección igual a los datos: actualiza o crea cada documento y borra los que ya no están."""
     coleccion.bulk_write([ReplaceOne({"_id": d["_id"]}, d, upsert=True) for d in documentos])
+    coleccion.delete_many({"_id": {"$nin": [d["_id"] for d in documentos]}})

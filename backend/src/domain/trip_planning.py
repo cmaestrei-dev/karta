@@ -71,6 +71,11 @@ def _caminata(desde: tuple[float, float], hasta: tuple[float, float], distancia_
                  distancia_m=distancia_m * FACTOR_RODEO, duracion_min=minutos_caminando(distancia_m))
 
 
+def caminata_entre(desde: tuple[float, float], hasta: tuple[float, float]) -> Tramo:
+    """Tramo a pie entre dos puntos (lon, lat), con la misma regla de rodeo y velocidad de todo el planificador."""
+    return _caminata(desde, hasta, a_metros(Point(desde)).distance(a_metros(Point(hasta))))
+
+
 def opcion_caminando(origen: tuple[float, float], destino: tuple[float, float]) -> OpcionViaje | None:
     o, d = a_metros(Point(origen)), a_metros(Point(destino))
     distancia = o.distance(d)

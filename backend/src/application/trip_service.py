@@ -5,7 +5,7 @@ from src.domain.geo import circulo, corredor_de_ruta, distancia_m
 from src.domain.models import Estacion, RutaTransporte
 from src.domain.ports import IncidentRepository, PlaceRepository, TransitRepository
 from src.domain.route_risk import PENALIZACION_RIESGO_MIN, RADIO_BUSQUEDA_M, ResultadoRiesgo, evaluar_riesgo
-from src.domain.trip_planning import CAMINATA_MAXIMA_DE_ACCESO_M, OpcionViaje, planificar
+from src.domain.trip_planning import CAMINATA_MAXIMA_DE_ACCESO_M, OpcionViaje, caminata_entre, planificar
 
 
 class TripService:
@@ -59,20 +59,28 @@ class TripService:
             return OpcionViaje(tramos=tuple(tramos))
 
         ruta = tramos[bus].ruta
-        subida = self._nombre_de_parada(tramos[bus].coordenadas[0], ruta, estaciones)
-        bajada = self._nombre_de_parada(tramos[bus].coordenadas[-1], ruta, estaciones)
+        subida, estacion_subida = self._parada(tramos[bus].coordenadas[0], ruta, estaciones)
+        bajada, estacion_bajada = self._parada(tramos[bus].coordenadas[-1], ruta, estaciones)
+        # Si se sube o se baja en una estación, la caminata llega a la estación misma: así su distancia
+        # coincide con la que muestra /stops/nearby para esa estación.
+        if estacion_subida:
+            tramos[bus - 1] = caminata_entre(tramos[bus - 1].coordenadas[0], (estacion_subida.longitud, estacion_subida.latitud))
+        if estacion_bajada:
+            tramos[bus + 1] = caminata_entre((estacion_bajada.longitud, estacion_bajada.latitud), tramos[bus + 1].coordenadas[-1])
         tramos[bus - 1] = replace(tramos[bus - 1], desde=inicio, hasta=subida)
         tramos[bus] = replace(tramos[bus], desde=subida, hasta=bajada)
         tramos[bus + 1] = replace(tramos[bus + 1], desde=bajada, hasta=fin)
         return OpcionViaje(tramos=tuple(tramos))
 
-    def _nombre_de_parada(self, punto: tuple[float, float], ruta: RutaTransporte, estaciones: list[Estacion]) -> str:
+    def _parada(self, punto: tuple[float, float], ruta: RutaTransporte,
+                estaciones: list[Estacion]) -> tuple[str, Estacion | None]:
+        """Nombre legible del punto de subida o bajada y, si es una estación de la ruta, la estación."""
         propias = [(distancia_m(punto, (e.longitud, e.latitud)), e) for e in estaciones if ruta.id in e.rutas]
         if propias:
             distancia, estacion = min(propias, key=lambda par: par[0])
             if distancia <= self.RADIO_ESTACION_M:
-                return f"Estación {estacion.nombre}"
+                return f"Estación {estacion.nombre}", estacion
         cercano = self.places.nearest(punto[0], punto[1], self.RADIO_REFERENCIA_M)
         if cercano:
-            return f"Paradero cerca de {cercano[0].nombre}"
-        return "Paradero sobre la vía"
+            return f"Paradero cerca de {cercano[0].nombre}", None
+        return "Paradero sobre la vía", None

@@ -25,7 +25,11 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Karta API",
-    description="API Core para enrutamiento táctico y gestión UGC (Asset-Light)",
+    description=(
+        "API de Karta: buscador de lugares de Cartagena, rutas sugeridas de Transcaribe con su riesgo, "
+        "estaciones cercanas, lugares guardados e incidentes reportados por la comunidad. "
+        "Las rutas protegidas piden un token Bearer (JWT) que entregan /auth/login y /auth/register."
+    ),
     version="2.0.0",
     openapi_url="/api/v1/openapi.json",
     docs_url="/api/v1/docs",
@@ -53,7 +57,7 @@ app.include_router(stop_router.router)
 async def root():
     return RedirectResponse(url="/api/v1/docs")
 
-@app.get("/api/v1/health", tags=["System"])
+@app.get("/api/v1/health", tags=["Sistema"], summary="Estado del servicio y de la base de datos")
 def health_check(db: Database = Depends(get_db)):
     try:
         db.command("ping")

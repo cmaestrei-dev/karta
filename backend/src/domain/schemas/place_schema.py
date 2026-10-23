@@ -57,4 +57,6 @@ class StopResponse(BaseModel):
     latitud: float
     longitud: float
     rutas: List[str]
-    distancia_m: int
+    distancia_m: int = Field(..., description="Distancia en línea recta")
+    caminata_m: int = Field(..., description="Distancia estimada a pie (la misma regla del planificador de viajes)")
+    caminata_min: int = Field(..., description="Minutos estimados a pie")

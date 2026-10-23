@@ -7,7 +7,7 @@ from typing import List
 
 router = APIRouter(prefix="/api/v1/places", tags=["Lugares"])
 
-@router.get("/search", response_model=List[PlaceResponse])
+@router.get("/search", summary="Buscar lugares", response_model=List[PlaceResponse])
 def search_places(
     q: str = Query(..., min_length=2, max_length=80, description='Texto a buscar, ej. "boca" o "estacion bazurto"'),
     limite: int = Query(8, ge=1, le=20),
@@ -19,7 +19,7 @@ def search_places(
     """
     return service.search(q, limite)
 
-@router.get("/reverse", response_model=PlaceResponse)
+@router.get("/reverse", summary="Nombre de un punto del mapa", response_model=PlaceResponse)
 def reverse_geocode(
     lat: float = Query(..., ge=-90, le=90),
     lon: float = Query(..., ge=-180, le=180),

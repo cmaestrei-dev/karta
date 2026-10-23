@@ -38,6 +38,8 @@ def test_estaciones_cercanas_ordenadas_por_distancia(api):
     assert "T101" in estaciones[0]["rutas"]
     distancias = [e["distancia_m"] for e in estaciones]
     assert distancias == sorted(distancias)
+    # La distancia a pie usa la misma regla que los tramos de caminata del planificador.
+    assert all(e["caminata_m"] >= e["distancia_m"] and e["caminata_min"] >= 1 for e in estaciones)
 
 
 def test_rutas_sugeridas_entre_bazurto_y_bocagrande(api):
@@ -56,6 +58,13 @@ def test_rutas_sugeridas_entre_bazurto_y_bocagrande(api):
     assert primera["riesgo"]["nivel"] in {"BAJO", "MEDIO", "ALTO", "CRÍTICO"}
     assert primera["tramos"][1]["geometria"]["type"] == "LineString"
     assert "OpenStreetMap" in cuerpo["fuente"]
+
+    # La caminata hasta la estación de subida mide lo mismo que muestra /stops/nearby para esa estación.
+    caminata = primera["tramos"][0]
+    assert caminata["hasta"] == "Estación Bazurto"
+    estacion = api.get("/api/v1/stops/nearby", params={**BAZURTO, "limite": 1}).json()[0]
+    assert estacion["nombre"] == "Bazurto"
+    assert abs(caminata["distancia_m"] - estacion["caminata_m"]) <= 2
 
 
 def test_rutas_sugeridas_solo_dentro_de_cartagena(api):
