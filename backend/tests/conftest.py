@@ -17,7 +17,11 @@ def api():
     try:
         client.admin.command("ping")
     except Exception:
-        pytest.skip("MongoDB no está disponible (levántalo con: docker compose up -d mongo)")
+        mensaje = "MongoDB no está disponible (levántalo con: docker compose up -d mongo)"
+        # En integración continua una base caída debe fallar, no saltarse en silencio.
+        if os.environ.get("KARTA_EXIGIR_MONGO") == "1":
+            pytest.fail(mensaje)
+        pytest.skip(mensaje)
 
     from src.infrastructure.main import app
     with TestClient(app) as test_client:
