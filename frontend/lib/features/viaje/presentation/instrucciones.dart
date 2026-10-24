@@ -60,7 +60,7 @@ String _tituloABordo(EstadoDelViaje estado) {
 
 /// «bájate en Estación La Bodeguita · 4 paradas».
 String _bajarse(Leg bus) {
-  final paradas = bus.paradas.length - 1;
+  final paradas = bus.bajaEnEstacion ? bus.paradas.length - 1 : 0;
   return 'bájate en ${bus.hasta}${paradas > 1 ? ' · $paradas paradas' : ''}';
 }
 

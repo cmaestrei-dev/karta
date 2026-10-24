@@ -120,4 +120,28 @@ void main() {
     expect(eventos, contains(EventoDelViaje.bajaste));
     expect(s.estado.fase, Fase.caminandoAlDestino);
   });
+
+  test('si se baja en un paradero de la vía, no cuenta estaciones: avisa por distancia', () {
+    // Como la X105: pasa por estaciones en el camino pero se baja en un paradero 1 km después de la última.
+    final subida = _p(0, 200);
+    final bajada = _p(3000, 200);
+    final opcion = RouteOption(
+      resumen: 'X105',
+      tiempoTotalMin: 20,
+      distanciaCaminataM: 0,
+      tramos: [
+        Leg(
+          modo: 'bus', desde: 'Paradero', hasta: 'Paradero Cra. 3 con Calle 9', distanciaM: 3000, duracionMin: 10,
+          esperaMin: 5, ruta: 'X105', tipoRuta: 'pretroncal', puntos: [subida, bajada],
+          paradas: [(nombre: 'Lo Amador', punto: _p(1000, 200)), (nombre: 'Centro', punto: _p(2000, 200))],
+        ),
+      ],
+      riesgo: const RiskSummary(score: 0, nivel: 'BAJO', totalIncidentes: 0),
+    );
+    final s = SeguidorDeViaje(opcion);
+    _recorrer(s, _linea(subida, _p(2100, 200)));
+    expect(s.estado.paradasQueFaltan, isNull, reason: 'pasó la última estación pero aún falta 0,9 km');
+    expect(_recorrer(s, _linea(_p(2100, 200), _p(2400, 200), pasos: 6)), isEmpty);
+    expect(_recorrer(s, _linea(_p(2400, 200), _p(2600, 200), pasos: 6)), [EventoDelViaje.bajateEnLaProxima]);
+  });
 }

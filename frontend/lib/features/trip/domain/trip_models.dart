@@ -52,6 +52,11 @@ class Leg extends Equatable {
 
   bool get esCaminata => modo == 'caminata';
 
+  /// Se baja en una estación de la troncal: ahí sí se pueden contar paradas. Si la bajada es un paradero de la vía
+  /// (sin coordenadas publicadas), contar las estaciones del camino engaña: después de la última aún faltaría.
+  bool get bajaEnEstacion =>
+      paradas.isNotEmpty && puntos.isNotEmpty && const Distance().as(LengthUnit.Meter, paradas.last.punto, puntos.last) <= 150;
+
   factory Leg.fromJson(Map<String, dynamic> json) => Leg(
         modo: json['modo'] as String,
         desde: json['desde'] as String,

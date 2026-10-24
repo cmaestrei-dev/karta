@@ -176,9 +176,10 @@ class SeguidorDeViaje {
   }
 
   /// Estaciones que faltan, sin contar las que el bus ya pasó (30 m de margen); la de bajada cuenta.
+  /// Null si la bajada no es una estación: entonces los avisos van por distancia.
   int? _paradasQueFaltan(int k) {
     final tramo = opcion.tramos[k];
-    if (tramo.paradas.isEmpty) return null;
+    if (!tramo.bajaEnEstacion) return null;
     var faltan = 0;
     for (final parada in tramo.paradas) {
       if (proyectarEnLinea(parada.punto, tramo.puntos).avanceM > _avanceEnBus + 30) faltan++;
