@@ -38,6 +38,7 @@ dependencies:
   latlong2: ^0.9.1
   geolocator: ^14.0.2
   flutter_secure_storage: ^11.2.0
+  flutter_svg: ^2.3.0
 
 dev_dependencies:
   flutter_test:
@@ -70,11 +71,25 @@ flutter:
           weight: 600
         - asset: assets/fonts/SourceSerif4-Bold.ttf
           weight: 700
+    # Manrope (OFL, ver assets/fonts/OFL-Manrope.txt): letra del sistema de diseño «Bahía».
+    # Pesos fijos generados desde la fuente variable para no depender de variaciones.
+    - family: Manrope
+      fonts:
+        - asset: assets/fonts/Manrope-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Manrope-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Manrope-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Manrope-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Manrope-ExtraBold.ttf
+          weight: 800
 
-  # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
+  # Ilustraciones de reporte y estilos del mapa vectorial (tool/estilo_mapa.py los genera).
+  assets:
+    - assets/ilustraciones/
+    - assets/mapa/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
