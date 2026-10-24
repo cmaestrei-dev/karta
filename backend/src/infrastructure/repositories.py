@@ -12,6 +12,7 @@ from src.domain.models import (
     REPUTACION_INICIAL, EmailYaRegistrado, Estacion, IconoLugar, Incidente, LimiteLugaresGuardados,
     Lugar, LugarGuardado, LugarGuardadoNoEncontrado, RutaTransporte, TipoViajero, Usuario,
 )
+from src.domain.horarios import HorarioRuta
 from src.domain.reportes import TipoReporte, VotoRepetido, alias_publico
 
 
@@ -158,10 +159,24 @@ class MongoTransitRepository:
     def __init__(self, db: Database):
         self._routes = db.transit_routes
         self._stations = db.stations
+        self._schedules = db.route_schedules
+        self._intersections = db.intersections
 
     def routes_intersecting_all(self, areas: list[dict]) -> list[RutaTransporte]:
         filtro = {"$and": [{"geometria": {"$geoIntersects": {"$geometry": area}}} for area in areas]}
         return [_to_ruta(doc) for doc in self._routes.find(filtro)]
+
+    def routes_intersecting_any(self, areas: list[dict]) -> list[RutaTransporte]:
+        filtro = {"$or": [{"geometria": {"$geoIntersects": {"$geometry": area}}} for area in areas]}
+        return [_to_ruta(doc) for doc in self._routes.find(filtro)]
+
+    def schedules(self) -> dict[str, HorarioRuta]:
+        return {doc["_id"]: HorarioRuta.desde_texto(doc["_id"], doc) for doc in self._schedules.find()}
+
+    def intersection_near(self, lon: float, lat: float, radio_m: float) -> str | None:
+        doc = self._intersections.find_one({"ubicacion": {"$nearSphere": {
+            "$geometry": {"type": "Point", "coordinates": [lon, lat]}, "$maxDistance": radio_m}}})
+        return doc["nombre"] if doc else None
 
     def list_stations(self) -> list[Estacion]:
         return [_to_estacion(doc) for doc in self._stations.find()]

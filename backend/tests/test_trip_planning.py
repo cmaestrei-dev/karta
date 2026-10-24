@@ -89,3 +89,57 @@ def test_el_expreso_no_para_en_estaciones_que_no_son_suyas():
 
     subida = opcion.tramos[1].coordenadas[0]
     assert subida[0] == pytest.approx(-75.540, abs=0.001)
+
+
+# ---------------------------------------------------------------- transbordos
+
+# Una ruta de norte a sur que cruza la RECTA en -75.52 y sigue 4,4 km al norte.
+VERTICAL = [(-75.52, 10.36), (-75.52, 10.40), (-75.52, 10.44)]
+
+
+def _vertical(tipo="alimentadora", id_ruta="A999"):
+    return RutaTransporte(id=id_ruta, nombre="Vertical", tipo=tipo, coordenadas=VERTICAL, cortes_en_osm=0)
+
+
+def test_con_transbordo_se_llega_a_donde_ninguna_ruta_sola_llega():
+    origen = _al_norte(-75.548, 100)              # junto al inicio de la recta
+    destino = (-75.5195, 10.435)                   # junto al final de la vertical
+
+    sin = planificar([_ruta(), _vertical()], [], origen, destino, con_transbordos=False)
+    assert sin == []
+
+    opcion = planificar([_ruta(), _vertical()], [], origen, destino)[0]
+    assert [t.modo for t in opcion.tramos] == ["caminata", "bus", "caminata", "bus", "caminata"]
+    assert [r.id for r in opcion.rutas] == ["X999", "A999"]
+    assert opcion.transbordos == 1
+    # Se cambia de bus en el cruce de las dos rutas.
+    bajada_de_la_primera = opcion.tramos[1].coordenadas[-1]
+    subida_a_la_segunda = opcion.tramos[3].coordenadas[0]
+    assert bajada_de_la_primera[0] == pytest.approx(-75.52, abs=0.002)
+    assert subida_a_la_segunda[1] == pytest.approx(10.40, abs=0.002)
+    # La segunda ruta se toma hacia el norte, en el sentido de la relación.
+    assert opcion.tramos[3].coordenadas[-1][1] > subida_a_la_segunda[1]
+    # El tiempo incluye las dos esperas.
+    assert opcion.tiempo_total_min > ESPERA_ESTIMADA_MIN["pretroncal"] + ESPERA_ESTIMADA_MIN["alimentadora"]
+
+
+def test_el_transbordo_funciona_en_contra_del_sentido_de_las_relaciones():
+    # Del norte de la vertical al oeste de la recta: las dos rutas se recorren al revés.
+    opcion = planificar([_ruta(), _vertical()], [], (-75.5195, 10.435), _al_norte(-75.548, 100))[0]
+    assert [r.id for r in opcion.rutas] == ["A999", "X999"]
+    assert opcion.tramos[1].coordenadas[-1][1] < opcion.tramos[1].coordenadas[0][1]   # baja hacia el sur
+    assert opcion.tramos[3].coordenadas[-1][0] < opcion.tramos[3].coordenadas[0][0]   # va hacia el oeste
+
+
+def test_rutas_que_no_se_acercan_no_ofrecen_transbordo():
+    lejana = RutaTransporte(id="A998", nombre="Lejana", tipo="alimentadora", cortes_en_osm=0,
+                            coordenadas=[(-75.46, 10.45), (-75.46, 10.50)])
+    assert planificar([_ruta(), lejana], [], _al_norte(-75.548, 100), (-75.4595, 10.49)) == []
+
+
+def test_un_transbordo_que_no_gana_a_ir_directo_se_descarta():
+    # Las dos rutas van por la misma recta: cambiar de una a otra no ahorra nada.
+    otra = _ruta(tipo="pretroncal", id_ruta="X998")
+    opciones = planificar([_ruta(), otra], [], _al_norte(-75.545, 200), _al_norte(-75.505, 200))
+    assert all(o.transbordos == 0 for o in opciones)
+    assert sorted(o.ruta.id for o in opciones) == ["X998", "X999"]

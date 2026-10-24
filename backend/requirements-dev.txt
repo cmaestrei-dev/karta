@@ -2,3 +2,5 @@
 
 pytest==9.1.1
 httpx2==2.16.0
+# Solo para scripts/importar_horarios.py (lee el archivo oficial de rutas en Excel).
+openpyxl==3.1.5

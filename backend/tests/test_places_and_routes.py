@@ -3,6 +3,11 @@ CENTRO = {"lat": 10.4236, "lon": -75.5510}
 BAZURTO = {"lat": 10.4135, "lon": -75.5245}
 BOCAGRANDE = {"lat": 10.3990, "lon": -75.5545}
 SANTA_MARTA = {"lat": 11.2408, "lon": -74.1990}
+MANDELA = {"lat": 10.3885, "lon": -75.4705}
+
+# Las rutas dependen de la hora: las pruebas salen un martes cualquiera a media mañana (hora de Colombia).
+MARTES_10_AM = "2026-10-27T10:00:00-05:00"
+VIERNES_11_PM = "2026-10-23T23:30:00-05:00"
 
 
 def _auth(token):
@@ -44,7 +49,7 @@ def test_estaciones_cercanas_ordenadas_por_distancia(api):
 
 def test_rutas_sugeridas_entre_bazurto_y_bocagrande(api):
     respuesta = api.post("/api/v1/routes/suggest", json={
-        "origen": {**BAZURTO, "nombre": "Mercado de Bazurto"}, "destino": BOCAGRANDE,
+        "origen": {**BAZURTO, "nombre": "Mercado de Bazurto"}, "destino": BOCAGRANDE, "salida": MARTES_10_AM,
     })
     assert respuesta.status_code == 200, respuesta.text
     cuerpo = respuesta.json()
@@ -65,6 +70,39 @@ def test_rutas_sugeridas_entre_bazurto_y_bocagrande(api):
     estacion = api.get("/api/v1/stops/nearby", params={**BAZURTO, "limite": 1}).json()[0]
     assert estacion["nombre"] == "Bazurto"
     assert abs(caminata["distancia_m"] - estacion["caminata_m"]) <= 2
+
+
+def test_rutas_sugeridas_con_transbordo_y_por_criterio(api):
+    # De Mandela a Bocagrande ninguna ruta llega sola: hay que cambiar de bus.
+    viaje = {"origen": MANDELA, "destino": BOCAGRANDE, "salida": MARTES_10_AM}
+    cuerpo = api.post("/api/v1/routes/suggest", json=viaje).json()
+    assert cuerpo["criterio"] == "rapida"
+    con_transbordo = [o for o in cuerpo["opciones"] if o["transbordos"] == 1]
+    assert con_transbordo
+    opcion = con_transbordo[0]
+    assert [t["modo"] for t in opcion["tramos"]] == ["caminata", "bus", "caminata", "bus", "caminata"]
+    assert " y " in opcion["resumen"]
+    # La caminata del transbordo une la bajada del primer bus con la subida del segundo.
+    assert opcion["tramos"][2]["desde"] == opcion["tramos"][1]["hasta"]
+    assert opcion["tramos"][2]["hasta"] == opcion["tramos"][3]["desde"]
+
+    sin_transbordo = api.post("/api/v1/routes/suggest", json={**viaje, "criterio": "sin_transbordo"}).json()
+    assert all(o["transbordos"] == 0 for o in sin_transbordo["opciones"])
+    # Que no haya ruta directa no es culpa del horario: no se avisa nada de horarios.
+    assert sin_transbordo["aviso"] is None
+
+    assert api.post("/api/v1/routes/suggest", json={**viaje, "criterio": "segura"}).status_code == 200
+    assert api.post("/api/v1/routes/suggest", json={**viaje, "criterio": "barata"}).status_code == 422
+
+
+def test_de_noche_avisa_cuando_sale_la_primera_ruta(api):
+    cuerpo = api.post("/api/v1/routes/suggest", json={
+        "origen": BAZURTO, "destino": BOCAGRANDE, "salida": VIERNES_11_PM,
+    }).json()
+    assert all(o["transbordos"] == 0 and o["resumen"] == "A pie" for o in cuerpo["opciones"])
+    assert cuerpo["aviso"].startswith("A esta hora no pasa ninguna ruta de Transcaribe")
+    assert "mañana a las 5:" in cuerpo["aviso"]
+    assert cuerpo["salida"].startswith("2026-10-23T23:30:00")
 
 
 def test_rutas_sugeridas_solo_dentro_de_cartagena(api):
@@ -128,3 +166,11 @@ def test_reportes_fuera_de_cartagena_se_rechazan(api, registrar):
         "tipo": "trancon", "latitud": SANTA_MARTA["lat"], "longitud": SANTA_MARTA["lon"],
     })
     assert respuesta.status_code == 422
+
+
+def test_los_paraderos_fuera_de_la_troncal_se_nombran_por_el_cruce(api):
+    cuerpo = api.post("/api/v1/routes/suggest", json={
+        "origen": MANDELA, "destino": BOCAGRANDE, "salida": MARTES_10_AM}).json()
+    paradas = [t[clave] for o in cuerpo["opciones"] for t in o["tramos"] if t["modo"] == "bus"
+               for clave in ("desde", "hasta")]
+    assert any(p.startswith("Paradero ") and " con " in p for p in paradas), paradas

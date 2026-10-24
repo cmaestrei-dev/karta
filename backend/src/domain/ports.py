@@ -2,6 +2,7 @@
 from datetime import datetime, timedelta
 from typing import Protocol
 
+from src.domain.horarios import HorarioRuta
 from src.domain.models import (
     Estacion, IconoLugar, Incidente, Lugar, LugarGuardado, RutaTransporte, TipoViajero, Usuario,
 )
@@ -70,6 +71,18 @@ class PlaceRepository(Protocol):
 class TransitRepository(Protocol):
     def routes_intersecting_all(self, areas: list[dict]) -> list[RutaTransporte]:
         """Rutas cuyo recorrido pasa por todas las áreas (polígonos GeoJSON)."""
+        ...
+
+    def routes_intersecting_any(self, areas: list[dict]) -> list[RutaTransporte]:
+        """Rutas cuyo recorrido pasa por al menos una de las áreas (polígonos GeoJSON)."""
+        ...
+
+    def schedules(self) -> dict[str, HorarioRuta]:
+        """Horario de servicio de cada ruta que lo tiene publicado, por código."""
+        ...
+
+    def intersection_near(self, lon: float, lat: float, radio_m: float) -> str | None:
+        """Nombre del cruce de calles más cercano («Av. Pedro de Heredia con Cra. 28»), si hay uno en el radio."""
         ...
 
     def list_stations(self) -> list[Estacion]: ...

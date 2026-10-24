@@ -1,5 +1,7 @@
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from datetime import datetime
 from typing import List, Literal
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from src.domain.geo import validar_cobertura
 
 class RoutePoint(BaseModel):
@@ -38,6 +40,10 @@ class Coordenada(BaseModel):
 class RouteSuggestRequest(BaseModel):
     origen: Coordenada
     destino: Coordenada
+    criterio: Literal["rapida", "segura", "sin_transbordo"] = Field(
+        "rapida", description="Cómo ordenar: la más rápida, la más segura (el riesgo pesa el triple) o sin transbordo")
+    salida: datetime | None = Field(
+        None, description="Hora de salida (ISO 8601 con zona); por defecto, ahora. Define qué rutas operan")
 
 class LineaGeoJSON(BaseModel):
     type: Literal["LineString"] = "LineString"
@@ -64,11 +70,15 @@ class RouteOptionResponse(BaseModel):
     resumen: str
     tiempo_total_min: int
     distancia_caminata_m: int
+    transbordos: int = Field(..., description="Cambios de bus: 0 o 1")
     tramos: List[TramoResponse]
     riesgo: RiesgoResumen
 
 class RouteSuggestResponse(BaseModel):
     opciones: List[RouteOptionResponse]
+    criterio: Literal["rapida", "segura", "sin_transbordo"]
+    salida: datetime = Field(..., description="Hora de salida usada, en hora de Colombia")
+    aviso: str | None = Field(None, description="Por qué no hay opciones en bus, si es por el horario")
     nota: str
     fuente: str
 

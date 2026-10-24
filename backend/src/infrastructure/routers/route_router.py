@@ -14,9 +14,10 @@ from src.infrastructure.dependencies import get_incident_service, get_trip_servi
 
 router = APIRouter(prefix="/api/v1/routes", tags=["Rutas"])
 
-NOTA_ESTIMACION = ("Tiempos estimados con velocidades promedio y caminatas en línea recta con rodeo; "
-                   "no incluyen transbordos entre rutas.")
-FUENTE_RUTAS = "Rutas de Transcaribe: © colaboradores de OpenStreetMap (ODbL)."
+NOTA_ESTIMACION = ("Tiempos estimados con velocidades promedio, esperas típicas y caminatas en línea recta "
+                   "con rodeo.")
+FUENTE_RUTAS = ("Rutas de Transcaribe: © colaboradores de OpenStreetMap (ODbL). Horarios: «Rutas_Transcaribe "
+                "2025», Portal de Datos Abiertos de Cartagena (CC-BY 4.0).")
 
 @router.get("/", summary="Rutas de Transcaribe", response_model=List[RouteGeometryResponse])
 def list_routes(tipo: Literal["troncal", "pretroncal", "alimentadora", "complementaria"] | None = Query(None),
@@ -40,17 +41,26 @@ def evaluate_route_risk(request: RouteRiskRequest, service: IncidentService = De
 @router.post("/suggest", summary="Rutas sugeridas", response_model=RouteSuggestResponse)
 def suggest_routes(request: RouteSuggestRequest, service: TripService = Depends(get_trip_service)):
     """
-    Rutas sugeridas entre dos puntos de Cartagena: a pie o en Transcaribe (caminata + una ruta + caminata).
-    Las opciones se ordenan por tiempo estimado más una penalización según el riesgo de su recorrido.
+    Rutas sugeridas entre dos puntos de Cartagena: a pie o en Transcaribe, con una ruta o con un transbordo,
+    solo con las rutas que operan a la hora de salida. Se ordenan según el criterio: tiempo más una
+    penalización por el riesgo del recorrido, que pesa el triple en la más segura.
     """
     sugerencias = service.suggest(
         (request.origen.lon, request.origen.lat), (request.destino.lon, request.destino.lat),
         request.origen.nombre, request.destino.nombre,
+        criterio=request.criterio, salida=request.salida,
     )
-    nota = NOTA_ESTIMACION if sugerencias else (
-        "No encontramos una ruta directa de Transcaribe que pase cerca de ambos puntos.")
+    if sugerencias.opciones:
+        nota = NOTA_ESTIMACION
+    elif request.criterio == "sin_transbordo":
+        nota = "No hay una sola ruta de Transcaribe que pase cerca de los dos puntos; prueba con transbordo."
+    else:
+        nota = "No encontramos rutas de Transcaribe que te acerquen a ese destino desde ahí."
     return RouteSuggestResponse(
-        opciones=[_a_respuesta(opcion, riesgo) for opcion, riesgo in sugerencias],
+        opciones=[_a_respuesta(opcion, riesgo) for opcion, riesgo in sugerencias.opciones],
+        criterio=sugerencias.criterio,
+        salida=sugerencias.salida,
+        aviso=sugerencias.aviso,
         nota=nota,
         fuente=FUENTE_RUTAS,
     )
@@ -59,11 +69,12 @@ def _minutos(valor: float) -> int:
     return max(1, round(valor)) if valor > 0 else 0
 
 def _a_respuesta(opcion: OpcionViaje, riesgo: ResultadoRiesgo) -> RouteOptionResponse:
-    ruta = opcion.ruta
+    codigos = [r.id for r in opcion.rutas]
     return RouteOptionResponse(
-        resumen=f"Transcaribe {ruta.id}" if ruta else "A pie",
+        resumen=f"Transcaribe {' y '.join(codigos)}" if codigos else "A pie",
         tiempo_total_min=_minutos(opcion.tiempo_total_min),
         distancia_caminata_m=round(opcion.distancia_caminata_m),
+        transbordos=opcion.transbordos,
         tramos=[
             TramoResponse(
                 modo=t.modo, desde=t.desde, hasta=t.hasta,
