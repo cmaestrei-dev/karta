@@ -42,6 +42,7 @@ class Tramo:
     ruta: RutaTransporte | None = None
     desde: str = ""
     hasta: str = ""
+    paradas: tuple[Estacion, ...] = ()  # estaciones por las que pasa el bus, en orden (incluye subida y bajada)
 
 
 @dataclass(frozen=True)
@@ -358,3 +359,18 @@ def estaciones_en_orden(ruta: RutaTransporte, estaciones: list[Estacion]) -> lis
         return float(posiciones[cerca[0]]) if len(cerca) else linea.project(p)
 
     return sorted((e for e in estaciones if ruta.id in e.rutas), key=primera_pasada)
+
+
+def paradas_del_tramo(tramo: Tramo, estaciones: list[Estacion]) -> tuple[Estacion, ...]:
+    """Las estaciones de la ruta que el bus pasa en este tramo, en el orden en que las pasa."""
+    if tramo.ruta is None or len(tramo.coordenadas) < 2:
+        return ()
+    linea = a_metros(LineString(tramo.coordenadas))
+    cerca = []
+    for e in estaciones:
+        if tramo.ruta.id not in e.rutas:
+            continue
+        punto = a_metros(Point(e.longitud, e.latitud))
+        if linea.distance(punto) <= RADIO_DE_ESTACION_M * 2:
+            cerca.append((linea.project(punto), e))
+    return tuple(e for _, e in sorted(cerca, key=lambda par: par[0]))

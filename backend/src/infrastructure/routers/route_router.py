@@ -5,7 +5,7 @@ from src.application.incident_service import IncidentService
 from src.application.trip_service import TripService
 from src.domain.route_risk import ResultadoRiesgo
 from src.domain.schemas.route_schema import (
-    EstacionDeRuta, FranjaDeServicio, HorarioDeRuta, IncidentRiskDetail, LineaGeoJSON, RiesgoResumen,
+    EstacionDeRuta, FranjaDeServicio, HorarioDeRuta, IncidentRiskDetail, LineaGeoJSON, ParadaDelTramo, RiesgoResumen,
     RouteGeometryResponse, RouteOptionResponse, RoutePageResponse, RouteRiskRequest, RouteRiskResponse,
     RouteSuggestRequest, RouteSuggestResponse, TramoResponse,
 )
@@ -108,6 +108,7 @@ def _a_respuesta(opcion: OpcionViaje, riesgo: ResultadoRiesgo) -> RouteOptionRes
                 ruta=t.ruta.id if t.ruta else None,
                 nombre_ruta=t.ruta.nombre if t.ruta else None,
                 tipo_ruta=t.ruta.tipo if t.ruta else None,
+                paradas=[ParadaDelTramo(nombre=e.nombre, latitud=e.latitud, longitud=e.longitud) for e in t.paradas],
                 geometria=LineaGeoJSON(coordinates=[[round(lon, 6), round(lat, 6)] for lon, lat in t.coordenadas]),
             )
             for t in opcion.tramos

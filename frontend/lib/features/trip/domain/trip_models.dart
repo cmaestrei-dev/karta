@@ -32,6 +32,10 @@ class Leg extends Equatable {
   final String? tipoRuta;
   final List<LatLng> puntos;
 
+  /// Estaciones por las que pasa el bus en este tramo, en orden, de la subida a la bajada.
+  /// Vacía fuera de la troncal: ahí el bus para en paraderos sin coordenadas publicadas.
+  final List<({String nombre, LatLng punto})> paradas;
+
   const Leg({
     required this.modo,
     required this.desde,
@@ -43,6 +47,7 @@ class Leg extends Equatable {
     this.ruta,
     this.nombreRuta,
     this.tipoRuta,
+    this.paradas = const [],
   });
 
   bool get esCaminata => modo == 'caminata';
@@ -57,6 +62,10 @@ class Leg extends Equatable {
         ruta: json['ruta'] as String?,
         nombreRuta: json['nombre_ruta'] as String?,
         tipoRuta: json['tipo_ruta'] as String?,
+        paradas: [
+          for (final p in json['paradas'] as List<dynamic>? ?? const [])
+            (nombre: p['nombre'] as String, punto: LatLng((p['latitud'] as num).toDouble(), (p['longitud'] as num).toDouble())),
+        ],
         // GeoJSON trae los pares en orden [longitud, latitud].
         puntos: (json['geometria']['coordinates'] as List<dynamic>)
             .map((c) => LatLng((c[1] as num).toDouble(), (c[0] as num).toDouble()))
@@ -64,7 +73,7 @@ class Leg extends Equatable {
       );
 
   @override
-  List<Object?> get props => [modo, desde, hasta, distanciaM, duracionMin, esperaMin, ruta, puntos];
+  List<Object?> get props => [modo, desde, hasta, distanciaM, duracionMin, esperaMin, ruta, puntos, paradas];
 }
 
 class RouteOption extends Equatable {
