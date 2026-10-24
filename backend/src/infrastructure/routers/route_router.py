@@ -1,9 +1,12 @@
-from fastapi import APIRouter, Depends
+from typing import List, Literal
+
+from fastapi import APIRouter, Depends, Query
 from src.application.incident_service import IncidentService
 from src.application.trip_service import TripService
 from src.domain.route_risk import ResultadoRiesgo
 from src.domain.schemas.route_schema import (
-    IncidentRiskDetail, LineaGeoJSON, RiesgoResumen, RouteOptionResponse, RouteRiskRequest, RouteRiskResponse,
+    IncidentRiskDetail, LineaGeoJSON, RiesgoResumen, RouteGeometryResponse, RouteOptionResponse, RouteRiskRequest,
+    RouteRiskResponse,
     RouteSuggestRequest, RouteSuggestResponse, TramoResponse,
 )
 from src.domain.trip_planning import OpcionViaje
@@ -14,6 +17,14 @@ router = APIRouter(prefix="/api/v1/routes", tags=["Rutas"])
 NOTA_ESTIMACION = ("Tiempos estimados con velocidades promedio y caminatas en línea recta con rodeo; "
                    "no incluyen transbordos entre rutas.")
 FUENTE_RUTAS = "Rutas de Transcaribe: © colaboradores de OpenStreetMap (ODbL)."
+
+@router.get("/", summary="Rutas de Transcaribe", response_model=List[RouteGeometryResponse])
+def list_routes(tipo: Literal["troncal", "pretroncal", "alimentadora", "complementaria"] | None = Query(None),
+                service: TripService = Depends(get_trip_service)):
+    """Rutas con su trazado (GeoJSON), opcionalmente de un solo tipo; el mapa dibuja así la troncal."""
+    return [RouteGeometryResponse(codigo=r.id, nombre=r.nombre, tipo=r.tipo,
+                                  geometria={"type": "LineString", "coordinates": [list(c) for c in r.coordenadas]})
+            for r in service.routes(tipo)]
 
 @router.post("/risk", summary="Riesgo de un recorrido", response_model=RouteRiskResponse)
 def evaluate_route_risk(request: RouteRiskRequest, service: IncidentService = Depends(get_incident_service)):

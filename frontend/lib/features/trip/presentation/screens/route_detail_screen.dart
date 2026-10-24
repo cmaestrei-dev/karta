@@ -6,14 +6,15 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../../core/format.dart';
-import '../../../../core/theme/karta_theme.dart';
+import '../../../../core/design/bahia.dart';
+import '../../../../core/map/capa_bahia.dart';
 import '../../../../core/widgets/karta_map.dart';
 import '../../../../core/widgets/plaque.dart';
 import '../../../../core/widgets/risk_badge.dart';
 import '../../../../core/widgets/route_capsule.dart';
 import '../../../incidents/domain/models/incident_models.dart';
 import '../../../incidents/presentation/bloc/incident_bloc.dart';
-import '../../../incidents/presentation/widgets/incident_marker.dart';
+import '../../../incidents/presentation/widgets/pin_de_reporte.dart';
 import '../../../places/domain/place_models.dart';
 import '../../domain/trip_models.dart';
 
@@ -107,9 +108,9 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> with SingleTicker
     ];
   }
 
-  /// Los incidentes que cuentan en el riesgo de esta opción (a menos de 500 m del recorrido, el mismo
+  /// Los reportes que cuentan en el riesgo de esta opción (a menos de 500 m del recorrido, el mismo
   /// radio del backend) se ven completos; los demás quedan atenuados.
-  /// Un incidente encima de la parada de subida o de bajada se corre arriba a la izquierda: los dos
+  /// Un reporte encima de la parada de subida o de bajada se corre arriba a la izquierda: los dos
   /// tienen que verse, porque la parada es a donde el viajero debe caminar.
   List<Marker> _incidentes(BuildContext context, List<Incident> incidentes) {
     final recorrido = widget.opcion.puntos;
@@ -117,13 +118,14 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> with SingleTicker
     const distancia = Distance();
     return [
       for (final i in incidentes)
-        incidentMarker(
+        marcadorDeReporte(
           context,
           i,
-          atenuado: _distanciaALinea(LatLng(i.latitud, i.longitud), recorrido) > _radioDeRiesgoM,
-          alineacion: paradas.any((p) => distancia.as(LengthUnit.Meter, p, LatLng(i.latitud, i.longitud)) < 60)
-              ? const Alignment(-1.5, -1.5)
-              : Alignment.center,
+          atenuado: _distanciaALinea(i.punto, recorrido) > _radioDeRiesgoM,
+          // La punta del pin marca el lugar; junto a una parada se corre a la izquierda para no taparla.
+          alineacion: paradas.any((p) => distancia.as(LengthUnit.Meter, p, i.punto) < 60)
+              ? const Alignment(-1.6, -1.2)
+              : Alignment.topCenter,
         ),
     ];
   }
@@ -142,6 +144,7 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> with SingleTicker
         children: [
           FlutterMap(
             options: MapOptions(
+              backgroundColor: fondoDelMapa(Theme.of(context).brightness),
               initialCameraFit: CameraFit.bounds(
                 bounds: LatLngBounds.fromPoints(puntos.length > 1 ? puntos : [widget.origen.punto, widget.destino.punto]),
                 padding: EdgeInsets.fromLTRB(40, 96, 40, alto * _hojaInicial + 32),
@@ -149,7 +152,7 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> with SingleTicker
             ),
             // Orden de capas: recorrido, paradas y extremos, y encima los incidentes, que explican el riesgo.
             children: [
-              const KartaTiles(),
+              const CapaBahia(),
               AnimatedBuilder(
                 animation: _avance,
                 builder: (context, _) => PolylineLayer(polylines: _lineas(context, _avance.value)),
@@ -187,7 +190,7 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> with SingleTicker
                 children: [
                   MapIconButton(icon: Icons.arrow_back, tooltip: 'Volver', onPressed: () => Navigator.of(context).pop()),
                   const Spacer(),
-                  const OsmAttribution(),
+                  const AtribucionDelMapa(),
                 ],
               ),
             ),

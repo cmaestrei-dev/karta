@@ -25,8 +25,9 @@ class ApiClient {
       : _token = token,
         _http = client ?? http.Client();
 
-  Future<dynamic> get(String path, {Map<String, String>? query, bool auth = false}) =>
-      _send('GET', path, query: query, auth: auth);
+  /// [sesionSiHay]: manda el token si existe, sin exigirlo (la API responde distinto con sesión).
+  Future<dynamic> get(String path, {Map<String, String>? query, bool auth = false, bool sesionSiHay = false}) =>
+      _send('GET', path, query: query, auth: auth, sesionSiHay: sesionSiHay);
 
   Future<dynamic> post(String path, Object body, {bool auth = false}) =>
       _send('POST', path, body: body, auth: auth);
@@ -37,13 +38,16 @@ class ApiClient {
   Future<void> delete(String path, {bool auth = false}) => _send('DELETE', path, auth: auth);
 
   Future<dynamic> _send(String metodo, String path,
-      {Map<String, String>? query, Object? body, bool auth = false}) async {
+      {Map<String, String>? query, Object? body, bool auth = false, bool sesionSiHay = false}) async {
     final headers = <String, String>{'Accept': 'application/json'};
     if (body != null) headers['Content-Type'] = 'application/json';
     if (auth) {
       final token = _token();
       if (token == null) throw SessionExpiredException();
       headers['Authorization'] = 'Bearer $token';
+    } else if (sesionSiHay) {
+      final token = _token();
+      if (token != null) headers['Authorization'] = 'Bearer $token';
     }
 
     final request = http.Request(metodo, Uri.parse('$apiBaseUrl$path').replace(queryParameters: query))

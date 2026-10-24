@@ -9,6 +9,8 @@ const _usuario = Usuario(
   nombre: 'Ana',
   tipoViajero: 'Residente',
   reputacion: 100,
+  alias: 'Ana',
+  nivel: 1,
 );
 
 /// Repositorio en memoria: acepta solo la clave "correcta".
@@ -37,6 +39,16 @@ class FakeAuthRepository implements AuthRepository {
 
   @override
   Future<Usuario?> restoreSession() async => sesionGuardada;
+
+  /// Lo que devuelve el servidor al pedir el perfil de nuevo; null simula que no hubo señal.
+  Usuario? perfilEnServidor;
+  bool sesionVencida = false;
+
+  @override
+  Future<Usuario?> refresh() async {
+    if (sesionVencida) throw const SesionVencida();
+    return perfilEnServidor;
+  }
 
   @override
   Future<void> logout() async {
@@ -88,5 +100,35 @@ void main() {
       emits(const AuthUnauthenticated(message: 'Tu sesión expiró. Inicia sesión de nuevo.')),
     );
     expect(repository.cerroSesion, isTrue);
+  });
+
+  group('al pedir el perfil de nuevo', () {
+    Future<void> entrar() async {
+      repository.sesionGuardada = _usuario;
+      bloc.add(AuthStarted());
+      await expectLater(bloc.stream, emits(const AuthAuthenticated(_usuario)));
+    }
+
+    test('muestra la reputación y el nivel nuevos', () async {
+      await entrar();
+      const subio = Usuario(
+        id: '665f1c2b9a1e4b0012345678', email: 'ana@karta.app', nombre: 'Ana', tipoViajero: 'Residente',
+        reputacion: 152, alias: 'Ana', nivel: 2,
+      );
+      repository.perfilEnServidor = subio;
+      bloc.add(ProfileRefreshRequested());
+      await expectLater(bloc.stream, emits(const AuthAuthenticated(subio)));
+    });
+
+    test('si la sesión venció, la cierra y lo explica', () async {
+      await entrar();
+      repository.sesionVencida = true;
+      bloc.add(ProfileRefreshRequested());
+      await expectLater(
+        bloc.stream,
+        emits(const AuthUnauthenticated(message: 'Tu sesión expiró. Inicia sesión de nuevo.')),
+      );
+      expect(repository.cerroSesion, isTrue);
+    });
   });
 }

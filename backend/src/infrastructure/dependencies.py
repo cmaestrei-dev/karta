@@ -31,7 +31,8 @@ def get_auth_service(users: MongoUserRepository = Depends(get_user_repository)) 
 
 
 def get_incident_service(db: Database = Depends(get_db)) -> IncidentService:
-    return IncidentService(MongoIncidentRepository(db))
+    return IncidentService(MongoIncidentRepository(db), MongoUserRepository(db),
+                           MongoPlaceRepository(db), MongoTransitRepository(db))
 
 
 def get_place_service(db: Database = Depends(get_db)) -> PlaceService:
@@ -59,3 +60,14 @@ def get_current_user(
     if usuario is None:
         raise no_autorizado
     return usuario
+
+
+def get_optional_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
+    users: MongoUserRepository = Depends(get_user_repository),
+) -> Usuario | None:
+    """El usuario de la sesión si hay un token válido; None si no hay sesión (nunca 401)."""
+    if credentials is None:
+        return None
+    user_id = token_issuer.read_subject(credentials.credentials)
+    return users.get_by_id(user_id) if user_id else None

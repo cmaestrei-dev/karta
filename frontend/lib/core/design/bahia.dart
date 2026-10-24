@@ -108,6 +108,10 @@ class Bahia extends ThemeExtension<Bahia> {
 
   static Bahia de(BuildContext context) => Theme.of(context).extension<Bahia>() ?? oscura;
 
+  /// Tinta legible sobre un color de relleno: oscura sobre los claros, blanca sobre los oscuros.
+  static Color tintaSobre(Color relleno) =>
+      ThemeData.estimateBrightnessForColor(relleno) == Brightness.light ? const Color(0xFF14181F) : Colors.white;
+
   /// Color y fondo suave de un grupo de reporte ("servicio", "via" o "seguridad").
   (Color, Color) delGrupo(String grupo) => switch (grupo) {
         'servicio' => (servicio, servicioSuave),
@@ -164,6 +168,19 @@ abstract final class ColoresDeRuta {
         _ => const Color(0xFF4B5F70),
       };
 }
+
+/// Niveles de riesgo de una ruta. Iguales en los dos temas; el nivel siempre va también con ícono y texto.
+abstract final class ColoresDeRiesgo {
+  static const critico = Color(0xFF7F1D12);
+  static const alto = Color(0xFFB23A26);
+  static const medio = Color(0xFFE3A72F);
+  static const sobreMedio = Color(0xFF2A1E00);
+  static const bajo = Color(0xFF2E7D4F);
+  static const sinDatos = Color(0xFF4B5F70);
+}
+
+/// Cifras de ancho fijo: los minutos y metros de distintas opciones quedan alineados.
+const tabularFigures = [FontFeature.tabularFigures()];
 
 /// Familia tipográfica del sistema, empaquetada en la app (assets/fonts/Manrope-*.ttf).
 const fuenteBahia = 'Manrope';

@@ -115,6 +115,30 @@ class RouteSuggestions extends Equatable {
   List<Object?> get props => [opciones, nota, fuente];
 }
 
+/// Una ruta de Transcaribe con su trazado, para dibujarla sobre el mapa.
+class RutaEnMapa extends Equatable {
+  final String codigo;
+  final String nombre;
+  final String tipo;
+  final List<LatLng> puntos;
+
+  const RutaEnMapa({required this.codigo, required this.nombre, required this.tipo, required this.puntos});
+
+  factory RutaEnMapa.fromJson(Map<String, dynamic> json) => RutaEnMapa(
+        codigo: json['codigo'] as String,
+        nombre: json['nombre'] as String,
+        tipo: json['tipo'] as String,
+        // GeoJSON trae los pares en orden [longitud, latitud].
+        puntos: [
+          for (final c in json['geometria']['coordinates'] as List<dynamic>)
+            LatLng((c[1] as num).toDouble(), (c[0] as num).toDouble()),
+        ],
+      );
+
+  @override
+  List<Object?> get props => [codigo, nombre, tipo, puntos];
+}
+
 /// Estación de Transcaribe cercana.
 class Stop extends Equatable {
   final String id;

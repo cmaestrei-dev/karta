@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 
 from src.domain.models import CredencialesInvalidas, TipoViajero, Usuario
 from src.domain.ports import PasswordHasher, TokenIssuer, UserRepository
+from src.domain.reportes import alias_publico
 
 
 class AuthService:
@@ -18,6 +19,7 @@ class AuthService:
             email=email.strip().lower(),
             password_hash=self.hasher.hash(password),
             nombre=nombre.strip(),
+            alias=alias_publico(nombre),
             tipo_viajero=tipo_viajero,
             creado_en=ahora,
             terminos_aceptados_en=ahora,

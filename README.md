@@ -3,8 +3,8 @@
 Proyecto de aula de **Ingeniería de Servicios de Internet**, Universidad de Cartagena (2026-2).
 
 Karta ayuda al viajero de Cartagena a moverse en Transcaribe con menos incertidumbre: busca su destino,
-le sugiere cómo llegar (caminata + ruta + caminata) con el riesgo de cada opción y muestra en el mapa los
-incidentes que reporta la comunidad (tráfico y seguridad). El alcance del prototipo es el área urbana de
+le sugiere cómo llegar (caminata + ruta + caminata) con el riesgo de cada opción y muestra en el mapa lo
+que reporta la comunidad (el servicio, la vía y la seguridad), que otros viajeros confirman o desmienten. El alcance del prototipo es el área urbana de
 Cartagena de Indias.
 
 ## Estado actual
@@ -12,40 +12,43 @@ Cartagena de Indias.
 | Funcionalidad | Estado |
 |---|---|
 | Registro e inicio de sesión (JWT, sesión guardada en almacenamiento seguro) | ✅ |
-| Reportar incidente (Tráfico / Seguridad, intensidad 1–5, ubicación GPS) | ✅ requiere sesión |
-| Ver los incidentes vigentes en el mapa | ✅ expiran solos (Tráfico 3 h, Seguridad 12 h) |
+| Reportar en dos pasos: 9 tipos ilustrados en 3 grupos y sus detalles («el T103 no pasa · 20 min») | ✅ requiere sesión |
+| Ver los reportes vigentes en el mapa | ✅ cada tipo vive de 30 min a 12 h; cada confirmación lo renueva |
+| «¿Sigue ahí?»: confirmar o desmentir reportes ajenos, reputación y niveles | ✅ un voto por viajero; dos «ya no está» seguidos lo retiran |
 | Buscar un lugar de Cartagena o elegir el punto en el mapa | ✅ 453 lugares de OpenStreetMap |
 | Rutas sugeridas de Transcaribe con su riesgo | ✅ 24 rutas y 17 estaciones de OpenStreetMap |
 | Estaciones cercanas con sus rutas | ✅ |
 | Lugares guardados (Casa, Trabajo…) | ✅ CRUD, máximo 10 por viajero |
-| Validación de incidentes por la comunidad | ⏳ pendiente |
-| Límite de frecuencia de peticiones (rate limiting) | ⏳ pendiente |
+| Límite de frecuencia de peticiones (registro, inicio de sesión, reportes y votos) | ✅ responde 429 con `Retry-After` |
+| Viaje activo, avisos y posición de los buses según los viajeros | ⏳ fases 2 y 3 del [plan](docs/plan-reconstruccion.md) |
 
 ## Arquitectura
 
 ```
 Flutter (BLoC) ──HTTP/JSON + Bearer JWT──▶ FastAPI ──PyMongo──▶ MongoDB
       │
-      └──HTTPS──▶ teselas de OpenStreetMap (solo el mapa de fondo)
+      └──HTTPS──▶ teselas vectoriales de OpenFreeMap (datos de OpenStreetMap), con estilo propio «Bahía»
 ```
 
 El backend sigue una arquitectura hexagonal (puertos y adaptadores):
 
 | Carpeta | Contenido |
 |---|---|
-| `backend/src/domain` | Entidades, reglas de negocio (`trip_planning.py`, `route_risk.py`, `geo.py`), puertos (`ports.py`) y esquemas Pydantic de la API. No depende de FastAPI ni de MongoDB |
+| `backend/src/domain` | Entidades, reglas de negocio (`reportes.py` con el catálogo y la validación comunitaria, `trip_planning.py`, `route_risk.py`, `geo.py`), puertos (`ports.py`) y esquemas Pydantic de la API. No depende de FastAPI ni de MongoDB |
 | `backend/src/application` | Casos de uso: `AuthService`, `IncidentService`, `PlaceService` (buscador y lugares guardados) y `TripService` (rutas sugeridas, estaciones cercanas) |
 | `backend/data`, `backend/scripts` | Rutas, estaciones y lugares importados de OpenStreetMap (`importar_osm.py`); se cargan al arrancar la API |
 | `backend/src/infrastructure` | Adaptadores: FastAPI y routers, repositorios MongoDB, Argon2 + JWT, configuración |
-| `frontend/lib/core` | Configuración y servicios compartidos (URL de la API, GPS, errores de la API) |
+| `frontend/lib/core` | Configuración y servicios compartidos (URL de la API, GPS, errores de la API), sistema de diseño «Bahía» (`design/`) y capa del mapa (`map/`) |
 | `frontend/lib/features/<funcionalidad>` | `data` (repositorios HTTP), `domain` (modelos), `presentation` (BLoC y pantallas) |
 
 ### Modelo de datos (MongoDB)
 
 | Colección | Documento | Índices |
 |---|---|---|
-| `users` | `email`, `password_hash` (Argon2id), `nombre`, `tipo_viajero`, `reputacion`, `terminos_aceptados_en`, `creado_en`, `lugares_guardados` (embebidos, máx. 10) | único en `email` |
-| `incidents` | `reportado_por` (ObjectId), `categoria`, `intensidad`, `ubicacion` (GeoJSON Point), `creado_en`, `expira_en` | `2dsphere` en `ubicacion`; TTL en `expira_en` |
+| `users` | `email`, `password_hash` (Argon2id), `nombre`, `alias` («Ana P.»), `tipo_viajero`, `reputacion`, `terminos_aceptados_en`, `creado_en`, `lugares_guardados` (embebidos, máx. 10) | único en `email` |
+| `incidents` | `reportado_por` (ObjectId), `grupo`, `tipo`, `detalles`, `lugar`, `ubicacion` (GeoJSON Point), `votos_si`, `votos_no`, `no_seguidos`, `creado_en`, `expira_en` | `2dsphere` en `ubicacion`; TTL en `expira_en` |
+| `incident_votes` | `incidente`, `usuario`, `sigue` (sí / no), `creado_en`, `expira_en` | único en (`incidente`, `usuario`); TTL |
+| `rate_limits` | `_id` = acción, clave y ventana; `conteo`, `expira_en` | TTL en `expira_en` |
 | `places` | `nombre`, `tipo`, `ubicacion` (Point), `tokens` (palabras normalizadas) | `2dsphere`; `tokens` |
 | `stations` | `nombre`, `ubicacion` (Point), `rutas` | `2dsphere` |
 | `transit_routes` | `nombre`, `tipo`, `desde`, `hasta`, `geometria` (LineString) | `2dsphere` en `geometria` |
@@ -132,11 +135,15 @@ firewall del computador permita conexiones entrantes al puerto 8000.
 | Método | Ruta | Sesión | Descripción |
 |---|---|---|---|
 | GET | `/api/v1/health` | — | Estado del servicio y de la base de datos |
-| POST | `/api/v1/auth/register` | — | Registrar un viajero (exige `acepta_terminos: true`); devuelve el token |
-| POST | `/api/v1/auth/login` | — | Iniciar sesión; devuelve un token Bearer (JWT) |
-| GET | `/api/v1/users/me` | ✅ | Perfil del viajero autenticado |
-| POST | `/api/v1/incidents/` | ✅ | Reportar un incidente (el autor sale del token) |
-| GET | `/api/v1/incidents/` | — | Listar los incidentes vigentes (sin datos del autor) |
+| POST | `/api/v1/auth/register` | — | Registrar un viajero (exige `acepta_terminos: true`); devuelve el token. Máx. 10 por hora por IP |
+| POST | `/api/v1/auth/login` | — | Iniciar sesión; devuelve un token Bearer (JWT). Máx. 10 por minuto por IP |
+| GET | `/api/v1/users/me` | ✅ | Perfil del viajero autenticado, con su alias, reputación y nivel (1 a 5) |
+| GET | `/api/v1/incidents/types` | — | Catálogo de reportes: grupos, tipos, preguntas y vigencia |
+| POST | `/api/v1/incidents/` | ✅ | Reportar (`tipo`, `detalles`, `latitud`, `longitud`); el autor sale del token. Máx. 6 cada 10 min |
+| GET | `/api/v1/incidents/` | — | Reportes vigentes, opcionalmente dentro de una caja (`lon_min`, `lat_min`, `lon_max`, `lat_max`) |
+| GET | `/api/v1/incidents/{id}` | opcional | Detalle con el alias del autor; con sesión dice si es tuyo y cómo votaste |
+| POST | `/api/v1/incidents/{id}/votes` | ✅ | «¿Sigue ahí?» (`sigue: true/false`). 403 si es tuyo, 409 si ya votaste. Máx. 30 cada 10 min |
+| GET | `/api/v1/routes/?tipo=` | — | Rutas de Transcaribe con su trazado GeoJSON (para dibujarlas en el mapa) |
 | POST | `/api/v1/routes/risk` | — | Calcular el riesgo de una ruta a partir de sus puntos (lat/lon) |
 | POST | `/api/v1/routes/suggest` | — | Rutas sugeridas de Transcaribe entre dos puntos, con tramos GeoJSON y riesgo |
 | GET | `/api/v1/places/search?q=` | — | Buscar lugares de Cartagena (sin tildes, por prefijo de palabra) |
@@ -165,14 +172,19 @@ flutter test
 
 ## Diseño
 
-| Inicio | Buscar | Cómo llegar | Recorrido |
+| Inicio | Reportar | Detalles del reporte | Perfil y nivel |
 |---|---|---|---|
-| ![Inicio](docs/capturas/inicio.jpg) | ![Buscar](docs/capturas/buscar.jpg) | ![Cómo llegar](docs/capturas/como-llegar.jpg) | ![Recorrido](docs/capturas/detalle-ruta.jpg) |
+| ![Inicio: mapa con la troncal, los reportes cercanos y la hoja con «¿A dónde vas?»](docs/capturas/inicio.jpg) | ![Reportar: los nueve tipos ilustrados en tres grupos](docs/capturas/reportar.jpg) | ![Detalles: ruta T103 y 20 min de espera, «Reportar: el T103 no pasa»](docs/capturas/detalles.jpg) | ![Perfil: alias, nivel y reputación](docs/capturas/perfil.jpg) |
 
-La app sigue la dirección visual «Cal y azulejo» (placas de nombres de calle del Centro Histórico):
+Capturas de la versión web con datos de demostración, en Estación Bazurto; las dos primeras en tema oscuro y las
+otras dos en tema claro (la app sigue el tema del teléfono).
+
+La app sigue el sistema de diseño «Bahía» (noche de bahía con verde agua, y su versión clara para el sol),
+con mapa vectorial de estilo propio e ilustraciones para cada tipo de reporte:
 [`DESIGN.md`](DESIGN.md) describe el sistema de diseño, [`PRODUCT.md`](PRODUCT.md) el contexto del producto y
 [`docs/auditoria-diseno.md`](docs/auditoria-diseno.md) la auditoría de usabilidad que motivó el rediseño.
-Los datos de rutas, estaciones, lugares y el mapa de fondo son © colaboradores de OpenStreetMap (ODbL).
+Los datos de rutas, estaciones, lugares y el mapa de fondo son © colaboradores de OpenStreetMap (ODbL);
+las teselas vectoriales las sirve OpenFreeMap.
 
 ## Convenciones
 

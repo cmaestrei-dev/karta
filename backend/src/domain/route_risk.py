@@ -1,10 +1,10 @@
 """Reglas de negocio del escaneo de riesgo de una ruta."""
 from dataclasses import dataclass
 
-from src.domain.models import CategoriaIncidente, Incidente
+from src.domain.models import Incidente
+from src.domain.reportes import CATALOGO, peso_en_riesgo
 
 RADIO_BUSQUEDA_M = 500
-PESO_POR_CATEGORIA = {CategoriaIncidente.SEGURIDAD: 5, CategoriaIncidente.TRAFICO: 1}
 UMBRALES_NIVEL = [(50, "CRÍTICO"), (25, "ALTO"), (10, "MEDIO")]
 
 # Minutos que "cuesta" el riesgo al ordenar rutas sugeridas: una ruta un poco más lenta
@@ -20,7 +20,8 @@ class ResultadoRiesgo:
 
 
 def evaluar_riesgo(incidentes: list[Incidente]) -> ResultadoRiesgo:
-    """Suma intensidad × peso de la categoría y clasifica el total por umbrales."""
-    score = sum(i.intensidad * PESO_POR_CATEGORIA[i.categoria] for i in incidentes)
+    """Suma el peso de cada reporte (más si la comunidad lo confirmó) y clasifica el total por umbrales."""
+    total = sum(peso_en_riesgo(CATALOGO[i.tipo], i.votos_si) for i in incidentes if i.tipo in CATALOGO)
+    score = round(total)
     nivel = next((n for umbral, n in UMBRALES_NIVEL if score > umbral), "BAJO")
     return ResultadoRiesgo(score=score, nivel=nivel, incidentes=incidentes)

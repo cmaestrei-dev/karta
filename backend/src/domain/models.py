@@ -1,7 +1,9 @@
 """Entidades y reglas del dominio de Karta. No dependen de FastAPI ni de MongoDB."""
 import enum
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
+
+from src.domain.reportes import nivel as nivel_por_reputacion
 
 
 class TipoViajero(str, enum.Enum):
@@ -9,18 +11,7 @@ class TipoViajero(str, enum.Enum):
     TURISTA = "Turista"
 
 
-class CategoriaIncidente(str, enum.Enum):
-    TRAFICO = "Tráfico"
-    SEGURIDAD = "Seguridad"
-
-
-# Tiempo que un reporte sigue activo; luego MongoDB lo elimina con un índice TTL.
-VIGENCIA_POR_CATEGORIA = {
-    CategoriaIncidente.TRAFICO: timedelta(hours=3),
-    CategoriaIncidente.SEGURIDAD: timedelta(hours=12),
-}
-
-REPUTACION_INICIAL = 100  # Validará la veracidad de reportes
+REPUTACION_INICIAL = 100  # Sube o baja según la comunidad confirme o desmienta sus reportes
 
 
 @dataclass(frozen=True)
@@ -32,16 +23,26 @@ class Usuario:
     reputacion: int
     password_hash: str
     creado_en: datetime
+    alias: str  # nombre corto que ven los demás viajeros
+
+    @property
+    def nivel(self) -> int:
+        return nivel_por_reputacion(self.reputacion)
 
 
 @dataclass(frozen=True)
 class Incidente:
+    """Reporte de la comunidad: un tipo del catálogo (src/domain/reportes.py) con sus detalles."""
     id: str
     reportado_por: str
-    categoria: CategoriaIncidente
-    intensidad: int
+    grupo: str
+    tipo: str
+    detalles: dict[str, str]
     latitud: float
     longitud: float
+    lugar: str | None  # nombre legible del sitio, calculado al reportar
+    votos_si: int
+    votos_no: int
     creado_en: datetime
     expira_en: datetime
 

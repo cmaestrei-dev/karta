@@ -31,6 +31,14 @@ void main() {
     });
   }
 
+  test('los botones del color de un grupo llevan tinta legible (≥ 4,5:1) en los dos temas', () {
+    for (final p in [Bahia.oscura, Bahia.clara]) {
+      for (final color in [p.servicio, p.via, p.seguridad]) {
+        expect(contraste(Bahia.tintaSobre(color), color), greaterThanOrEqualTo(4.5), reason: '$color');
+      }
+    }
+  });
+
   test('las cápsulas de ruta admiten texto blanco (≥ 4,5:1)', () {
     for (final tipo in ['troncal', 'pretroncal', 'alimentadora', 'complementaria']) {
       expect(contraste(Colors.white, ColoresDeRuta.de(tipo)), greaterThanOrEqualTo(4.5), reason: tipo);

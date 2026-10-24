@@ -73,6 +73,26 @@ class AuthRepository {
     return usuario;
   }
 
+  /// Vuelve a pedir el perfil (la reputación cambia cuando la comunidad vota tus reportes).
+  /// Devuelve null si no hay sesión o no hubo señal; lanza [SesionVencida] si el servidor ya no la acepta.
+  Future<Usuario?> refresh() async {
+    final token = _token;
+    if (token == null) return null;
+    final http.Response response;
+    try {
+      response = await http
+          .get(Uri.parse('$apiBaseUrl/users/me'), headers: {'Authorization': 'Bearer $token'})
+          .timeout(_timeout);
+    } catch (_) {
+      return null;
+    }
+    if (response.statusCode == 401) throw const SesionVencida();
+    if (response.statusCode != 200) return null;
+    final usuario = Usuario.fromJson(json.decode(utf8.decode(response.bodyBytes)));
+    await _storage.write(key: _usuarioKey, value: json.encode(usuario.toJson()));
+    return usuario;
+  }
+
   Future<void> logout() async {
     _token = null;
     await _storage.delete(key: _tokenKey);
@@ -104,4 +124,8 @@ class AuthRepository {
       throw Exception('No se pudo conectar con el servidor de Karta.');
     }
   }
+}
+
+class SesionVencida implements Exception {
+  const SesionVencida();
 }

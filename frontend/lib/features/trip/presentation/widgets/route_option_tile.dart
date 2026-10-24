@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/format.dart';
-import '../../../../core/theme/karta_theme.dart';
+import '../../../../core/design/bahia.dart';
 import '../../../../core/widgets/plaque.dart';
 import '../../../../core/widgets/risk_badge.dart';
 import '../../../../core/widgets/route_capsule.dart';
