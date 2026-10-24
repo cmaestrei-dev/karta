@@ -4,8 +4,8 @@ import 'bahia.dart';
 
 /// Tema «Bahía» de toda la app: Material 3 con los tokens de [Bahia] y Manrope.
 abstract final class TemaBahia {
-  static ThemeData get oscuro => _construir(Bahia.oscura, Brightness.dark);
-  static ThemeData get claro => _construir(Bahia.clara, Brightness.light);
+  static final ThemeData oscuro = _construir(Bahia.oscura, Brightness.dark);
+  static final ThemeData claro = _construir(Bahia.clara, Brightness.light);
 
   static ThemeData _construir(Bahia b, Brightness brillo) {
     final esquema = ColorScheme(
@@ -120,8 +120,17 @@ abstract final class TemaBahia {
         subtitleTextStyle: texto.bodyMedium?.copyWith(color: b.textoSuave),
       ),
       progressIndicatorTheme: ProgressIndicatorThemeData(color: b.acento),
-      segmentedButtonTheme: const SegmentedButtonThemeData(
-        style: ButtonStyle(minimumSize: WidgetStatePropertyAll(Size(48, 48))),
+      // La opción elegida va en el acento suave: el ámbar (secondary) es solo de reportar.
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: ButtonStyle(
+          minimumSize: const WidgetStatePropertyAll(Size(48, 48)),
+          backgroundColor: WidgetStateProperty.resolveWith(
+              (estado) => estado.contains(WidgetState.selected) ? b.acentoSuave : Colors.transparent),
+          foregroundColor: WidgetStateProperty.resolveWith(
+              (estado) => estado.contains(WidgetState.selected) ? b.texto : b.textoSuave),
+          side: WidgetStatePropertyAll(BorderSide(color: b.asa)),
+          textStyle: WidgetStatePropertyAll(texto.labelLarge),
+        ),
       ),
     );
   }

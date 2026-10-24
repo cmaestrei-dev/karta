@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/design/apariencia.dart';
 import '../../../../core/design/bahia.dart';
 import '../../../auth/domain/models/usuario.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
@@ -61,13 +62,14 @@ class AvatarDeViajero extends StatelessWidget {
 /// Cuenta del viajero: alias, nivel y reputación (al día), lugares guardados y cerrar sesión.
 void showProfileSheet(BuildContext context) {
   final auth = context.read<AuthBloc>()..add(ProfileRefreshRequested());
+  final apariencia = context.read<AparienciaCubit>();
 
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    builder: (hoja) => BlocProvider.value(
-      value: auth,
+    builder: (hoja) => MultiBlocProvider(
+      providers: [BlocProvider.value(value: auth), BlocProvider.value(value: apariencia)],
       child: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
@@ -80,6 +82,8 @@ void showProfileSheet(BuildContext context) {
                     ? _Reputacion(usuario: state.usuario)
                     : const SizedBox.shrink(),
               ),
+              const SizedBox(height: 20),
+              const _Apariencia(),
               const SizedBox(height: 8),
               ListTile(
                 leading: const Icon(Icons.bookmarks_outlined),
@@ -199,6 +203,38 @@ class _Reputacion extends StatelessWidget {
                   style: texto.bodySmall?.copyWith(color: b.textoSuave),
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Claro para el sol, oscuro para la noche, o lo que diga el teléfono.
+class _Apariencia extends StatelessWidget {
+  const _Apariencia();
+
+  @override
+  Widget build(BuildContext context) {
+    final texto = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Semantics(header: true, child: Text('Apariencia', style: texto.titleMedium)),
+          const SizedBox(height: 10),
+          BlocBuilder<AparienciaCubit, ThemeMode>(
+            builder: (context, modo) => SegmentedButton<ThemeMode>(
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(value: ThemeMode.system, icon: Icon(Icons.brightness_auto_outlined), label: Text('Automático')),
+                ButtonSegment(value: ThemeMode.light, icon: Icon(Icons.light_mode_outlined), label: Text('Claro')),
+                ButtonSegment(value: ThemeMode.dark, icon: Icon(Icons.dark_mode_outlined), label: Text('Oscuro')),
+              ],
+              selected: {modo},
+              onSelectionChanged: (elegido) => context.read<AparienciaCubit>().elegir(elegido.first),
             ),
           ),
         ],
