@@ -143,3 +143,17 @@ def test_un_transbordo_que_no_gana_a_ir_directo_se_descarta():
     opciones = planificar([_ruta(), otra], [], _al_norte(-75.545, 200), _al_norte(-75.505, 200))
     assert all(o.transbordos == 0 for o in opciones)
     assert sorted(o.ruta.id for o in opciones) == ["X998", "X999"]
+
+
+def test_un_transbordo_que_gana_solo_un_minuto_no_compensa():
+    from src.domain.trip_planning import PENALIZACION_TRANSBORDO_MIN, Tramo, OpcionViaje, _depurar
+    def opcion(*rutas, minutos):
+        tramos = tuple(Tramo(modo="bus", coordenadas=((0, 0), (1, 1)), distancia_m=1, duracion_min=minutos / len(rutas),
+                             ruta=r) for r in rutas)
+        return OpcionViaje(tramos=tramos)
+    x105, t103 = _ruta(id_ruta="X105"), _ruta(tipo="troncal", id_ruta="T103")
+    directa = opcion(x105, minutos=59)
+    casi_igual = opcion(x105, t103, minutos=58)
+    mucho_mejor = opcion(x105, t103, minutos=59 - PENALIZACION_TRANSBORDO_MIN - 5)
+    assert _depurar([directa, casi_igual]) == [directa]
+    assert _depurar([directa, mucho_mejor]) == [directa, mucho_mejor]

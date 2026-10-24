@@ -7,7 +7,9 @@ from src.domain.horarios import cuando, en_colombia, opera, proximo_servicio
 from src.domain.models import Estacion, RutaTransporte
 from src.domain.ports import IncidentRepository, PlaceRepository, TransitRepository
 from src.domain.route_risk import PENALIZACION_RIESGO_MIN, RADIO_BUSQUEDA_M, ResultadoRiesgo, evaluar_riesgo
-from src.domain.trip_planning import CAMINATA_MAXIMA_DE_ACCESO_M, OpcionViaje, caminata_entre, planificar
+from src.domain.trip_planning import (
+    CAMINATA_MAXIMA_DE_ACCESO_M, OpcionViaje, caminata_entre, costo_percibido, planificar,
+)
 
 Criterio = Literal["rapida", "segura", "sin_transbordo"]
 
@@ -46,7 +48,8 @@ class TripService:
         3. Se calcula la mejor subida y bajada en cada ruta, los transbordos entre dos rutas (salvo que se
            pida sin transbordo) y la opción a pie si es cerca.
         4. A las más rápidas se les evalúa el riesgo con los reportes vigentes de su corredor.
-        5. Se ordenan por tiempo + penalización por riesgo, que pesa el triple si se pide la más segura.
+        5. Se ordenan por tiempo + lo que cuesta cada transbordo + penalización por riesgo, que pesa el
+           triple si se pide la más segura.
         """
         salida = salida or datetime.now(timezone.utc)
         areas = [circulo(*origen, CAMINATA_MAXIMA_DE_ACCESO_M), circulo(*destino, CAMINATA_MAXIMA_DE_ACCESO_M)]
@@ -57,14 +60,14 @@ class TripService:
 
         opciones = sorted(planificar(en_servicio, estaciones, origen, destino,
                                      con_transbordos=criterio != "sin_transbordo"),
-                          key=lambda o: o.tiempo_total_min)
+                          key=costo_percibido)
         ahora = datetime.now(timezone.utc)
         evaluadas = []
         for opcion in opciones[:self.CANDIDATAS_A_EVALUAR]:
             corredor = corredor_de_ruta(opcion.coordenadas, RADIO_BUSQUEDA_M)
             evaluadas.append((opcion, evaluar_riesgo(self.incidents.find_active_within(corredor, ahora))))
         peso = PESO_DEL_RIESGO[criterio]
-        evaluadas.sort(key=lambda par: par[0].tiempo_total_min + peso * PENALIZACION_RIESGO_MIN[par[1].nivel])
+        evaluadas.sort(key=lambda par: costo_percibido(par[0]) + peso * PENALIZACION_RIESGO_MIN[par[1].nivel])
 
         aviso = None
         if not any(opcion.rutas for opcion, _ in evaluadas):

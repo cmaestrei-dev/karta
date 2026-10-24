@@ -76,6 +76,11 @@ class OpcionViaje:
         return puntos
 
 
+def costo_percibido(opcion: "OpcionViaje") -> float:
+    """El tiempo del viaje más lo que cuesta cada cambio de bus: con esto se comparan opciones."""
+    return opcion.tiempo_total_min + PENALIZACION_TRANSBORDO_MIN * opcion.transbordos
+
+
 def minutos_caminando(distancia_m):
     return distancia_m * FACTOR_RODEO / VELOCIDAD_CAMINATA_M_POR_MIN
 
@@ -328,7 +333,8 @@ def _depurar(opciones: list[OpcionViaje]) -> list[OpcionViaje]:
     for o in opciones:
         if o.transbordos == 0:
             continue
-        if any(directas.get(r.id, np.inf) <= o.tiempo_total_min for r in o.rutas):
+        # Cambiar de bus tiene que ganar aun contando lo que cuesta: un minuto menos no compensa el transbordo.
+        if any(directas.get(r.id, np.inf) <= costo_percibido(o) for r in o.rutas):
             continue
         actual = mejor_por_primera_ruta.get(o.ruta.id)
         if actual is None or o.tiempo_total_min < actual.tiempo_total_min:
