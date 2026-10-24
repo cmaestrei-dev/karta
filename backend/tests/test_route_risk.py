@@ -4,28 +4,30 @@ from datetime import datetime, timezone
 import pytest
 from shapely.geometry import Point, shape
 
-from src.domain.models import CategoriaIncidente, Incidente
+from src.domain.models import Incidente
 from src.domain.geo import corredor_de_ruta, en_cobertura
 from src.domain.route_risk import evaluar_riesgo
 
 METROS_POR_GRADO_LAT = 110_600  # aprox. a la latitud de Cartagena
 
 
-def _incidente(categoria, intensidad):
+def _incidente(tipo, confirmaciones=0):
     ahora = datetime.now(timezone.utc)
-    return Incidente(id="x", reportado_por="u", categoria=categoria, intensidad=intensidad,
-                     latitud=10.4, longitud=-75.5, creado_en=ahora, expira_en=ahora)
+    return Incidente(id="x", reportado_por="u", grupo="via", tipo=tipo, detalles={}, latitud=10.4, longitud=-75.5,
+                     lugar=None, votos_si=confirmaciones, votos_no=0, creado_en=ahora, expira_en=ahora)
 
 
 @pytest.mark.parametrize("incidentes, score, nivel", [
     ([], 0, "BAJO"),
-    ([_incidente(CategoriaIncidente.TRAFICO, 5)] * 2, 10, "BAJO"),
-    ([_incidente(CategoriaIncidente.TRAFICO, 5)] * 3, 15, "MEDIO"),
-    ([_incidente(CategoriaIncidente.SEGURIDAD, 5)] * 1, 25, "MEDIO"),
-    ([_incidente(CategoriaIncidente.SEGURIDAD, 5)] * 2, 50, "ALTO"),
-    ([_incidente(CategoriaIncidente.SEGURIDAD, 5)] * 3, 75, "CRÍTICO"),
+    ([_incidente("trancon")] * 2, 8, "BAJO"),  # 4 + 4: el tráfico molesta pero no es peligro
+    ([_incidente("trancon")] * 3, 12, "MEDIO"),
+    ([_incidente("robo")], 25, "MEDIO"),  # un robo sin confirmar
+    ([_incidente("robo", confirmaciones=1)], 31, "ALTO"),  # confirmado por otro viajero pesa más
+    ([_incidente("robo")] * 2, 50, "ALTO"),
+    ([_incidente("robo", confirmaciones=4)] * 2, 100, "CRÍTICO"),
+    ([_incidente("tipo_retirado_del_catalogo")], 0, "BAJO"),  # nunca rompe por un tipo desconocido
 ])
-def test_evaluar_riesgo_pondera_seguridad_y_clasifica_por_umbrales(incidentes, score, nivel):
+def test_evaluar_riesgo_pondera_cada_tipo_y_sus_confirmaciones(incidentes, score, nivel):
     resultado = evaluar_riesgo(incidentes)
     assert (resultado.score, resultado.nivel) == (score, nivel)
 

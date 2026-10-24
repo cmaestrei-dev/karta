@@ -1,29 +1,105 @@
-from fastapi import APIRouter, Depends, status
+from typing import List
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+
 from src.application.incident_service import IncidentService
 from src.domain.models import Usuario
-from src.domain.schemas.incident_schema import IncidentCreate, IncidentResponse
-from src.infrastructure.dependencies import get_current_user, get_incident_service
-from src.infrastructure.routers.respuestas import FUERA_DE_COBERTURA, SIN_SESION
-from typing import List
+from src.domain.reportes import NOMBRE_GRUPO, DetallesInvalidos, Grupo, IncidenteNoEncontrado, VotoPropio, VotoRepetido
+from src.domain.schemas.incident_schema import (
+    GrupoReporteResponse, IncidentCreate, IncidentDetailResponse, IncidentResponse, VoteRequest, VoteResponse,
+)
+from src.infrastructure.dependencies import get_incident_service, get_optional_user
+from src.infrastructure.limites import por_viajero
+from src.infrastructure.routers.respuestas import FUERA_DE_COBERTURA, SIN_SESION, error
 
 router = APIRouter(prefix="/api/v1/incidents", tags=["Incidentes"])
 
-@router.post("/", summary="Reportar un incidente", response_model=IncidentResponse, status_code=status.HTTP_201_CREATED,
-             responses={**SIN_SESION, **FUERA_DE_COBERTURA})
+NO_ENCONTRADO = HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ese reporte ya no está vigente.")
+DEMASIADOS = {429: error("Demasiados reportes o votos seguidos; trae el encabezado Retry-After.")}
+
+
+@router.get("/types", summary="Tipos de reporte", response_model=List[GrupoReporteResponse])
+def report_types(service: IncidentService = Depends(get_incident_service)):
+    """Catálogo de lo que se puede reportar, agrupado, con las preguntas concretas de cada tipo."""
+    grupos = []
+    for grupo in Grupo:
+        tipos = [t for t in service.catalogo() if t.grupo == grupo]
+        grupos.append({
+            "clave": grupo.value, "nombre": NOMBRE_GRUPO[grupo],
+            "tipos": [{
+                "clave": t.clave, "nombre": t.nombre, "vigencia_min": int(t.vigencia.total_seconds() // 60),
+                "campos": [{
+                    "clave": c.clave, "pregunta": c.pregunta, "tipo": c.tipo, "obligatorio": c.obligatorio,
+                    "opciones": [{"valor": v, "etiqueta": e} for v, e in c.opciones],
+                } for c in t.campos],
+            } for t in tipos],
+        })
+    return grupos
+
+
+@router.post("/", summary="Reportar", response_model=IncidentResponse, status_code=status.HTTP_201_CREATED,
+             responses={**SIN_SESION, **FUERA_DE_COBERTURA, **DEMASIADOS})
 def report_incident(
-    incident: IncidentCreate,
-    usuario: Usuario = Depends(get_current_user),
+    datos: IncidentCreate,
+    usuario: Usuario = Depends(por_viajero("reportar", "LIMITE_REPORTES")),
     service: IncidentService = Depends(get_incident_service),
 ):
     """
-    Reporta un incidente de tráfico o seguridad. Requiere sesión: el autor sale del token, nunca del cuerpo.
-    El incidente deja de mostrarse solo (Tráfico 3 h, Seguridad 12 h) gracias a un índice TTL de MongoDB.
+    Reporta algo del catálogo con sus detalles. Requiere sesión: el autor sale del token, nunca del cuerpo.
+    El reporte vive lo que dice su tipo; las confirmaciones de otros viajeros lo renuevan.
     """
-    return service.report(usuario, incident)
+    try:
+        return service.report(usuario, tipo=datos.tipo, detalles=datos.detalles,
+                              latitud=datos.latitud, longitud=datos.longitud)
+    except DetallesInvalidos as e:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(e))
 
-@router.get("/", summary="Incidentes vigentes", response_model=List[IncidentResponse])
-def get_incidents_endpoint(service: IncidentService = Depends(get_incident_service)):
+
+@router.get("/", summary="Reportes vigentes", response_model=List[IncidentResponse])
+def get_incidents(
+    lon_min: float | None = Query(None, ge=-180, le=180), lat_min: float | None = Query(None, ge=-90, le=90),
+    lon_max: float | None = Query(None, ge=-180, le=180), lat_max: float | None = Query(None, ge=-90, le=90),
+    service: IncidentService = Depends(get_incident_service),
+):
+    """Reportes vigentes con sus coordenadas. Con los cuatro límites, solo los del área visible del mapa."""
+    limites = (lon_min, lat_min, lon_max, lat_max)
+    caja = limites if all(v is not None for v in limites) else None
+    return service.list_active(caja)
+
+
+@router.get("/{incidente_id}", summary="Detalle de un reporte", response_model=IncidentDetailResponse,
+            responses={404: error("No existe o ya venció.")})
+def get_incident(incidente_id: str, usuario: Usuario | None = Depends(get_optional_user),
+                 service: IncidentService = Depends(get_incident_service)):
+    """El reporte con el alias de quien lo hizo y, si hay sesión, si ya lo validaste."""
+    try:
+        detalle = service.detail(incidente_id, usuario)
+    except IncidenteNoEncontrado:
+        raise NO_ENCONTRADO
+    return IncidentDetailResponse(**IncidentResponse.model_validate(detalle.incidente).model_dump(),
+                                  reportado_por_alias=detalle.alias_autor, es_mio=detalle.es_mio,
+                                  mi_voto=detalle.mi_voto)
+
+
+@router.post("/{incidente_id}/votes", summary="¿Sigue ahí?", response_model=VoteResponse,
+             responses={**SIN_SESION, 403: error("No puedes validar tu propio reporte."),
+                        404: error("No existe o ya venció."), 409: error("Ya validaste este reporte."),
+                        **DEMASIADOS})
+def vote_incident(
+    incidente_id: str, voto: VoteRequest,
+    usuario: Usuario = Depends(por_viajero("votar", "LIMITE_VOTOS")),
+    service: IncidentService = Depends(get_incident_service),
+):
     """
-    Incidentes vigentes (no vencidos) con sus coordenadas, para pintarlos en el mapa.
+    Confirma («sigue ahí») o desmiente («ya no está») un reporte. Confirmar renueva su vigencia;
+    dos «ya no está» seguidos lo retiran. La reputación de quien reportó sube o baja en consecuencia.
     """
-    return service.list_active()
+    try:
+        resultado = service.vote(usuario, incidente_id, voto.sigue)
+    except IncidenteNoEncontrado:
+        raise NO_ENCONTRADO
+    except VotoPropio:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No puedes validar tu propio reporte.")
+    except VotoRepetido:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Ya validaste este reporte.")
+    return VoteResponse(incidente=IncidentResponse.model_validate(resultado.incidente), retirado=resultado.retirado)

@@ -7,18 +7,20 @@ import os
 
 from src.application.auth_service import AuthService
 from src.application.incident_service import IncidentService
-from src.domain.models import CategoriaIncidente, TipoViajero
-from src.domain.schemas.incident_schema import IncidentCreate
+from src.domain.models import TipoViajero
 from src.infrastructure.database import ensure_indexes, get_database
 from src.infrastructure.reference_data import cargar_datos_de_referencia
-from src.infrastructure.repositories import MongoIncidentRepository, MongoUserRepository
+from src.infrastructure.repositories import (
+    MongoIncidentRepository, MongoPlaceRepository, MongoTransitRepository, MongoUserRepository,
+)
 from src.infrastructure.security import password_hasher, token_issuer
 
+# (tipo, detalles, lat, lon): ejemplos realistas de lo que reporta la comunidad.
 INCIDENTES_DEMO = [
-    (CategoriaIncidente.SEGURIDAD, 4, 10.4236, -75.5510),  # Centro Histórico
-    (CategoriaIncidente.TRAFICO, 3, 10.4205, -75.5465),    # Getsemaní
-    (CategoriaIncidente.TRAFICO, 5, 10.4150, -75.5250),    # Av. Pedro de Heredia
-    (CategoriaIncidente.SEGURIDAD, 2, 10.4000, -75.5560),  # Bocagrande
+    ("robo", {}, 10.4236, -75.5510),                                    # Centro Histórico
+    ("trancon", {"estado": "detenido"}, 10.4150, -75.5250),             # Av. Pedro de Heredia
+    ("bus_no_pasa", {"ruta": "T103", "espera": "20"}, 10.4139, -75.5244),  # Estación Bazurto
+    ("calle_inundada", {"paso": "no_se_puede"}, 10.4000, -75.5560),     # Bocagrande
 ]
 
 def seed():
@@ -40,12 +42,12 @@ def seed():
                                    tipo_viajero=TipoViajero.RESIDENTE)
         print("✅ Usuario demo creado.")
 
-    incidents = IncidentService(MongoIncidentRepository(db))
+    incidents = IncidentService(MongoIncidentRepository(db), users, MongoPlaceRepository(db),
+                                MongoTransitRepository(db))
     if not incidents.list_active():
-        for categoria, intensidad, lat, lon in INCIDENTES_DEMO:
-            incidents.report(usuario, IncidentCreate(categoria=categoria, intensidad=intensidad,
-                                                     latitud=lat, longitud=lon))
-        print("✅ Incidentes demo creados (expiran según su categoría).")
+        for tipo, detalles, lat, lon in INCIDENTES_DEMO:
+            incidents.report(usuario, tipo=tipo, detalles=detalles, latitud=lat, longitud=lon)
+        print("✅ Reportes demo creados (vencen según su tipo).")
 
 if __name__ == "__main__":
     seed()

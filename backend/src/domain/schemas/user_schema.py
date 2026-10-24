@@ -23,8 +23,10 @@ class UserResponse(BaseModel):
     id: str
     email: str
     nombre: str
+    alias: str = Field(..., description="Nombre corto que ven los demás viajeros")
     tipo_viajero: TipoViajero
     reputacion: int
+    nivel: int = Field(..., description="Nivel según la reputación (1 a 5)")
 
 class TokenResponse(BaseModel):
     access_token: str

@@ -44,6 +44,10 @@ class TripService:
         return [(self._etiquetar(opcion, estaciones, nombre_origen, nombre_destino), riesgo)
                 for opcion, riesgo in evaluadas[:self.MAX_OPCIONES]]
 
+    def routes(self, tipo: str | None = None) -> list[RutaTransporte]:
+        """Rutas con su recorrido, para dibujarlas en el mapa (la troncal en el inicio)."""
+        return self.transit.list_routes(tipo)
+
     def nearby_stations(self, lat: float, lon: float, radio_m: float, limite: int) -> list[tuple[Estacion, float]]:
         """Caso de Uso: Ver estaciones de Transcaribe cercanas, de la más cercana a la más lejana."""
         return self.transit.stations_near(lon, lat, radio_m, limite)

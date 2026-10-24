@@ -12,9 +12,9 @@ def _auth(token):
     return {"Authorization": f"Bearer {token}"}
 
 
-def _reportar(api, token, categoria="Seguridad", intensidad=5, latitud=10.4100, longitud=-75.5500):
+def _reportar(api, token, tipo="robo", detalles=None, latitud=10.4100, longitud=-75.5500):
     return api.post("/api/v1/incidents/", headers=_auth(token), json={
-        "categoria": categoria, "intensidad": intensidad, "latitud": latitud, "longitud": longitud,
+        "tipo": tipo, "detalles": detalles or {}, "latitud": latitud, "longitud": longitud,
     })
 
 
@@ -64,9 +64,7 @@ def test_login_con_credenciales_correctas_e_incorrectas(api, registrar):
 
 
 def test_reportar_exige_sesion(api):
-    respuesta = api.post("/api/v1/incidents/", json={
-        "categoria": "Tráfico", "intensidad": 2, "latitud": 10.42, "longitud": -75.54,
-    })
+    respuesta = api.post("/api/v1/incidents/", json={"tipo": "trancon", "latitud": 10.42, "longitud": -75.54})
     assert respuesta.status_code == 401
 
     token_falso = _reportar(api, "no-es-un-jwt")
@@ -84,7 +82,7 @@ def test_token_de_usuario_eliminado_da_401_y_no_500(api, registrar):
 
 def test_reporte_valido_aparece_en_el_mapa_sin_datos_del_autor(api, registrar):
     token, _ = registrar()
-    creado = _reportar(api, token, categoria="Tráfico", intensidad=3, latitud=10.4225, longitud=-75.5410)
+    creado = _reportar(api, token, tipo="trancon", detalles={"estado": "lento"}, latitud=10.4225, longitud=-75.5410)
     assert creado.status_code == 201, creado.text
     incidente = creado.json()
     assert incidente["expira_en"] > incidente["creado_en"]
@@ -98,8 +96,8 @@ def test_reporte_valido_aparece_en_el_mapa_sin_datos_del_autor(api, registrar):
 def test_reporte_con_datos_invalidos_da_422(api, registrar):
     token, _ = registrar()
     assert _reportar(api, token, latitud=500).status_code == 422
-    assert _reportar(api, token, categoria="Didi").status_code == 422
-    assert _reportar(api, token, intensidad=9).status_code == 422
+    assert _reportar(api, token, tipo="didi").status_code == 422
+    assert _reportar(api, token, tipo="trancon", detalles={"estado": "volando"}).status_code == 422
 
 
 def test_riesgo_de_ruta_cuenta_solo_incidentes_dentro_del_corredor(api, registrar):

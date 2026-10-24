@@ -4,6 +4,10 @@ import uuid
 # Se configura antes de importar `src`: la configuración se lee al importar.
 os.environ.setdefault("MONGO_URI", "mongodb://karta:karta@localhost:27017/?authSource=admin")
 os.environ.setdefault("JWT_SECRET", "secreto-solo-para-pruebas-0123456789abcdef")
+# Las pruebas registran muchos usuarios desde la misma "IP": los límites por IP se suben aquí, y la
+# prueba que verifica el 429 baja el suyo a propósito.
+os.environ.setdefault("LIMITE_REGISTRO_POR_HORA", "100000")
+os.environ.setdefault("LIMITE_LOGIN_POR_MINUTO", "100000")
 # Siempre una base aislada y desechable, nunca la de desarrollo.
 os.environ["MONGO_DB"] = f"karta_test_{uuid.uuid4().hex[:8]}"
 

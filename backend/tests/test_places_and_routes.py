@@ -125,6 +125,6 @@ def test_lugares_guardados_validan_datos_y_limite(api, registrar):
 def test_reportes_fuera_de_cartagena_se_rechazan(api, registrar):
     token, _ = registrar()
     respuesta = api.post("/api/v1/incidents/", headers=_auth(token), json={
-        "categoria": "Tráfico", "intensidad": 2, "latitud": SANTA_MARTA["lat"], "longitud": SANTA_MARTA["lon"],
+        "tipo": "trancon", "latitud": SANTA_MARTA["lat"], "longitud": SANTA_MARTA["lon"],
     })
     assert respuesta.status_code == 422

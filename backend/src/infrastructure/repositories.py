@@ -1,6 +1,7 @@
 """Adaptadores de MongoDB para los puertos del dominio."""
+import math
 import re
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from bson import ObjectId
 from pymongo import DESCENDING, ReturnDocument
@@ -8,21 +9,23 @@ from pymongo.database import Database
 from pymongo.errors import DuplicateKeyError
 
 from src.domain.models import (
-    REPUTACION_INICIAL, CategoriaIncidente, EmailYaRegistrado, Estacion, IconoLugar, Incidente, LimiteLugaresGuardados,
+    REPUTACION_INICIAL, EmailYaRegistrado, Estacion, IconoLugar, Incidente, LimiteLugaresGuardados,
     Lugar, LugarGuardado, LugarGuardadoNoEncontrado, RutaTransporte, TipoViajero, Usuario,
 )
+from src.domain.reportes import TipoReporte, VotoRepetido, alias_publico
 
 
 class MongoUserRepository:
     def __init__(self, db: Database):
         self._users = db.users
 
-    def add(self, *, email: str, password_hash: str, nombre: str, tipo_viajero: TipoViajero,
+    def add(self, *, email: str, password_hash: str, nombre: str, alias: str, tipo_viajero: TipoViajero,
             creado_en: datetime, terminos_aceptados_en: datetime) -> Usuario:
         doc = {
             "email": email,
             "password_hash": password_hash,
             "nombre": nombre,
+            "alias": alias,
             "tipo_viajero": tipo_viajero.value,
             "reputacion": REPUTACION_INICIAL,
             "terminos_aceptados_en": terminos_aceptados_en,
@@ -44,29 +47,54 @@ class MongoUserRepository:
         doc = self._users.find_one({"_id": ObjectId(user_id)})
         return _to_usuario(doc) if doc else None
 
+    def ajustar_reputacion(self, user_id: str, delta: int) -> None:
+        if ObjectId.is_valid(user_id):
+            self._users.update_one({"_id": ObjectId(user_id)}, {"$inc": {"reputacion": delta}})
+
 
 class MongoIncidentRepository:
+    """Reportes en `incidents` (con TTL sobre `expira_en`) y sus votos en `incident_votes`."""
+
+    # Los votos se guardan un poco más que cualquier reporte, solo para impedir votos repetidos.
+    VIDA_DE_LOS_VOTOS = timedelta(days=2)
+
     def __init__(self, db: Database):
         self._incidents = db.incidents
+        self._votes = db.incident_votes
 
-    def add(self, *, reportado_por: str, categoria: CategoriaIncidente, intensidad: int,
-            latitud: float, longitud: float, creado_en: datetime, expira_en: datetime) -> Incidente:
+    def add(self, *, reportado_por: str, tipo: TipoReporte, detalles: dict[str, str], latitud: float,
+            longitud: float, lugar: str | None, creado_en: datetime, expira_en: datetime) -> Incidente:
         doc = {
             "reportado_por": ObjectId(reportado_por),
-            "categoria": categoria.value,
-            "intensidad": intensidad,
+            "grupo": tipo.grupo.value,
+            "tipo": tipo.clave,
+            "detalles": detalles,
             # GeoJSON exige el orden [longitud, latitud].
             "ubicacion": {"type": "Point", "coordinates": [longitud, latitud]},
+            "lugar": lugar,
+            "votos_si": 0,
+            "votos_no": 0,
+            "no_seguidos": 0,
             "creado_en": creado_en,
             "expira_en": expira_en,
         }
         self._incidents.insert_one(doc)
         return _to_incidente(doc)
 
-    def list_active(self, ahora: datetime, limite: int) -> list[Incidente]:
+    def get_active(self, incidente_id: str, ahora: datetime) -> Incidente | None:
+        if not ObjectId.is_valid(incidente_id):
+            return None
+        doc = self._incidents.find_one({"_id": ObjectId(incidente_id), "expira_en": {"$gt": ahora}})
+        return _to_incidente(doc) if doc else None
+
+    def list_active(self, ahora: datetime, limite: int, caja: tuple[float, float, float, float] | None = None
+                    ) -> list[Incidente]:
         # El índice TTL borra con hasta ~60 s de retraso; el filtro garantiza que solo salgan vigentes.
-        cursor = (self._incidents.find({"expira_en": {"$gt": ahora}})
-                  .sort("creado_en", DESCENDING).limit(limite))
+        filtro: dict = {"expira_en": {"$gt": ahora}}
+        if caja is not None:
+            lon_min, lat_min, lon_max, lat_max = caja
+            filtro["ubicacion"] = {"$geoWithin": {"$box": [[lon_min, lat_min], [lon_max, lat_max]]}}
+        cursor = self._incidents.find(filtro).sort("creado_en", DESCENDING).limit(limite)
         return [_to_incidente(doc) for doc in cursor]
 
     def find_active_within(self, area: dict, ahora: datetime) -> list[Incidente]:
@@ -75,6 +103,40 @@ class MongoIncidentRepository:
             "expira_en": {"$gt": ahora},
         })
         return [_to_incidente(doc) for doc in cursor]
+
+    def register_vote(self, incidente_id: str, usuario_id: str, sigue: bool, ahora: datetime) -> None:
+        try:
+            self._votes.insert_one({
+                "incidente": ObjectId(incidente_id), "usuario": ObjectId(usuario_id), "sigue": sigue,
+                "en": ahora, "expira_en": ahora + self.VIDA_DE_LOS_VOTOS,
+            })
+        except DuplicateKeyError:
+            raise VotoRepetido()
+
+    def apply_confirmation(self, incidente_id: str, nueva_expiracion: datetime) -> Incidente:
+        doc = self._incidents.find_one_and_update(
+            {"_id": ObjectId(incidente_id)},
+            {"$inc": {"votos_si": 1}, "$set": {"no_seguidos": 0}, "$max": {"expira_en": nueva_expiracion}},
+            return_document=ReturnDocument.AFTER,
+        )
+        return _to_incidente(doc)
+
+    def apply_denial(self, incidente_id: str) -> tuple[Incidente, int]:
+        doc = self._incidents.find_one_and_update(
+            {"_id": ObjectId(incidente_id)},
+            {"$inc": {"votos_no": 1, "no_seguidos": 1}},
+            return_document=ReturnDocument.AFTER,
+        )
+        return _to_incidente(doc), doc["no_seguidos"]
+
+    def retire(self, incidente_id: str, ahora: datetime) -> None:
+        self._incidents.update_one({"_id": ObjectId(incidente_id)}, {"$set": {"expira_en": ahora}})
+
+    def vote_of(self, incidente_id: str, usuario_id: str) -> bool | None:
+        if not (ObjectId.is_valid(incidente_id) and ObjectId.is_valid(usuario_id)):
+            return None
+        voto = self._votes.find_one({"incidente": ObjectId(incidente_id), "usuario": ObjectId(usuario_id)})
+        return voto["sigue"] if voto else None
 
 
 class MongoPlaceRepository:
@@ -107,6 +169,13 @@ class MongoTransitRepository:
     def stations_near(self, lon: float, lat: float, radio_m: float, limite: int) -> list[tuple[Estacion, float]]:
         return [(_to_estacion(doc), doc["distancia_m"])
                 for doc in self._stations.aggregate(_cercanos(lon, lat, radio_m, limite))]
+
+    def list_routes(self, tipo: str | None = None) -> list[RutaTransporte]:
+        filtro = {"tipo": tipo} if tipo else {}
+        return [_to_ruta(doc) for doc in self._routes.find(filtro).sort("_id")]
+
+    def route_codes(self) -> set[str]:
+        return set(self._routes.distinct("_id"))
 
 
 class MongoSavedPlaceRepository:
@@ -218,6 +287,8 @@ def _to_usuario(doc: dict) -> Usuario:
         reputacion=doc["reputacion"],
         password_hash=doc["password_hash"],
         creado_en=doc["creado_en"],
+        # Usuarios creados antes de que existiera el alias lo derivan de su nombre.
+        alias=doc.get("alias") or alias_publico(doc["nombre"]),
     )
 
 
@@ -226,10 +297,37 @@ def _to_incidente(doc: dict) -> Incidente:
     return Incidente(
         id=str(doc["_id"]),
         reportado_por=str(doc["reportado_por"]),
-        categoria=CategoriaIncidente(doc["categoria"]),
-        intensidad=doc["intensidad"],
+        grupo=doc["grupo"],
+        tipo=doc["tipo"],
+        detalles=doc.get("detalles", {}),
         latitud=latitud,
         longitud=longitud,
+        lugar=doc.get("lugar"),
+        votos_si=doc.get("votos_si", 0),
+        votos_no=doc.get("votos_no", 0),
         creado_en=doc["creado_en"],
         expira_en=doc["expira_en"],
     )
+
+
+ZONA_UTC = timezone.utc
+
+
+class MongoRateLimiter:
+    """Límite de peticiones por ventana fija en `rate_limits`; cada ventana vence sola con un índice TTL."""
+
+    def __init__(self, db: Database):
+        self._limites = db.rate_limits
+
+    def hit(self, clave: str, limite: int, ventana: timedelta) -> int | None:
+        ahora = datetime.now(tz=ZONA_UTC)
+        segundos = int(ventana.total_seconds())
+        inicio = int(ahora.timestamp()) // segundos * segundos
+        doc = self._limites.find_one_and_update(
+            {"_id": f"{clave}:{inicio}"},
+            {"$inc": {"conteo": 1}, "$setOnInsert": {"expira_en": datetime.fromtimestamp(inicio + segundos, ZONA_UTC)}},
+            upsert=True, return_document=ReturnDocument.AFTER,
+        )
+        if doc["conteo"] <= limite:
+            return None
+        return max(1, math.ceil(inicio + segundos - ahora.timestamp()))

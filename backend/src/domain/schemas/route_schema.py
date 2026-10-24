@@ -1,7 +1,6 @@
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from typing import List, Literal
 from src.domain.geo import validar_cobertura
-from src.domain.models import CategoriaIncidente
 
 class RoutePoint(BaseModel):
     lat: float = Field(..., ge=-90, le=90)
@@ -15,8 +14,9 @@ class IncidentRiskDetail(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
-    categoria: CategoriaIncidente
-    intensidad: int
+    grupo: str
+    tipo: str
+    votos_si: int
 
 class RouteRiskResponse(BaseModel):
     """Resultado del escaneo de riesgo sobre la ruta."""
@@ -71,3 +71,11 @@ class RouteSuggestResponse(BaseModel):
     opciones: List[RouteOptionResponse]
     nota: str
     fuente: str
+
+
+class RouteGeometryResponse(BaseModel):
+    """Una ruta de Transcaribe con su trazado, para dibujarla en el mapa."""
+    codigo: str
+    nombre: str
+    tipo: str
+    geometria: dict = Field(..., description="GeoJSON LineString con coordenadas [lon, lat]")
