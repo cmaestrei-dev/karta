@@ -164,4 +164,18 @@ void main() {
     expect(estacion.caminataMin, 1);
     expect(estacion.rutas, ['T101', 'X104']);
   });
+
+  group('resaltar lo que coincide en el buscador', () {
+    test('marca el comienzo de palabra sin importar tildes ni mayúsculas', () {
+      expect(tramosResaltados('Bocagrande', 'boca'), [('Boca', true), ('grande', false)]);
+      expect(tramosResaltados('Centro Comercial Bocagrande', 'BOCA'),
+          [('Centro Comercial ', false), ('Boca', true), ('grande', false)]);
+      expect(tramosResaltados('Estación Bazurto', 'estacion baz'), [('Estación', true), (' ', false), ('Baz', true), ('urto', false)]);
+    });
+
+    test('no marca coincidencias en medio de una palabra', () {
+      expect(tramosResaltados('Embocadura', 'boca'), [('Embocadura', false)]);
+      expect(tramosResaltados('La Popa', 'a'), [('La Popa', false)]);
+    });
+  });
 }

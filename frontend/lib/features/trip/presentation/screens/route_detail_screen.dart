@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -8,6 +6,7 @@ import 'package:latlong2/latlong.dart';
 import '../../../../core/format.dart';
 import '../../../../core/design/bahia.dart';
 import '../../../../core/map/capa_bahia.dart';
+import '../../../../core/map/geometria.dart';
 import '../../../../core/widgets/karta_map.dart';
 import '../../../../core/widgets/plaque.dart';
 import '../../../../core/widgets/risk_badge.dart';
@@ -77,35 +76,43 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> with SingleTicker
     return lineas;
   }
 
-  /// Paradas de subida y bajada. Si el origen queda a menos de 100 m de la subida, el punto del
-  /// origen se funde con la parada para que no se tapen entre sí.
+  /// Paradas de subida y bajada de cada bus. Si el origen queda a menos de 100 m de la primera subida, el punto
+  /// del origen se funde con la parada para que no se tapen. Donde se cambia de bus va una sola marca.
   List<Marker> _paradas({required bool origenEnSubida}) {
-    final bus = widget.opcion.bus;
-    if (bus == null || bus.puntos.isEmpty) return [];
-    final parada = Container(
-      width: 28,
-      height: 28,
-      decoration: BoxDecoration(
-        color: RouteCapsule.colorDe(bus.tipoRuta),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.white, width: 2),
-      ),
-      child: const Icon(Icons.directions_bus, size: 16, color: Colors.white),
-    );
-    final subida = origenEnSubida
-        ? Stack(children: [
-            Positioned(right: 0, top: 0, child: parada),
-            Positioned(
-              left: 0,
-              bottom: 0,
-              child: SizedBox(width: 24, height: 24, child: UserLocationDot(etiqueta: 'Origen: ${widget.origen.nombre}')),
-            ),
-          ])
-        : parada;
-    return [
-      Marker(point: bus.puntos.first, width: origenEnSubida ? 44 : 28, height: origenEnSubida ? 44 : 28, child: subida),
-      Marker(point: bus.puntos.last, width: 28, height: 28, child: parada),
-    ];
+    Widget parada(Leg bus, {IconData icono = Icons.directions_bus}) => Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            color: RouteCapsule.colorDe(bus.tipoRuta),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.white, width: 2),
+          ),
+          child: Icon(icono, size: 16, color: Colors.white),
+        );
+    final buses = [for (final b in widget.opcion.buses) if (b.puntos.isNotEmpty) b];
+    const distancia = Distance();
+    final marcas = <Marker>[];
+    for (final (k, bus) in buses.indexed) {
+      final esTransbordo = k > 0;
+      final subida = k == 0 && origenEnSubida
+          ? Stack(children: [
+              Positioned(right: 0, top: 0, child: parada(bus)),
+              Positioned(
+                left: 0,
+                bottom: 0,
+                child: SizedBox(width: 24, height: 24, child: UserLocationDot(etiqueta: 'Origen: ${widget.origen.nombre}')),
+              ),
+            ])
+          : parada(bus, icono: esTransbordo ? Icons.sync_alt : Icons.directions_bus);
+      final grande = k == 0 && origenEnSubida;
+      marcas.add(Marker(point: bus.puntos.first, width: grande ? 44 : 28, height: grande ? 44 : 28, child: subida));
+      // La bajada del primer bus no se marca si es el mismo punto donde se sube al segundo.
+      final siguiente = k + 1 < buses.length ? buses[k + 1].puntos.first : null;
+      if (siguiente == null || distancia.as(LengthUnit.Meter, bus.puntos.last, siguiente) > 60) {
+        marcas.add(Marker(point: bus.puntos.last, width: 28, height: 28, child: parada(bus)));
+      }
+    }
+    return marcas;
   }
 
   /// Los reportes que cuentan en el riesgo de esta opción (a menos de 500 m del recorrido, el mismo
@@ -114,14 +121,16 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> with SingleTicker
   /// tienen que verse, porque la parada es a donde el viajero debe caminar.
   List<Marker> _incidentes(BuildContext context, List<Incident> incidentes) {
     final recorrido = widget.opcion.puntos;
-    final paradas = [?widget.opcion.bus?.puntos.firstOrNull, ?widget.opcion.bus?.puntos.lastOrNull];
+    final paradas = [
+      for (final bus in widget.opcion.buses) ...[?bus.puntos.firstOrNull, ?bus.puntos.lastOrNull],
+    ];
     const distancia = Distance();
     return [
       for (final i in incidentes)
         marcadorDeReporte(
           context,
           i,
-          atenuado: _distanciaALinea(i.punto, recorrido) > _radioDeRiesgoM,
+          atenuado: distanciaALineaM(i.punto, recorrido) > radioDeRiesgoM,
           // La punta del pin marca el lugar; junto a una parada se corre a la izquierda para no taparla.
           alineacion: paradas.any((p) => distancia.as(LengthUnit.Meter, p, i.punto) < 60)
               ? const Alignment(-1.6, -1.2)
@@ -202,9 +211,10 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> with SingleTicker
             snap: true,
             builder: (context, controlador) => Material(
               color: scheme.surface,
-              elevation: 8,
-              shadowColor: Colors.black.withValues(alpha: 0.4),
-              shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+              elevation: 12,
+              shadowColor: Colors.black.withValues(alpha: 0.45),
+              shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(26))),
+              clipBehavior: Clip.antiAlias,
               child: ListView(
                 controller: controlador,
                 padding: EdgeInsets.fromLTRB(20, 0, 20, 24 + MediaQuery.paddingOf(context).bottom),
@@ -212,12 +222,17 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> with SingleTicker
                   const _Asa(),
                   _Cabecera(opcion: widget.opcion, origen: widget.origen, destino: widget.destino),
                   const SizedBox(height: 20),
-                  for (final tramo in widget.opcion.tramos) _FilaDeTramo(tramo: tramo),
+                  for (final (k, tramo) in widget.opcion.tramos.indexed)
+                    _FilaDeTramo(
+                      tramo: tramo,
+                      esTransbordo: tramo.esCaminata && k > 0 && k + 1 < widget.opcion.tramos.length,
+                    ),
                   _Llegada(destino: widget.destino),
                   const SizedBox(height: 16),
                   Text(
-                    'Tiempos estimados con velocidades promedio; las caminatas se dibujan en línea recta. '
-                    'Rutas de Transcaribe: © colaboradores de OpenStreetMap (ODbL).',
+                    'Tiempos estimados con velocidades promedio y esperas típicas; las caminatas se dibujan en línea '
+                    'recta. Rutas de Transcaribe: © colaboradores de OpenStreetMap (ODbL). Horarios: Portal de Datos '
+                    'Abiertos de Cartagena (CC-BY 4.0).',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
                   ),
                 ],
@@ -285,7 +300,10 @@ class _Cabecera extends StatelessWidget {
 class _FilaDeTramo extends StatelessWidget {
   final Leg tramo;
 
-  const _FilaDeTramo({required this.tramo});
+  /// La caminata entre dos buses.
+  final bool esTransbordo;
+
+  const _FilaDeTramo({required this.tramo, this.esTransbordo = false});
 
   @override
   Widget build(BuildContext context) {
@@ -294,13 +312,17 @@ class _FilaDeTramo extends StatelessWidget {
     final colorRuta = RouteCapsule.colorDe(tramo.tipoRuta);
     final secundario = texto.bodyMedium?.copyWith(color: scheme.onSurfaceVariant);
 
+    final mismoPunto = esTransbordo && tramo.distanciaM < 30;
     final contenido = tramo.esCaminata
         ? Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Camina ${minutos(tramo.duracionMin)} · ${metros(tramo.distanciaM)}',
-                  style: texto.titleSmall?.copyWith(fontFeatures: tabularFigures)),
-              Text('hasta ${tramo.hasta}', style: secundario),
+              if (esTransbordo) Text('Transbordo', style: texto.labelMedium?.copyWith(color: scheme.primary)),
+              Text(
+                mismoPunto ? 'Cambia de bus aquí mismo' : 'Camina ${minutos(tramo.duracionMin)} · ${metros(tramo.distanciaM)}',
+                style: texto.titleSmall?.copyWith(fontFeatures: tabularFigures),
+              ),
+              Text(mismoPunto ? 'en ${tramo.hasta}' : 'hasta ${tramo.hasta}', style: secundario),
             ],
           )
         // El tramo en bus es la placa del recorrido: la ruta, dónde subir y dónde bajar.
@@ -333,7 +355,7 @@ class _FilaDeTramo extends StatelessWidget {
             child: Column(
               children: [
                 _Nodo(
-                  icono: tramo.esCaminata ? Icons.directions_walk : Icons.directions_bus,
+                  icono: esTransbordo ? Icons.sync_alt : (tramo.esCaminata ? Icons.directions_walk : Icons.directions_bus),
                   relleno: tramo.esCaminata ? null : colorRuta,
                 ),
                 Expanded(
@@ -406,28 +428,4 @@ class _RielPunteado extends CustomPainter {
 
   @override
   bool shouldRepaint(_RielPunteado anterior) => anterior.color != color;
-}
-
-/// Radio alrededor del recorrido en el que un incidente cuenta para su riesgo (RADIO_BUSQUEDA_M del backend).
-const _radioDeRiesgoM = 500;
-
-/// Distancia aproximada en metros de un punto a una polilínea, en una proyección local plana:
-/// a la escala de una ciudad el error es despreciable.
-double _distanciaALinea(LatLng punto, List<LatLng> linea) {
-  if (linea.isEmpty) return double.infinity;
-  const metrosPorGradoLat = 110540.0;
-  final metrosPorGradoLon = 111320.0 * math.cos(punto.latitude * math.pi / 180);
-  Offset local(LatLng q) => Offset(
-        (q.longitude - punto.longitude) * metrosPorGradoLon,
-        (q.latitude - punto.latitude) * metrosPorGradoLat,
-      );
-  var minima = local(linea.first).distance;
-  for (var k = 0; k + 1 < linea.length; k++) {
-    final a = local(linea[k]);
-    final ab = local(linea[k + 1]) - a;
-    final largo2 = ab.distanceSquared;
-    final t = largo2 == 0 ? 0.0 : (-(a.dx * ab.dx + a.dy * ab.dy) / largo2).clamp(0.0, 1.0);
-    minima = math.min(minima, (a + ab * t).distance);
-  }
-  return minima;
 }

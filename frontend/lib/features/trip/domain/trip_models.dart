@@ -71,6 +71,7 @@ class RouteOption extends Equatable {
   final String resumen;
   final int tiempoTotalMin;
   final int distanciaCaminataM;
+  final int transbordos;
   final List<Leg> tramos;
   final RiskSummary riesgo;
 
@@ -78,11 +79,18 @@ class RouteOption extends Equatable {
     required this.resumen,
     required this.tiempoTotalMin,
     required this.distanciaCaminataM,
+    this.transbordos = 0,
     required this.tramos,
     required this.riesgo,
   });
 
-  Leg? get bus => tramos.where((t) => !t.esCaminata).firstOrNull;
+  /// Los tramos en bus, en orden: uno, o dos con transbordo.
+  List<Leg> get buses => [for (final t in tramos) if (!t.esCaminata) t];
+
+  Leg? get bus => buses.firstOrNull;
+
+  /// Dónde se cambia de bus («Estación La Castellana»), si hay transbordo.
+  String? get puntoDeTransbordo => buses.length > 1 ? buses[1].desde : null;
 
   List<LatLng> get puntos => [for (final tramo in tramos) ...tramo.puntos];
 
@@ -90,29 +98,60 @@ class RouteOption extends Equatable {
         resumen: json['resumen'] as String,
         tiempoTotalMin: json['tiempo_total_min'] as int,
         distanciaCaminataM: json['distancia_caminata_m'] as int,
+        transbordos: json['transbordos'] as int? ?? 0,
         tramos: (json['tramos'] as List<dynamic>).map((t) => Leg.fromJson(t)).toList(),
         riesgo: RiskSummary.fromJson(json['riesgo']),
       );
 
   @override
-  List<Object?> get props => [resumen, tiempoTotalMin, distanciaCaminataM, tramos, riesgo];
+  List<Object?> get props => [resumen, tiempoTotalMin, distanciaCaminataM, transbordos, tramos, riesgo];
+}
+
+/// Cómo ordenar las formas de llegar.
+enum CriterioDeRuta {
+  rapida('rapida', 'Más rápida'),
+  segura('segura', 'Más segura'),
+  sinTransbordo('sin_transbordo', 'Sin transbordo');
+
+  final String api;
+  final String etiqueta;
+
+  const CriterioDeRuta(this.api, this.etiqueta);
+
+  static CriterioDeRuta deApi(String? valor) =>
+      values.where((c) => c.api == valor).firstOrNull ?? CriterioDeRuta.rapida;
 }
 
 class RouteSuggestions extends Equatable {
   final List<RouteOption> opciones;
+  final CriterioDeRuta criterio;
+  final DateTime? salida;
+
+  /// Por qué no hay opciones en bus cuando es por el horario («La primera sale mañana a las 5:30 a. m.»).
+  final String? aviso;
   final String nota;
   final String fuente;
 
-  const RouteSuggestions({required this.opciones, required this.nota, required this.fuente});
+  const RouteSuggestions({
+    required this.opciones,
+    this.criterio = CriterioDeRuta.rapida,
+    this.salida,
+    this.aviso,
+    required this.nota,
+    required this.fuente,
+  });
 
   factory RouteSuggestions.fromJson(Map<String, dynamic> json) => RouteSuggestions(
         opciones: (json['opciones'] as List<dynamic>).map((o) => RouteOption.fromJson(o)).toList(),
+        criterio: CriterioDeRuta.deApi(json['criterio'] as String?),
+        salida: DateTime.tryParse(json['salida'] as String? ?? ''),
+        aviso: json['aviso'] as String?,
         nota: json['nota'] as String,
         fuente: json['fuente'] as String,
       );
 
   @override
-  List<Object?> get props => [opciones, nota, fuente];
+  List<Object?> get props => [opciones, criterio, salida, aviso, nota, fuente];
 }
 
 /// Una ruta de Transcaribe con su trazado, para dibujarla sobre el mapa.

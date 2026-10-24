@@ -24,10 +24,18 @@ class TripRepository {
     });
   }
 
-  Future<RouteSuggestions> suggest(TripPoint origen, TripPoint destino) async {
+  /// Formas de llegar ordenadas por [criterio]. Sin [salida] se sale ahora; con ella, solo cuentan las rutas
+  /// que operan a esa hora.
+  Future<RouteSuggestions> suggest(TripPoint origen, TripPoint destino,
+      {CriterioDeRuta criterio = CriterioDeRuta.rapida, DateTime? salida}) async {
     Map<String, Object> coordenada(TripPoint p) =>
         {'lat': p.punto.latitude, 'lon': p.punto.longitude, 'nombre': p.nombre};
-    final data = await api.post('/routes/suggest', {'origen': coordenada(origen), 'destino': coordenada(destino)});
+    final data = await api.post('/routes/suggest', {
+      'origen': coordenada(origen),
+      'destino': coordenada(destino),
+      'criterio': criterio.api,
+      if (salida != null) 'salida': salida.toUtc().toIso8601String(),
+    });
     return RouteSuggestions.fromJson(data);
   }
 
