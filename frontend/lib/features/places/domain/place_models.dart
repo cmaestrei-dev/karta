@@ -98,3 +98,40 @@ class TripPoint extends Equatable {
   @override
   List<Object?> get props => [nombre, punto, esMiUbicacion];
 }
+
+const _sinTildes = {'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u', 'ü': 'u', 'ñ': 'n'};
+
+/// Minúsculas y sin tildes, letra por letra: conserva las posiciones del texto original.
+String normalizarParaBuscar(String texto) =>
+    texto.toLowerCase().split('').map((c) => _sinTildes[c] ?? c).join();
+
+/// Parte [nombre] en tramos y marca los que coinciden con el comienzo de una palabra de [consulta],
+/// sin importar tildes ni mayúsculas, como busca el backend: «boca» resalta «Boca» en «Bocagrande».
+List<(String, bool)> tramosResaltados(String nombre, String consulta) {
+  final normal = normalizarParaBuscar(nombre);
+  final marcadas = List<bool>.filled(nombre.length, false);
+  for (final palabra in normalizarParaBuscar(consulta).split(RegExp(r'\s+')).where((p) => p.length >= 2)) {
+    var desde = 0;
+    while (true) {
+      final i = normal.indexOf(palabra, desde);
+      if (i < 0) break;
+      final inicioDePalabra = i == 0 || !RegExp(r'[a-z0-9]').hasMatch(normal[i - 1]);
+      if (inicioDePalabra) {
+        for (var k = i; k < i + palabra.length; k++) {
+          marcadas[k] = true;
+        }
+        break;
+      }
+      desde = i + 1;
+    }
+  }
+  final tramos = <(String, bool)>[];
+  var inicio = 0;
+  for (var k = 1; k <= nombre.length; k++) {
+    if (k == nombre.length || marcadas[k] != marcadas[inicio]) {
+      tramos.add((nombre.substring(inicio, k), marcadas[inicio]));
+      inicio = k;
+    }
+  }
+  return tramos;
+}

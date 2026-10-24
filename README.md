@@ -16,7 +16,10 @@ Cartagena de Indias.
 | Ver los reportes vigentes en el mapa | ✅ cada tipo vive de 30 min a 12 h; cada confirmación lo renueva |
 | «¿Sigue ahí?»: confirmar o desmentir reportes ajenos, reputación y niveles | ✅ un voto por viajero; dos «ya no está» seguidos lo retiran |
 | Buscar un lugar de Cartagena o elegir el punto en el mapa | ✅ 453 lugares de OpenStreetMap |
-| Rutas sugeridas de Transcaribe con su riesgo | ✅ 24 rutas y 17 estaciones de OpenStreetMap |
+| Rutas sugeridas de Transcaribe con su riesgo, comparadas en el mapa | ✅ 24 rutas y 17 estaciones de OpenStreetMap |
+| Transbordo entre dos rutas y criterio: más rápida, más segura o sin transbordo | ✅ |
+| Solo rutas que operan a la hora de salida (horarios oficiales, festivos incluidos) | ✅ avisa cuándo sale la primera |
+| Paraderos fuera de la troncal nombrados por el cruce de calles («Av. Pedro de Heredia con Cra. 80C») | ✅ 2083 cruces de OpenStreetMap |
 | Estaciones cercanas con sus rutas | ✅ |
 | Lugares guardados (Casa, Trabajo…) | ✅ CRUD, máximo 10 por viajero |
 | Límite de frecuencia de peticiones (registro, inicio de sesión, reportes y votos) | ✅ responde 429 con `Retry-After` |
@@ -36,7 +39,7 @@ El backend sigue una arquitectura hexagonal (puertos y adaptadores):
 |---|---|
 | `backend/src/domain` | Entidades, reglas de negocio (`reportes.py` con el catálogo y la validación comunitaria, `trip_planning.py`, `route_risk.py`, `geo.py`), puertos (`ports.py`) y esquemas Pydantic de la API. No depende de FastAPI ni de MongoDB |
 | `backend/src/application` | Casos de uso: `AuthService`, `IncidentService`, `PlaceService` (buscador y lugares guardados) y `TripService` (rutas sugeridas, estaciones cercanas) |
-| `backend/data`, `backend/scripts` | Rutas, estaciones y lugares importados de OpenStreetMap (`importar_osm.py`); se cargan al arrancar la API |
+| `backend/data`, `backend/scripts` | Rutas, estaciones, lugares y cruces de calles de OpenStreetMap (`importar_osm.py`, `importar_cruces.py`) y horarios oficiales de Transcaribe (`importar_horarios.py`); se cargan al arrancar la API |
 | `backend/src/infrastructure` | Adaptadores: FastAPI y routers, repositorios MongoDB, Argon2 + JWT, configuración |
 | `frontend/lib/core` | Configuración y servicios compartidos (URL de la API, GPS, errores de la API), sistema de diseño «Bahía» (`design/`) y capa del mapa (`map/`) |
 | `frontend/lib/features/<funcionalidad>` | `data` (repositorios HTTP), `domain` (modelos), `presentation` (BLoC y pantallas) |
@@ -52,11 +55,17 @@ El backend sigue una arquitectura hexagonal (puertos y adaptadores):
 | `places` | `nombre`, `tipo`, `ubicacion` (Point), `tokens` (palabras normalizadas) | `2dsphere`; `tokens` |
 | `stations` | `nombre`, `ubicacion` (Point), `rutas` | `2dsphere` |
 | `transit_routes` | `nombre`, `tipo`, `desde`, `hasta`, `geometria` (LineString) | `2dsphere` en `geometria` |
+| `route_schedules` | `_id` = código de ruta; primer y último despacho de `lunes_a_viernes`, `sabado` y `domingo_y_festivos` | — |
+| `intersections` | `nombre` («Av. Pedro de Heredia con Cra. 28»), `ubicacion` (Point) | `2dsphere` |
 
 El riesgo de una ruta se calcula trazando un corredor de 500 m alrededor de la polilínea
 (en UTM 18N, EPSG:32618, para medir en metros) y consultándolo con `$geoWithin` sobre el índice `2dsphere`.
-Las rutas sugeridas parten de las rutas que pasan a menos de 800 m del origen y del destino (`$geoIntersects`),
-eligen la mejor subida y bajada en cada una y se ordenan por tiempo más una penalización por riesgo.
+Las rutas sugeridas parten de las rutas que pasan a menos de 800 m del origen o del destino (`$geoIntersects`)
+y operan a la hora de salida. Cada ruta se muestrea cada 25 m y, en los dos sentidos, se calcula lo antes que se
+llega a cada punto desde el origen y lo que falta desde él hasta el destino. Un viaje directo une esos dos
+cálculos en la misma ruta; un transbordo los une donde dos rutas pasan a menos de 300 m (`STRtree` de Shapely).
+Se descartan los transbordos que no ganan a ir directo en una de sus rutas, y las opciones se ordenan por tiempo
+más una penalización por riesgo, que pesa el triple con el criterio «más segura».
 
 Los diagramas de clases, del modelo de datos y de secuencia (PlantUML y PNG) están en [`docs/diagramas`](docs/diagramas).
 
@@ -144,8 +153,9 @@ firewall del computador permita conexiones entrantes al puerto 8000.
 | GET | `/api/v1/incidents/{id}` | opcional | Detalle con el alias del autor; con sesión dice si es tuyo y cómo votaste |
 | POST | `/api/v1/incidents/{id}/votes` | ✅ | «¿Sigue ahí?» (`sigue: true/false`). 403 si es tuyo, 409 si ya votaste. Máx. 30 cada 10 min |
 | GET | `/api/v1/routes/?tipo=` | — | Rutas de Transcaribe con su trazado GeoJSON (para dibujarlas en el mapa) |
+| GET | `/api/v1/routes/{codigo}` | — | Página de una ruta: trazado, estaciones en el orden del recorrido, horario por tipo de día y si opera ahora |
 | POST | `/api/v1/routes/risk` | — | Calcular el riesgo de una ruta a partir de sus puntos (lat/lon) |
-| POST | `/api/v1/routes/suggest` | — | Rutas sugeridas de Transcaribe entre dos puntos, con tramos GeoJSON y riesgo |
+| POST | `/api/v1/routes/suggest` | — | Formas de llegar entre dos puntos, con tramos GeoJSON, transbordo y riesgo. `criterio`: `rapida`, `segura` o `sin_transbordo`; `salida`: hora de salida (por defecto, ahora). Si a esa hora no opera ninguna ruta útil, `aviso` dice cuándo sale la primera |
 | GET | `/api/v1/places/search?q=` | — | Buscar lugares de Cartagena (sin tildes, por prefijo de palabra) |
 | GET | `/api/v1/places/reverse?lat=&lon=` | — | Nombre del punto elegido en el mapa |
 | GET | `/api/v1/stops/nearby?lat=&lon=` | — | Estaciones cercanas, con sus rutas y la distancia a pie |

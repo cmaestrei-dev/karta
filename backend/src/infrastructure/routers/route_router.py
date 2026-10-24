@@ -1,12 +1,12 @@
 from typing import List, Literal
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from src.application.incident_service import IncidentService
 from src.application.trip_service import TripService
 from src.domain.route_risk import ResultadoRiesgo
 from src.domain.schemas.route_schema import (
-    IncidentRiskDetail, LineaGeoJSON, RiesgoResumen, RouteGeometryResponse, RouteOptionResponse, RouteRiskRequest,
-    RouteRiskResponse,
+    EstacionDeRuta, FranjaDeServicio, HorarioDeRuta, IncidentRiskDetail, LineaGeoJSON, RiesgoResumen,
+    RouteGeometryResponse, RouteOptionResponse, RoutePageResponse, RouteRiskRequest, RouteRiskResponse,
     RouteSuggestRequest, RouteSuggestResponse, TramoResponse,
 )
 from src.domain.trip_planning import OpcionViaje
@@ -14,9 +14,10 @@ from src.infrastructure.dependencies import get_incident_service, get_trip_servi
 
 router = APIRouter(prefix="/api/v1/routes", tags=["Rutas"])
 
-NOTA_ESTIMACION = ("Tiempos estimados con velocidades promedio y caminatas en línea recta con rodeo; "
-                   "no incluyen transbordos entre rutas.")
-FUENTE_RUTAS = "Rutas de Transcaribe: © colaboradores de OpenStreetMap (ODbL)."
+NOTA_ESTIMACION = ("Tiempos estimados con velocidades promedio, esperas típicas y caminatas en línea recta "
+                   "con rodeo.")
+FUENTE_RUTAS = ("Rutas de Transcaribe: © colaboradores de OpenStreetMap (ODbL). Horarios: «Rutas_Transcaribe "
+                "2025», Portal de Datos Abiertos de Cartagena (CC-BY 4.0).")
 
 @router.get("/", summary="Rutas de Transcaribe", response_model=List[RouteGeometryResponse])
 def list_routes(tipo: Literal["troncal", "pretroncal", "alimentadora", "complementaria"] | None = Query(None),
@@ -25,6 +26,31 @@ def list_routes(tipo: Literal["troncal", "pretroncal", "alimentadora", "compleme
     return [RouteGeometryResponse(codigo=r.id, nombre=r.nombre, tipo=r.tipo,
                                   geometria={"type": "LineString", "coordinates": [list(c) for c in r.coordenadas]})
             for r in service.routes(tipo)]
+
+@router.get("/{codigo}", summary="Página de una ruta", response_model=RoutePageResponse,
+            responses={404: {"description": "No existe esa ruta"}})
+def route_page(codigo: str = Path(..., pattern=r"^[ATXC]\d{3}E?$", description='Código de la ruta, ej. "T103"'),
+               service: TripService = Depends(get_trip_service)):
+    """Recorrido, estaciones en el orden en que las recorre y horario de servicio de una ruta de Transcaribe."""
+    pagina = service.route_page(codigo)
+    if pagina is None:
+        raise HTTPException(status_code=404, detail=f"No existe la ruta {codigo}.")
+    ruta, horario = pagina.ruta, pagina.horario
+
+    def franja(dia: str) -> FranjaDeServicio | None:
+        valor = horario.por_dia.get(dia) if horario else None
+        return FranjaDeServicio(primera=valor[0].strftime("%H:%M"), ultima=valor[1].strftime("%H:%M")) if valor else None
+
+    return RoutePageResponse(
+        codigo=ruta.id, nombre=ruta.nombre, tipo=ruta.tipo, desde=ruta.desde, hasta=ruta.hasta,
+        geometria={"type": "LineString", "coordinates": [list(c) for c in ruta.coordenadas]},
+        estaciones=[EstacionDeRuta(id=e.id, nombre=e.nombre, latitud=e.latitud, longitud=e.longitud)
+                    for e in pagina.estaciones],
+        horario=HorarioDeRuta(lunes_a_viernes=franja("lunes_a_viernes"), sabado=franja("sabado"),
+                              domingo_y_festivos=franja("domingo_y_festivos")) if horario else None,
+        hoy=pagina.hoy,
+        opera_ahora=pagina.opera_ahora,
+    )
 
 @router.post("/risk", summary="Riesgo de un recorrido", response_model=RouteRiskResponse)
 def evaluate_route_risk(request: RouteRiskRequest, service: IncidentService = Depends(get_incident_service)):
@@ -40,17 +66,26 @@ def evaluate_route_risk(request: RouteRiskRequest, service: IncidentService = De
 @router.post("/suggest", summary="Rutas sugeridas", response_model=RouteSuggestResponse)
 def suggest_routes(request: RouteSuggestRequest, service: TripService = Depends(get_trip_service)):
     """
-    Rutas sugeridas entre dos puntos de Cartagena: a pie o en Transcaribe (caminata + una ruta + caminata).
-    Las opciones se ordenan por tiempo estimado más una penalización según el riesgo de su recorrido.
+    Rutas sugeridas entre dos puntos de Cartagena: a pie o en Transcaribe, con una ruta o con un transbordo,
+    solo con las rutas que operan a la hora de salida. Se ordenan según el criterio: tiempo más una
+    penalización por el riesgo del recorrido, que pesa el triple en la más segura.
     """
     sugerencias = service.suggest(
         (request.origen.lon, request.origen.lat), (request.destino.lon, request.destino.lat),
         request.origen.nombre, request.destino.nombre,
+        criterio=request.criterio, salida=request.salida,
     )
-    nota = NOTA_ESTIMACION if sugerencias else (
-        "No encontramos una ruta directa de Transcaribe que pase cerca de ambos puntos.")
+    if sugerencias.opciones:
+        nota = NOTA_ESTIMACION
+    elif request.criterio == "sin_transbordo":
+        nota = "No hay una sola ruta de Transcaribe que pase cerca de los dos puntos; prueba con transbordo."
+    else:
+        nota = "No encontramos rutas de Transcaribe que te acerquen a ese destino desde ahí."
     return RouteSuggestResponse(
-        opciones=[_a_respuesta(opcion, riesgo) for opcion, riesgo in sugerencias],
+        opciones=[_a_respuesta(opcion, riesgo) for opcion, riesgo in sugerencias.opciones],
+        criterio=sugerencias.criterio,
+        salida=sugerencias.salida,
+        aviso=sugerencias.aviso,
         nota=nota,
         fuente=FUENTE_RUTAS,
     )
@@ -59,11 +94,12 @@ def _minutos(valor: float) -> int:
     return max(1, round(valor)) if valor > 0 else 0
 
 def _a_respuesta(opcion: OpcionViaje, riesgo: ResultadoRiesgo) -> RouteOptionResponse:
-    ruta = opcion.ruta
+    codigos = [r.id for r in opcion.rutas]
     return RouteOptionResponse(
-        resumen=f"Transcaribe {ruta.id}" if ruta else "A pie",
+        resumen=f"Transcaribe {' y '.join(codigos)}" if codigos else "A pie",
         tiempo_total_min=_minutos(opcion.tiempo_total_min),
         distancia_caminata_m=round(opcion.distancia_caminata_m),
+        transbordos=opcion.transbordos,
         tramos=[
             TramoResponse(
                 modo=t.modo, desde=t.desde, hasta=t.hasta,

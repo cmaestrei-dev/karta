@@ -132,8 +132,10 @@ class _HomeViewState extends State<_HomeView> {
     final alto = MediaQuery.sizeOf(context).height;
     _mapa.fitCamera(CameraFit.coordinates(
       coordinates: puntos,
-      padding: EdgeInsets.fromLTRB(48, 120, 48, alto * _hoja + 48),
+      // En una pantalla baja (horizontal) el margen de la hoja no puede comerse todo el mapa.
+      padding: EdgeInsets.fromLTRB(48, 120, 48, (alto * _hoja + 48).clamp(0, (alto - 240).clamp(0, alto))),
       maxZoom: 16.5,
+      minZoom: 11,
     ));
   }
 

@@ -164,4 +164,25 @@ void main() {
     expect(estacion.caminataMin, 1);
     expect(estacion.rutas, ['T101', 'X104']);
   });
+
+  group('resaltar lo que coincide en el buscador', () {
+    test('marca el comienzo de palabra sin importar tildes ni mayúsculas', () {
+      expect(tramosResaltados('Bocagrande', 'boca'), [('Boca', true), ('grande', false)]);
+      expect(tramosResaltados('Centro Comercial Bocagrande', 'BOCA'),
+          [('Centro Comercial ', false), ('Boca', true), ('grande', false)]);
+      expect(tramosResaltados('Estación Bazurto', 'estacion baz'), [('Estación', true), (' ', false), ('Baz', true), ('urto', false)]);
+    });
+
+    test('no marca coincidencias en medio de una palabra', () {
+      expect(tramosResaltados('Embocadura', 'boca'), [('Embocadura', false)]);
+      expect(tramosResaltados('La Popa', 'a'), [('La Popa', false)]);
+    });
+  });
+
+  test('horas del horario en formato de Colombia', () {
+    expect(horaLegible('05:30'), '5:30${nbsp}a.${nbsp}m.');
+    expect(horaLegible('21:00'), '9:00${nbsp}p.${nbsp}m.');
+    expect(horaLegible('12:15'), '12:15${nbsp}p.${nbsp}m.');
+    expect(horaLegible('00:05'), '12:05${nbsp}a.${nbsp}m.');
+  });
 }

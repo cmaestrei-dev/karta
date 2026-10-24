@@ -24,3 +24,11 @@ String dentroDe(DateTime fecha, {DateTime? ahora}) {
   final minutos = restante.inMinutes % 60;
   return minutos == 0 ? '$horas h' : '$horas h $minutos min';
 }
+
+/// «05:30» → «5:30 a. m.», «21:00» → «9:00 p. m.» (formato de Colombia).
+String horaLegible(String hhmm) {
+  final partes = hhmm.split(':');
+  final hora = int.parse(partes[0]);
+  final hora12 = hora % 12 == 0 ? 12 : hora % 12;
+  return '$hora12:${partes[1]}$nbsp${hora < 12 ? 'a.${nbsp}m.' : 'p.${nbsp}m.'}';
+}

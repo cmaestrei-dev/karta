@@ -1,0 +1,326 @@
+{
+ "atribucion": "Horarios: «Rutas_Transcaribe 2025», Transcaribe S.A., Portal de Datos Abiertos de Cartagena (CC-BY 4.0)",
+ "horarios": [
+  {
+   "_id": "A101",
+   "lunes_a_viernes": [
+    "04:30",
+    "22:40"
+   ],
+   "sabado": [
+    "05:00",
+    "22:00"
+   ],
+   "domingo_y_festivos": [
+    "05:30",
+    "21:30"
+   ]
+  },
+  {
+   "_id": "A102",
+   "lunes_a_viernes": [
+    "05:00",
+    "22:00"
+   ],
+   "sabado": [
+    "06:00",
+    "19:00"
+   ],
+   "domingo_y_festivos": null
+  },
+  {
+   "_id": "A103",
+   "lunes_a_viernes": [
+    "04:30",
+    "22:40"
+   ],
+   "sabado": [
+    "05:00",
+    "22:00"
+   ],
+   "domingo_y_festivos": [
+    "05:30",
+    "21:30"
+   ]
+  },
+  {
+   "_id": "A104",
+   "lunes_a_viernes": [
+    "04:30",
+    "22:40"
+   ],
+   "sabado": [
+    "05:00",
+    "22:00"
+   ],
+   "domingo_y_festivos": [
+    "05:30",
+    "21:30"
+   ]
+  },
+  {
+   "_id": "A105",
+   "lunes_a_viernes": [
+    "04:30",
+    "22:40"
+   ],
+   "sabado": [
+    "05:00",
+    "22:00"
+   ],
+   "domingo_y_festivos": [
+    "05:30",
+    "21:30"
+   ]
+  },
+  {
+   "_id": "A107",
+   "lunes_a_viernes": [
+    "04:30",
+    "22:40"
+   ],
+   "sabado": [
+    "05:00",
+    "22:00"
+   ],
+   "domingo_y_festivos": [
+    "05:30",
+    "21:30"
+   ]
+  },
+  {
+   "_id": "A108",
+   "lunes_a_viernes": [
+    "04:30",
+    "22:40"
+   ],
+   "sabado": [
+    "05:00",
+    "22:00"
+   ],
+   "domingo_y_festivos": [
+    "05:30",
+    "21:30"
+   ]
+  },
+  {
+   "_id": "A111",
+   "lunes_a_viernes": [
+    "04:45",
+    "09:00"
+   ],
+   "sabado": null,
+   "domingo_y_festivos": null
+  },
+  {
+   "_id": "A114",
+   "lunes_a_viernes": [
+    "04:30",
+    "22:40"
+   ],
+   "sabado": [
+    "05:00",
+    "22:00"
+   ],
+   "domingo_y_festivos": [
+    "05:30",
+    "21:30"
+   ]
+  },
+  {
+   "_id": "A117",
+   "lunes_a_viernes": [
+    "04:30",
+    "22:40"
+   ],
+   "sabado": [
+    "05:00",
+    "22:00"
+   ],
+   "domingo_y_festivos": [
+    "05:30",
+    "21:30"
+   ]
+  },
+  {
+   "_id": "C001",
+   "lunes_a_viernes": [
+    "04:30",
+    "21:30"
+   ],
+   "sabado": [
+    "05:00",
+    "21:30"
+   ],
+   "domingo_y_festivos": [
+    "05:30",
+    "21:00"
+   ]
+  },
+  {
+   "_id": "C016",
+   "lunes_a_viernes": [
+    "05:30",
+    "07:45"
+   ],
+   "sabado": null,
+   "domingo_y_festivos": null
+  },
+  {
+   "_id": "C017",
+   "lunes_a_viernes": [
+    "05:00",
+    "09:00"
+   ],
+   "sabado": null,
+   "domingo_y_festivos": null
+  },
+  {
+   "_id": "T100E",
+   "lunes_a_viernes": [
+    "06:00",
+    "20:00"
+   ],
+   "sabado": [
+    "06:00",
+    "13:00"
+   ],
+   "domingo_y_festivos": null
+  },
+  {
+   "_id": "T101",
+   "lunes_a_viernes": [
+    "05:00",
+    "21:30"
+   ],
+   "sabado": [
+    "05:30",
+    "20:30"
+   ],
+   "domingo_y_festivos": [
+    "06:00",
+    "20:00"
+   ]
+  },
+  {
+   "_id": "T102",
+   "lunes_a_viernes": [
+    "05:00",
+    "21:00"
+   ],
+   "sabado": [
+    "05:30",
+    "20:30"
+   ],
+   "domingo_y_festivos": [
+    "06:00",
+    "20:00"
+   ]
+  },
+  {
+   "_id": "T103",
+   "lunes_a_viernes": [
+    "05:00",
+    "21:00"
+   ],
+   "sabado": [
+    "05:30",
+    "20:30"
+   ],
+   "domingo_y_festivos": [
+    "06:00",
+    "20:00"
+   ]
+  },
+  {
+   "_id": "X101",
+   "lunes_a_viernes": [
+    "05:00",
+    "21:00"
+   ],
+   "sabado": [
+    "05:30",
+    "20:30"
+   ],
+   "domingo_y_festivos": [
+    "06:00",
+    "20:00"
+   ]
+  },
+  {
+   "_id": "X102",
+   "lunes_a_viernes": [
+    "05:00",
+    "21:00"
+   ],
+   "sabado": [
+    "05:30",
+    "20:30"
+   ],
+   "domingo_y_festivos": [
+    "06:00",
+    "20:00"
+   ]
+  },
+  {
+   "_id": "X103",
+   "lunes_a_viernes": [
+    "05:00",
+    "21:00"
+   ],
+   "sabado": [
+    "05:30",
+    "20:30"
+   ],
+   "domingo_y_festivos": [
+    "06:00",
+    "20:00"
+   ]
+  },
+  {
+   "_id": "X104",
+   "lunes_a_viernes": [
+    "05:00",
+    "21:00"
+   ],
+   "sabado": [
+    "05:30",
+    "20:30"
+   ],
+   "domingo_y_festivos": [
+    "06:00",
+    "20:00"
+   ]
+  },
+  {
+   "_id": "X105",
+   "lunes_a_viernes": [
+    "05:00",
+    "21:00"
+   ],
+   "sabado": [
+    "05:30",
+    "20:30"
+   ],
+   "domingo_y_festivos": [
+    "06:00",
+    "20:00"
+   ]
+  },
+  {
+   "_id": "X106",
+   "lunes_a_viernes": [
+    "05:00",
+    "21:00"
+   ],
+   "sabado": [
+    "05:30",
+    "20:30"
+   ],
+   "domingo_y_festivos": [
+    "06:00",
+    "20:00"
+   ]
+  }
+ ]
+}

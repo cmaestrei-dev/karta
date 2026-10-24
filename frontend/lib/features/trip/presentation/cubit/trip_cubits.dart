@@ -35,18 +35,19 @@ class TripPlanFailed extends TripPlanState {
   List<Object?> get props => [mensaje];
 }
 
-/// Rutas sugeridas entre dos puntos.
+/// Rutas sugeridas entre dos puntos, según el criterio y la hora de salida elegidos.
 class TripPlanCubit extends Cubit<TripPlanState> {
   final TripRepository repository;
   int _ultimaPeticion = 0;
 
   TripPlanCubit({required this.repository}) : super(const TripPlanLoading());
 
-  Future<void> plan(TripPoint origen, TripPoint destino) async {
+  Future<void> plan(TripPoint origen, TripPoint destino,
+      {CriterioDeRuta criterio = CriterioDeRuta.rapida, DateTime? salida}) async {
     final peticion = ++_ultimaPeticion;
     emit(const TripPlanLoading());
     try {
-      final sugerencias = await repository.suggest(origen, destino);
+      final sugerencias = await repository.suggest(origen, destino, criterio: criterio, salida: salida);
       if (peticion == _ultimaPeticion && !isClosed) emit(TripPlanLoaded(sugerencias));
     } catch (e) {
       if (peticion == _ultimaPeticion && !isClosed) emit(TripPlanFailed(e.toString()));
