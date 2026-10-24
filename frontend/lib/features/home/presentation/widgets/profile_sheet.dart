@@ -228,10 +228,11 @@ class _Apariencia extends StatelessWidget {
           BlocBuilder<AparienciaCubit, ThemeMode>(
             builder: (context, modo) => SegmentedButton<ThemeMode>(
               showSelectedIcon: false,
+              // Solo texto: con íconos, «Automático» no cabe en un tercio de un teléfono y se parte a mitad de palabra.
               segments: const [
-                ButtonSegment(value: ThemeMode.system, icon: Icon(Icons.brightness_auto_outlined), label: Text('Automático')),
-                ButtonSegment(value: ThemeMode.light, icon: Icon(Icons.light_mode_outlined), label: Text('Claro')),
-                ButtonSegment(value: ThemeMode.dark, icon: Icon(Icons.dark_mode_outlined), label: Text('Oscuro')),
+                ButtonSegment(value: ThemeMode.system, label: Text('Automático', maxLines: 1, softWrap: false)),
+                ButtonSegment(value: ThemeMode.light, label: Text('Claro', maxLines: 1, softWrap: false)),
+                ButtonSegment(value: ThemeMode.dark, label: Text('Oscuro', maxLines: 1, softWrap: false)),
               ],
               selected: {modo},
               onSelectionChanged: (elegido) => context.read<AparienciaCubit>().elegir(elegido.first),
