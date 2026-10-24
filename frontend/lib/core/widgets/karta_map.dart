@@ -1,93 +1,78 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' hide Path;
+
+import '../design/bahia.dart';
 
 /// Centro del Centro Histórico: vista inicial cuando aún no hay ubicación.
 const centroDeCartagena = LatLng(10.4236, -75.5480);
 
-// Saturación al 55 %: las calles y el agua se siguen leyendo, pero los colores
-// del mapa no compiten con los códigos de ruta, riesgo y categoría.
-const _matrizCal = <double>[
-  0.6457, 0.3218, 0.0325, 0, 0,
-  0.0957, 0.8718, 0.0325, 0, 0,
-  0.0957, 0.3218, 0.5825, 0, 0,
-  0, 0, 0, 1, 0,
-];
-
-// De noche, «cal bajo farol»: el mismo mapa sin invertir, con menos color, un tono cálido y
-// oscurecido restando luz (no multiplicando), para que calles, agua y manzanas conserven
-// la diferencia entre sí.
-const _matrizNoche = <double>[
-  0.4882, 0.4649, 0.0469, 0, -140,
-  0.1354, 0.7986, 0.0460, 0, -140,
-  0.1313, 0.4417, 0.3771, 0, -140,
-  0, 0, 0, 1, 0,
-];
-
-/// Teselas de OpenStreetMap con un solo filtro para toda la capa (no uno por tesela).
-class KartaTiles extends StatelessWidget {
-  const KartaTiles({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final noche = Theme.of(context).brightness == Brightness.dark;
-    return ColorFiltered(
-      colorFilter: ColorFilter.matrix(noche ? _matrizNoche : _matrizCal),
-      child: TileLayer(
-        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-        userAgentPackageName: 'c.karta',
-      ),
-    );
-  }
-}
-
-/// Atribución obligatoria de OpenStreetMap. Quien la usa decide dónde va, siempre visible.
-class OsmAttribution extends StatelessWidget {
-  const OsmAttribution({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: scheme.surface.withValues(alpha: 0.85),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        child: Text('© colaboradores de OpenStreetMap',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant)),
-      ),
-    );
-  }
-}
-
-/// Punto azul de "estás aquí" (o del origen elegido).
-class UserLocationDot extends StatelessWidget {
+/// Punto de "estás aquí" (o del origen elegido) en el acento. Con [pulso], una onda sale de él cada
+/// dos segundos para encontrarlo de un vistazo; se queda quieto si el sistema pide reducir el movimiento.
+class UserLocationDot extends StatefulWidget {
   final String etiqueta;
+  final bool pulso;
 
-  const UserLocationDot({super.key, this.etiqueta = 'Tu ubicación'});
+  const UserLocationDot({super.key, this.etiqueta = 'Tu ubicación', this.pulso = false});
+
+  @override
+  State<UserLocationDot> createState() => _UserLocationDotState();
+}
+
+class _UserLocationDotState extends State<UserLocationDot> with SingleTickerProviderStateMixin {
+  late final _onda = AnimationController(vsync: this, duration: const Duration(milliseconds: 2200));
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (widget.pulso && !MediaQuery.disableAnimationsOf(context)) {
+      if (!_onda.isAnimating) _onda.repeat();
+    } else {
+      _onda.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _onda.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final azul = Theme.of(context).colorScheme.primary;
+    final acento = Theme.of(context).colorScheme.primary;
+    final punto = Container(
+      width: 18,
+      height: 18,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: acento,
+        border: Border.all(color: Colors.white, width: 3),
+        boxShadow: const [BoxShadow(color: Color(0x66000000), blurRadius: 8, offset: Offset(0, 2))],
+      ),
+    );
     return Semantics(
-      label: etiqueta,
-      child: Container(
-        decoration: BoxDecoration(shape: BoxShape.circle, color: azul.withValues(alpha: 0.18)),
+      label: widget.etiqueta,
+      child: Stack(
         alignment: Alignment.center,
-        child: Container(
-          width: 16,
-          height: 16,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: azul,
-            border: Border.all(color: Colors.white, width: 3),
-            boxShadow: const [BoxShadow(color: Color(0x40000000), blurRadius: 4, offset: Offset(0, 1))],
-          ),
-        ),
+        children: [
+          if (widget.pulso)
+            AnimatedBuilder(
+              animation: _onda,
+              builder: (context, _) {
+                final t = Curves.easeOut.transform(_onda.value);
+                return Container(
+                  width: 18 + 34 * t,
+                  height: 18 + 34 * t,
+                  decoration: BoxDecoration(shape: BoxShape.circle, color: acento.withValues(alpha: 0.45 * (1 - t))),
+                );
+              },
+            )
+          else
+            Container(decoration: BoxDecoration(shape: BoxShape.circle, color: acento.withValues(alpha: 0.18))),
+          punto,
+        ],
       ),
     );
   }
@@ -148,23 +133,29 @@ class _Alfiler extends CustomPainter {
   bool shouldRepaint(_Alfiler anterior) => anterior.color != color;
 }
 
-/// Botón redondo sobre el mapa (volver, centrar en mi ubicación), con fondo de placa.
+/// Botón redondo de 48 dp sobre el mapa (volver, centrar en mi ubicación), con la superficie de la hoja.
 class MapIconButton extends StatelessWidget {
   final IconData icon;
   final String tooltip;
   final VoidCallback onPressed;
+  final Color? color;
 
-  const MapIconButton({super.key, required this.icon, required this.tooltip, required this.onPressed});
+  const MapIconButton({super.key, required this.icon, required this.tooltip, required this.onPressed, this.color});
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final b = Bahia.de(context);
     return Material(
-      color: scheme.surface,
-      shape: CircleBorder(side: BorderSide(color: scheme.primary, width: 1.5)),
-      elevation: 3,
-      shadowColor: Colors.black.withValues(alpha: 0.35),
-      child: IconButton(icon: Icon(icon, color: scheme.primary), tooltip: tooltip, onPressed: onPressed),
+      color: b.hoja,
+      shape: const CircleBorder(),
+      elevation: 6,
+      shadowColor: Colors.black.withValues(alpha: 0.4),
+      child: IconButton(
+        icon: Icon(icon, color: color ?? b.texto),
+        tooltip: tooltip,
+        onPressed: onPressed,
+        style: IconButton.styleFrom(fixedSize: const Size(48, 48)),
+      ),
     );
   }
 }

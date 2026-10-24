@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'core/api_client.dart';
-import 'core/theme/karta_theme.dart';
+import 'core/design/tema.dart';
 
 import 'features/auth/data/repositories/auth_repository.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
@@ -57,9 +58,14 @@ class KartaApp extends StatelessWidget {
         child: MaterialApp(
           title: 'Karta',
           debugShowCheckedModeBanner: false,
-          theme: KartaTheme.claro,
-          darkTheme: KartaTheme.oscuro,
+          theme: TemaBahia.claro,
+          darkTheme: TemaBahia.oscuro,
           themeMode: ThemeMode.system,
+          // Español de Colombia también en lo que dibuja Flutter: «Cerrar» en vez de «Dismiss» para el lector
+          // de pantalla, los nombres de los botones de atrás y los formatos de fecha.
+          locale: const Locale('es', 'CO'),
+          supportedLocales: const [Locale('es', 'CO'), Locale('es')],
+          localizationsDelegates: GlobalMaterialLocalizations.delegates,
           home: const _AuthGate(),
         ),
       ),

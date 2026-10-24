@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/karta_theme.dart';
+import '../design/bahia.dart';
 
 /// Código de una ruta de Transcaribe ("T103") en el color de su tipo, como el letrero del bus.
 class RouteCapsule extends StatelessWidget {
@@ -10,13 +10,7 @@ class RouteCapsule extends StatelessWidget {
 
   const RouteCapsule({super.key, required this.codigo, this.tipo, this.grande = false});
 
-  static Color colorDe(String? tipo) => switch (tipo) {
-        'troncal' => KartaColors.troncal,
-        'pretroncal' => KartaColors.pretroncal,
-        'alimentadora' => KartaColors.alimentadora,
-        'complementaria' => KartaColors.complementaria,
-        _ => KartaColors.tintaSuave,
-      };
+  static Color colorDe(String? tipo) => ColoresDeRuta.de(tipo);
 
   @override
   Widget build(BuildContext context) {

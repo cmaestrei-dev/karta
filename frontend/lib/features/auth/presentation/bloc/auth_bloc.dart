@@ -69,6 +69,9 @@ class RegisterRequested extends AuthEvent {
   List<Object?> get props => [nombre, email, password, tipoViajero];
 }
 
+/// Pide el perfil de nuevo para mostrar la reputación y el nivel al día.
+class ProfileRefreshRequested extends AuthEvent {}
+
 class LogoutRequested extends AuthEvent {
   final String? message;
 
@@ -114,6 +117,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         emit(AuthAuthenticated(usuario));
       } catch (e) {
         emit(AuthUnauthenticated(message: _clean(e)));
+      }
+    });
+
+    on<ProfileRefreshRequested>((event, emit) async {
+      if (state is! AuthAuthenticated) return;
+      try {
+        final usuario = await repository.refresh();
+        if (usuario != null && state is AuthAuthenticated) emit(AuthAuthenticated(usuario));
+      } on SesionVencida {
+        await repository.logout();
+        emit(const AuthUnauthenticated(message: 'Tu sesión expiró. Inicia sesión de nuevo.'));
       }
     });
 

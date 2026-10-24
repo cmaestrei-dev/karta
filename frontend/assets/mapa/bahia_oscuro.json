@@ -14,7 +14,7 @@
    "id": "fondo",
    "type": "background",
    "paint": {
-    "background-color": "#101C28"
+    "background-color": "#1E2C39"
    }
   },
   {
@@ -23,7 +23,7 @@
    "source": "openmaptiles",
    "source-layer": "park",
    "paint": {
-    "fill-color": "#10231F",
+    "fill-color": "#183026",
     "fill-opacity": 0.8
    }
   },
@@ -46,7 +46,7 @@
     false
    ],
    "paint": {
-    "fill-color": "#10231F",
+    "fill-color": "#183026",
     "fill-opacity": 0.6
    }
   },
@@ -71,7 +71,7 @@
     ]
    ],
    "paint": {
-    "fill-color": "#0A2436"
+    "fill-color": "#061524"
    }
   },
   {
@@ -80,7 +80,7 @@
    "source": "openmaptiles",
    "source-layer": "waterway",
    "paint": {
-    "line-color": "#0A2436",
+    "line-color": "#061524",
     "line-width": [
      "interpolate",
      [
@@ -104,7 +104,7 @@
    "source-layer": "building",
    "minzoom": 15,
    "paint": {
-    "fill-color": "#15283A",
+    "fill-color": "#223140",
     "fill-opacity": 0.7
    }
   },
@@ -151,7 +151,7 @@
     "line-join": "round"
    },
    "paint": {
-    "line-color": "#172A3C",
+    "line-color": "#24374A",
     "line-width": [
      "interpolate",
      [
@@ -210,7 +210,7 @@
     "line-join": "round"
    },
    "paint": {
-    "line-color": "#1F3346",
+    "line-color": "#2C455C",
     "line-width": [
      "interpolate",
      [
@@ -270,7 +270,7 @@
     "line-join": "round"
    },
    "paint": {
-    "line-color": "#2A4560",
+    "line-color": "#36546E",
     "line-width": [
      "interpolate",
      [
@@ -332,8 +332,8 @@
     ]
    },
    "paint": {
-    "text-color": "#7F96AA",
-    "text-halo-color": "#0B1621",
+    "text-color": "#8DA3B6",
+    "text-halo-color": "#14202B",
     "text-halo-width": 1.5
    }
   },
@@ -354,7 +354,7 @@
    },
    "paint": {
     "text-color": "#4F7C99",
-    "text-halo-color": "#0B1621",
+    "text-halo-color": "#14202B",
     "text-halo-width": 1.5
    }
   },
@@ -402,8 +402,8 @@
     "text-max-width": 8
    },
    "paint": {
-    "text-color": "#9DB2C4",
-    "text-halo-color": "#0B1621",
+    "text-color": "#A9BCCB",
+    "text-halo-color": "#14202B",
     "text-halo-width": 1.5
    }
   }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/karta_theme.dart';
+import '../design/bahia.dart';
 
 /// Apariencia de cada nivel de riesgo que devuelve la API (BAJO, MEDIO, ALTO, CRÍTICO).
 /// El nivel nunca se comunica solo con color: siempre va con ícono y texto.
@@ -14,12 +14,12 @@ class RiskStyle {
 
   factory RiskStyle.forLevel(String nivel) => switch (nivel.toUpperCase()) {
         'CRÍTICO' || 'CRITICO' =>
-          const RiskStyle(KartaColors.ladrilloProfundo, Colors.white, Icons.dangerous_outlined, 'Riesgo crítico'),
-        'ALTO' => const RiskStyle(KartaColors.ladrillo, Colors.white, Icons.warning_amber_rounded, 'Riesgo alto'),
-        'MEDIO' => const RiskStyle(KartaColors.ocre, KartaColors.tintaSobreOcre, Icons.error_outline, 'Riesgo medio'),
-        'BAJO' => const RiskStyle(KartaColors.balcon, Colors.white, Icons.verified_user_outlined, 'Riesgo bajo'),
+          const RiskStyle(ColoresDeRiesgo.critico, Colors.white, Icons.dangerous_outlined, 'Riesgo crítico'),
+        'ALTO' => const RiskStyle(ColoresDeRiesgo.alto, Colors.white, Icons.warning_amber_rounded, 'Riesgo alto'),
+        'MEDIO' => const RiskStyle(ColoresDeRiesgo.medio, ColoresDeRiesgo.sobreMedio, Icons.error_outline, 'Riesgo medio'),
+        'BAJO' => const RiskStyle(ColoresDeRiesgo.bajo, Colors.white, Icons.verified_user_outlined, 'Riesgo bajo'),
         // Un nivel desconocido nunca debe presentarse como "seguro".
-        _ => const RiskStyle(KartaColors.tintaSuave, Colors.white, Icons.help_outline, 'Riesgo sin datos'),
+        _ => const RiskStyle(ColoresDeRiesgo.sinDatos, Colors.white, Icons.help_outline, 'Riesgo sin datos'),
       };
 }
 
@@ -41,7 +41,7 @@ class RiskBadge extends StatelessWidget {
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(color: estilo.color, borderRadius: BorderRadius.circular(6)),
+      decoration: BoxDecoration(color: estilo.color, borderRadius: BorderRadius.circular(10)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

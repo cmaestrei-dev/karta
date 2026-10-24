@@ -1,31 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:karta/core/format.dart';
-import 'package:karta/core/theme/karta_theme.dart';
+import 'package:karta/core/design/bahia.dart';
+import 'package:karta/features/auth/domain/models/usuario.dart';
 import 'package:karta/core/widgets/risk_badge.dart';
-import 'package:karta/features/incidents/domain/models/incident_models.dart';
 import 'package:karta/features/places/domain/place_models.dart';
 import 'package:karta/features/trip/domain/trip_models.dart';
 
 void main() {
   group('RiskStyle.forLevel', () {
     test('cada nivel tiene su color, ícono y texto', () {
-      expect(RiskStyle.forLevel('CRÍTICO').color, KartaColors.ladrilloProfundo);
-      expect(RiskStyle.forLevel('CRITICO').color, KartaColors.ladrilloProfundo);
-      expect(RiskStyle.forLevel('ALTO').color, KartaColors.ladrillo);
-      expect(RiskStyle.forLevel('MEDIO').color, KartaColors.ocre);
-      expect(RiskStyle.forLevel('BAJO').color, KartaColors.balcon);
+      expect(RiskStyle.forLevel('CRÍTICO').color, ColoresDeRiesgo.critico);
+      expect(RiskStyle.forLevel('CRITICO').color, ColoresDeRiesgo.critico);
+      expect(RiskStyle.forLevel('ALTO').color, ColoresDeRiesgo.alto);
+      expect(RiskStyle.forLevel('MEDIO').color, ColoresDeRiesgo.medio);
+      expect(RiskStyle.forLevel('BAJO').color, ColoresDeRiesgo.bajo);
       expect(RiskStyle.forLevel('BAJO').etiqueta, 'Riesgo bajo');
     });
 
     test('un nivel desconocido no se presenta como seguro', () {
       final desconocido = RiskStyle.forLevel('???');
-      expect(desconocido.color, isNot(KartaColors.balcon));
+      expect(desconocido.color, isNot(ColoresDeRiesgo.bajo));
       expect(desconocido.icon, Icons.help_outline);
     });
 
     test('sobre el ocre el texto es oscuro, nunca blanco', () {
-      expect(RiskStyle.forLevel('MEDIO').onColor, KartaColors.tintaSobreOcre);
+      expect(RiskStyle.forLevel('MEDIO').onColor, ColoresDeRiesgo.sobreMedio);
     });
   });
 
@@ -75,20 +75,6 @@ void main() {
     expect(RiskStyle.forLevel(riesgo.nivel).etiqueta, 'Riesgo sin datos');
   });
 
-  test('Incident.fromJson lee los ids de MongoDB y las fechas', () {
-    final incidente = Incident.fromJson({
-      'id': '665f1c2b9a1e4b0012345678',
-      'categoria': 'Seguridad',
-      'intensidad': 4,
-      'latitud': 10.42,
-      'longitud': -75.54,
-      'creado_en': '2026-10-22T18:00:00Z',
-      'expira_en': '2026-10-23T06:00:00Z',
-    });
-    expect(incidente.esSeguridad, isTrue);
-    expect(incidente.expiraEn!.difference(incidente.creadoEn!), const Duration(hours: 12));
-  });
-
   test('tipo de ruta según el código', () {
     expect(tipoDeRuta('T101'), 'troncal');
     expect(tipoDeRuta('X105'), 'pretroncal');
@@ -106,25 +92,61 @@ void main() {
     expect(dentroDe(ahora.add(const Duration(hours: 2, minutes: 35)), ahora: ahora), '2 h 35 min');
   });
 
-  test('el color del incidente sube con su intensidad', () {
-    // La misma escala del riesgo: bajo verde, medio ocre, alto ladrillo, crítico ladrillo profundo.
-    expect(IntensityStyle.of(1).color, KartaColors.balcon);
-    expect(IntensityStyle.of(2).color, KartaColors.balcon);
-    expect(IntensityStyle.of(3).color, KartaColors.ocre);
-    expect(IntensityStyle.of(3).onColor, KartaColors.tintaSobreOcre);
-    expect(IntensityStyle.of(4).color, KartaColors.ladrillo);
-    expect(IntensityStyle.of(5).color, KartaColors.ladrilloProfundo);
+  test('los colores de ruta no se confunden con los de riesgo', () {
+    final riesgo = <Color>{
+      ColoresDeRiesgo.critico, ColoresDeRiesgo.alto, ColoresDeRiesgo.medio, ColoresDeRiesgo.bajo, ColoresDeRiesgo.sinDatos,
+    };
+    for (final tipo in ['troncal', 'pretroncal', 'alimentadora', 'complementaria']) {
+      expect(riesgo.contains(ColoresDeRuta.de(tipo)), isFalse, reason: tipo);
+    }
   });
 
-  test('los colores de ruta no se confunden con la interfaz ni con el riesgo', () {
-    final reservados = <Color>{
-      KartaColors.cobalto, KartaColors.ocre, KartaColors.ladrillo, KartaColors.ladrilloProfundo, KartaColors.balcon,
-    };
-    for (final ruta in const [
-      KartaColors.troncal, KartaColors.pretroncal, KartaColors.alimentadora, KartaColors.complementaria,
-    ]) {
-      expect(reservados.contains(ruta), isFalse);
-    }
+  test('RutaEnMapa.fromJson convierte el trazado GeoJSON [lon, lat]', () {
+    final ruta = RutaEnMapa.fromJson({
+      'codigo': 'T103',
+      'nombre': 'Troncal 103',
+      'tipo': 'troncal',
+      'geometria': {
+        'type': 'LineString',
+        'coordinates': [
+          [-75.5245, 10.4135],
+          [-75.5545, 10.399],
+        ],
+      },
+    });
+    expect(ruta.puntos.first.latitude, 10.4135);
+    expect(ruta.puntos.last.longitude, -75.5545);
+  });
+
+  group('Usuario', () {
+    test('un perfil guardado antes de los reportes v2 calcula alias y nivel como el backend', () {
+      final usuario = Usuario.fromJson({
+        'id': '1', 'email': 'ana@karta.app', 'nombre': 'Ana María Pérez', 'tipo_viajero': 'Residente', 'reputacion': 205,
+      });
+      expect(usuario.alias, 'Ana M.');
+      expect(usuario.nivel, 3);
+      expect(usuario.iniciales, 'AM');
+      expect(usuario.faltaParaSubir, 95);
+    });
+
+    test('los niveles empiezan en 150, 200, 300 y 450', () {
+      expect(nivelPorReputacion(100), 1);
+      expect(nivelPorReputacion(149), 1);
+      expect(nivelPorReputacion(150), 2);
+      expect(nivelPorReputacion(300), 4);
+      expect(nivelPorReputacion(999), 5);
+      expect(aliasPublico('  '), 'Viajero');
+      expect(aliasPublico('Camilo'), 'Camilo');
+    });
+
+    test('en el nivel más alto no falta nada para subir', () {
+      final usuario = Usuario.fromJson({
+        'id': '1', 'email': 'a@b.co', 'nombre': 'Ana', 'tipo_viajero': 'Residente', 'reputacion': 460,
+        'alias': 'Ana', 'nivel': 5,
+      });
+      expect(usuario.faltaParaSubir, isNull);
+      expect(Usuario.fromJson(usuario.toJson()), usuario);
+    });
   });
 
   test('Stop.fromJson usa la caminata estimada por el backend', () {

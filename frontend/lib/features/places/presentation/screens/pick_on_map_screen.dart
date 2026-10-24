@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../../core/map/capa_bahia.dart';
 import '../../../../core/widgets/karta_map.dart';
 import '../../data/places_repository.dart';
 import '../../domain/place_models.dart';
@@ -77,8 +78,13 @@ class _PickOnMapScreenState extends State<PickOnMapScreen> {
         children: [
           FlutterMap(
             mapController: _mapa,
-            options: MapOptions(initialCenter: _centro, initialZoom: 16, onPositionChanged: _alMoverse),
-            children: const [KartaTiles()],
+            options: MapOptions(
+              initialCenter: _centro,
+              initialZoom: 16,
+              onPositionChanged: _alMoverse,
+              backgroundColor: fondoDelMapa(Theme.of(context).brightness),
+            ),
+            children: const [CapaBahia()],
           ),
           // Alfiler fijo en el centro: su punta marca el punto elegido.
           IgnorePointer(

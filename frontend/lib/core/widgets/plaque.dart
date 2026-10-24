@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../theme/karta_theme.dart';
+import '../design/bahia.dart';
 
-/// Placa de azulejo: superficie de baldosa con doble filete de tinta, como las placas
-/// con el nombre de las calles del Centro. Es el contenedor de todo lugar con nombre.
+/// Tarjeta «Bahía»: la superficie de todo lugar con nombre (estaciones, resultados, lugares guardados).
+/// Sobre el mapa va [elevated] para despegarse del fondo.
 class Plaque extends StatelessWidget {
   final Widget child;
   final VoidCallback? onTap;
@@ -17,79 +17,92 @@ class Plaque extends StatelessWidget {
     required this.child,
     this.onTap,
     this.onLongPress,
-    this.padding = const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+    this.padding = const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
     this.elevated = false,
     this.semanticLabel,
   });
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final tinta = scheme.primary;
-    final radio = BorderRadius.circular(6);
+    final b = Bahia.de(context);
+    final radio = BorderRadius.circular(18);
 
     return Semantics(
       button: onTap != null,
       label: semanticLabel,
       child: Material(
-        color: KartaTheme.azulejo(scheme),
+        color: elevated ? b.hoja : b.tarjeta,
         borderRadius: radio,
-        elevation: elevated ? 4 : 0,
+        elevation: elevated ? 6 : 0,
         shadowColor: Colors.black.withValues(alpha: 0.35),
         child: InkWell(
           onTap: onTap,
           onLongPress: onLongPress,
           borderRadius: radio,
-          child: Container(
-            decoration: BoxDecoration(border: Border.all(color: tinta, width: 2), borderRadius: radio),
-            padding: const EdgeInsets.all(2),
-            child: Container(
-              decoration: BoxDecoration(
-                border: Border.all(color: tinta, width: 1),
-                borderRadius: BorderRadius.circular(3),
-              ),
-              padding: padding,
-              child: child,
-            ),
-          ),
+          child: Padding(padding: padding, child: child),
         ),
       ),
     );
   }
 }
 
-/// Placa pequeña para accesos rápidos (lugares guardados, acciones del mapa). Mide 48 dp de alto.
+/// Acceso rápido en forma de ficha (Casa, Trabajo, Guardar): 46 dp de alto, ícono en el acento.
+/// Sin [label] queda cuadrada, solo con el ícono y su [tooltip].
 class MiniPlaque extends StatelessWidget {
   final IconData icon;
-  final String label;
+  final String? label;
+  final String? detalle;
+  final String? tooltip;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
 
-  const MiniPlaque({super.key, required this.icon, required this.label, required this.onTap, this.onLongPress});
+  const MiniPlaque({
+    super.key,
+    required this.icon,
+    this.label,
+    this.detalle,
+    this.tooltip,
+    required this.onTap,
+    this.onLongPress,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 48),
-      child: Plaque(
-        onTap: onTap,
-        onLongPress: onLongPress,
-        elevated: true,
-        semanticLabel: label,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 18, color: scheme.primary),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(color: scheme.primary, fontWeight: FontWeight.w700),
+    final b = Bahia.de(context);
+    final texto = Theme.of(context).textTheme;
+    final radio = BorderRadius.circular(14);
+    final contenido = label == null
+        ? SizedBox.square(dimension: 46, child: Icon(icon, size: 22, color: b.texto))
+        : Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 14, 0),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 19, color: b.acento),
+                const SizedBox(width: 8),
+                Text(label!, style: texto.titleSmall),
+                if (detalle != null) ...[
+                  const SizedBox(width: 6),
+                  Text(detalle!, style: texto.bodyMedium?.copyWith(color: b.textoSuave, fontFeatures: tabularFigures)),
+                ],
+              ],
             ),
-          ],
+          );
+    final ficha = Semantics(
+      button: true,
+      label: label == null ? tooltip : [label, detalle].whereType<String>().join(', '),
+      excludeSemantics: true,
+      child: Material(
+        color: b.tarjeta,
+        borderRadius: radio,
+        child: InkWell(
+          onTap: onTap,
+          onLongPress: onLongPress,
+          borderRadius: radio,
+          child: ConstrainedBox(constraints: const BoxConstraints(minHeight: 46), child: Center(widthFactor: 1, child: contenido)),
         ),
       ),
     );
+    return tooltip != null ? Tooltip(message: tooltip!, child: ficha) : ficha;
   }
 }

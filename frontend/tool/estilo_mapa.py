@@ -11,10 +11,11 @@ from pathlib import Path
 DESTINO = Path(__file__).resolve().parent.parent / "assets" / "mapa"
 
 PALETAS = {
+    # La tierra va más clara que el agua: en la prueba en el teléfono costaba ver la costa.
     "oscuro": {
-        "tierra": "#101C28", "agua": "#0A2436", "parque": "#10231F", "edificio": "#15283A",
-        "calle": "#172A3C", "via": "#1F3346", "principal": "#2A4560", "borde": None,
-        "etiqueta": "#7F96AA", "barrio": "#9DB2C4", "etiqueta_agua": "#4F7C99", "halo": "#0B1621",
+        "tierra": "#1E2C39", "agua": "#061524", "parque": "#183026", "edificio": "#223140",
+        "calle": "#24374A", "via": "#2C455C", "principal": "#36546E", "borde": None,
+        "etiqueta": "#8DA3B6", "barrio": "#A9BCCB", "etiqueta_agua": "#4F7C99", "halo": "#14202B",
     },
     "claro": {
         "tierra": "#EDF1F3", "agua": "#BBD7E5", "parque": "#DCEBE1", "edificio": "#E2E8EC",

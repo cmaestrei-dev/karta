@@ -9,6 +9,21 @@ class TripRepository {
 
   TripRepository({required this.api});
 
+  /// Los trazados casi nunca cambian: se piden una vez por tipo mientras la app está abierta.
+  final _rutas = <String?, Future<List<RutaEnMapa>>>{};
+
+  Future<List<RutaEnMapa>> rutas({String? tipo}) {
+    return _rutas.putIfAbsent(tipo, () async {
+      try {
+        final data = await api.get('/routes/', query: {'tipo': ?tipo}) as List<dynamic>;
+        return [for (final json in data) RutaEnMapa.fromJson(json as Map<String, dynamic>)];
+      } catch (_) {
+        _rutas.remove(tipo); // si falló, el próximo intento vuelve a pedirlas
+        rethrow;
+      }
+    });
+  }
+
   Future<RouteSuggestions> suggest(TripPoint origen, TripPoint destino) async {
     Map<String, Object> coordenada(TripPoint p) =>
         {'lat': p.punto.latitude, 'lon': p.punto.longitude, 'nombre': p.nombre};

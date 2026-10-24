@@ -30,6 +30,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # Textos del sistema (cerrar, atrás, lector de pantalla) en español.
+  flutter_localizations:
+    sdk: flutter
 
   http: ^1.6.0
   flutter_bloc: ^9.1.1
@@ -39,6 +42,7 @@ dependencies:
   geolocator: ^14.0.2
   flutter_secure_storage: ^11.2.0
   flutter_svg: ^2.3.0
+  flutter_map_vector_tiles: ^2.10.1
 
 dev_dependencies:
   flutter_test:
@@ -62,17 +66,9 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # Source Serif 4 (OFL, ver assets/fonts/OFL.txt): letra de las placas. Va empaquetada
-  # para no descargar fuentes con datos móviles.
+  # Manrope (OFL, ver assets/fonts/OFL-Manrope.txt): letra del sistema de diseño «Bahía». Va empaquetada
+  # para no descargar fuentes con datos móviles; pesos fijos generados desde la fuente variable.
   fonts:
-    - family: SourceSerif
-      fonts:
-        - asset: assets/fonts/SourceSerif4-SemiBold.ttf
-          weight: 600
-        - asset: assets/fonts/SourceSerif4-Bold.ttf
-          weight: 700
-    # Manrope (OFL, ver assets/fonts/OFL-Manrope.txt): letra del sistema de diseño «Bahía».
-    # Pesos fijos generados desde la fuente variable para no depender de variaciones.
     - family: Manrope
       fonts:
         - asset: assets/fonts/Manrope-Regular.ttf
