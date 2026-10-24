@@ -3,12 +3,12 @@ from datetime import datetime, timezone
 from typing import Literal
 
 from src.domain.geo import circulo, corredor_de_ruta, distancia_m
-from src.domain.horarios import cuando, en_colombia, opera, proximo_servicio
+from src.domain.horarios import HorarioRuta, cuando, en_colombia, opera, proximo_servicio, tipo_de_dia
 from src.domain.models import Estacion, RutaTransporte
 from src.domain.ports import IncidentRepository, PlaceRepository, TransitRepository
 from src.domain.route_risk import PENALIZACION_RIESGO_MIN, RADIO_BUSQUEDA_M, ResultadoRiesgo, evaluar_riesgo
 from src.domain.trip_planning import (
-    CAMINATA_MAXIMA_DE_ACCESO_M, OpcionViaje, caminata_entre, costo_percibido, planificar,
+    CAMINATA_MAXIMA_DE_ACCESO_M, OpcionViaje, caminata_entre, costo_percibido, estaciones_en_orden, planificar,
 )
 
 Criterio = Literal["rapida", "segura", "sin_transbordo"]
@@ -24,6 +24,15 @@ class Sugerencias:
     criterio: Criterio
     # Por qué no hay opciones en bus, cuando es por el horario («La primera sale mañana a las 5:30 a. m.»).
     aviso: str | None = None
+
+
+@dataclass(frozen=True)
+class PaginaDeRuta:
+    ruta: RutaTransporte
+    estaciones: list[Estacion]       # en el orden en que la ruta las recorre
+    horario: HorarioRuta | None      # None si Transcaribe no lo publica (C018)
+    hoy: str                         # tipo de día de hoy en Cartagena
+    opera_ahora: bool | None         # None si no hay horario para saberlo
 
 
 class TripService:
@@ -95,6 +104,21 @@ class TripService:
             return None
         texto = f"A esta hora no pasa ninguna ruta de Transcaribe que te sirva. La primera sale {cuando(proximo, salida)}"
         return texto if texto.endswith(".") else f"{texto}."   # «… a las 5:30 a. m.» ya trae su punto
+
+    def route_page(self, codigo: str, ahora: datetime | None = None) -> PaginaDeRuta | None:
+        """Caso de Uso: Ver una ruta: su recorrido, sus estaciones en orden y su horario de servicio."""
+        ruta = self.transit.route(codigo)
+        if ruta is None:
+            return None
+        ahora = ahora or datetime.now(timezone.utc)
+        horario = self.transit.schedules().get(codigo)
+        return PaginaDeRuta(
+            ruta=ruta,
+            estaciones=estaciones_en_orden(ruta, self.transit.list_stations()),
+            horario=horario,
+            hoy=tipo_de_dia(en_colombia(ahora).date()),
+            opera_ahora=opera(horario, ahora) if horario else None,
+        )
 
     def routes(self, tipo: str | None = None) -> list[RutaTransporte]:
         """Rutas con su recorrido, para dibujarlas en el mapa (la troncal en el inicio)."""

@@ -174,3 +174,23 @@ def test_los_paraderos_fuera_de_la_troncal_se_nombran_por_el_cruce(api):
     paradas = [t[clave] for o in cuerpo["opciones"] for t in o["tramos"] if t["modo"] == "bus"
                for clave in ("desde", "hasta")]
     assert any(p.startswith("Paradero ") and " con " in p for p in paradas), paradas
+
+
+def test_pagina_de_una_ruta_con_sus_estaciones_en_orden_y_su_horario(api):
+    ruta = api.get("/api/v1/routes/T103").json()
+    assert ruta["codigo"] == "T103" and ruta["tipo"] == "troncal"
+    assert ruta["geometria"]["type"] == "LineString"
+    nombres = [e["nombre"] for e in ruta["estaciones"]]
+    assert "Bazurto" in nombres and len(nombres) == len(set(nombres))
+    # En orden de recorrido: Bazurto queda entre el Portal y Bocagrande, nunca en un extremo.
+    assert 0 < nombres.index("Bazurto") < len(nombres) - 1
+    assert ruta["horario"]["lunes_a_viernes"] == {"primera": "05:00", "ultima": "21:00"}
+    assert ruta["hoy"] in {"lunes_a_viernes", "sabado", "domingo_y_festivos"}
+    assert isinstance(ruta["opera_ahora"], bool)
+
+
+def test_pagina_de_ruta_inexistente_o_mal_escrita(api):
+    assert api.get("/api/v1/routes/T999").status_code == 404
+    assert api.get("/api/v1/routes/hola").status_code == 422
+    sin_horario = api.get("/api/v1/routes/C018").json()
+    assert sin_horario["horario"] is None and sin_horario["opera_ahora"] is None

@@ -1,12 +1,12 @@
 from typing import List, Literal
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from src.application.incident_service import IncidentService
 from src.application.trip_service import TripService
 from src.domain.route_risk import ResultadoRiesgo
 from src.domain.schemas.route_schema import (
-    IncidentRiskDetail, LineaGeoJSON, RiesgoResumen, RouteGeometryResponse, RouteOptionResponse, RouteRiskRequest,
-    RouteRiskResponse,
+    EstacionDeRuta, FranjaDeServicio, HorarioDeRuta, IncidentRiskDetail, LineaGeoJSON, RiesgoResumen,
+    RouteGeometryResponse, RouteOptionResponse, RoutePageResponse, RouteRiskRequest, RouteRiskResponse,
     RouteSuggestRequest, RouteSuggestResponse, TramoResponse,
 )
 from src.domain.trip_planning import OpcionViaje
@@ -26,6 +26,31 @@ def list_routes(tipo: Literal["troncal", "pretroncal", "alimentadora", "compleme
     return [RouteGeometryResponse(codigo=r.id, nombre=r.nombre, tipo=r.tipo,
                                   geometria={"type": "LineString", "coordinates": [list(c) for c in r.coordenadas]})
             for r in service.routes(tipo)]
+
+@router.get("/{codigo}", summary="Página de una ruta", response_model=RoutePageResponse,
+            responses={404: {"description": "No existe esa ruta"}})
+def route_page(codigo: str = Path(..., pattern=r"^[ATXC]\d{3}E?$", description='Código de la ruta, ej. "T103"'),
+               service: TripService = Depends(get_trip_service)):
+    """Recorrido, estaciones en el orden en que las recorre y horario de servicio de una ruta de Transcaribe."""
+    pagina = service.route_page(codigo)
+    if pagina is None:
+        raise HTTPException(status_code=404, detail=f"No existe la ruta {codigo}.")
+    ruta, horario = pagina.ruta, pagina.horario
+
+    def franja(dia: str) -> FranjaDeServicio | None:
+        valor = horario.por_dia.get(dia) if horario else None
+        return FranjaDeServicio(primera=valor[0].strftime("%H:%M"), ultima=valor[1].strftime("%H:%M")) if valor else None
+
+    return RoutePageResponse(
+        codigo=ruta.id, nombre=ruta.nombre, tipo=ruta.tipo, desde=ruta.desde, hasta=ruta.hasta,
+        geometria={"type": "LineString", "coordinates": [list(c) for c in ruta.coordenadas]},
+        estaciones=[EstacionDeRuta(id=e.id, nombre=e.nombre, latitud=e.latitud, longitud=e.longitud)
+                    for e in pagina.estaciones],
+        horario=HorarioDeRuta(lunes_a_viernes=franja("lunes_a_viernes"), sabado=franja("sabado"),
+                              domingo_y_festivos=franja("domingo_y_festivos")) if horario else None,
+        hoy=pagina.hoy,
+        opera_ahora=pagina.opera_ahora,
+    )
 
 @router.post("/risk", summary="Riesgo de un recorrido", response_model=RouteRiskResponse)
 def evaluate_route_risk(request: RouteRiskRequest, service: IncidentService = Depends(get_incident_service)):

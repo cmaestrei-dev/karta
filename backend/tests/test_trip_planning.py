@@ -157,3 +157,12 @@ def test_un_transbordo_que_gana_solo_un_minuto_no_compensa():
     mucho_mejor = opcion(x105, t103, minutos=59 - PENALIZACION_TRANSBORDO_MIN - 5)
     assert _depurar([directa, casi_igual]) == [directa]
     assert _depurar([directa, mucho_mejor]) == [directa, mucho_mejor]
+
+
+def test_las_estaciones_de_una_ruta_de_ida_y_vuelta_salen_en_el_orden_de_la_ida():
+    from src.domain.trip_planning import estaciones_en_orden
+    ida_y_vuelta = RutaTransporte(id="T999", nombre="Ida y vuelta", tipo="troncal", cortes_en_osm=0,
+                                  coordenadas=[(-75.55, 10.40), (-75.50, 10.40), (-75.55, 10.4001)])
+    estaciones = [Estacion(id=str(k), nombre=f"E{k}", latitud=10.40, longitud=lon, rutas=["T999"])
+                  for k, lon in enumerate([-75.51, -75.54, -75.525])]
+    assert [e.nombre for e in estaciones_en_orden(ida_y_vuelta, estaciones)] == ["E1", "E2", "E0"]

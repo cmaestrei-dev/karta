@@ -153,6 +153,7 @@ firewall del computador permita conexiones entrantes al puerto 8000.
 | GET | `/api/v1/incidents/{id}` | opcional | Detalle con el alias del autor; con sesión dice si es tuyo y cómo votaste |
 | POST | `/api/v1/incidents/{id}/votes` | ✅ | «¿Sigue ahí?» (`sigue: true/false`). 403 si es tuyo, 409 si ya votaste. Máx. 30 cada 10 min |
 | GET | `/api/v1/routes/?tipo=` | — | Rutas de Transcaribe con su trazado GeoJSON (para dibujarlas en el mapa) |
+| GET | `/api/v1/routes/{codigo}` | — | Página de una ruta: trazado, estaciones en el orden del recorrido, horario por tipo de día y si opera ahora |
 | POST | `/api/v1/routes/risk` | — | Calcular el riesgo de una ruta a partir de sus puntos (lat/lon) |
 | POST | `/api/v1/routes/suggest` | — | Formas de llegar entre dos puntos, con tramos GeoJSON, transbordo y riesgo. `criterio`: `rapida`, `segura` o `sin_transbordo`; `salida`: hora de salida (por defecto, ahora). Si a esa hora no opera ninguna ruta útil, `aviso` dice cuándo sale la primera |
 | GET | `/api/v1/places/search?q=` | — | Buscar lugares de Cartagena (sin tildes, por prefijo de palabra) |

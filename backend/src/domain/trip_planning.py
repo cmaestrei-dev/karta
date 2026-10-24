@@ -340,3 +340,21 @@ def _depurar(opciones: list[OpcionViaje]) -> list[OpcionViaje]:
         if actual is None or o.tiempo_total_min < actual.tiempo_total_min:
             mejor_por_primera_ruta[o.ruta.id] = o
     return resultado + list(mejor_por_primera_ruta.values())
+
+
+def estaciones_en_orden(ruta: RutaTransporte, estaciones: list[Estacion]) -> list[Estacion]:
+    """
+    Las estaciones de la ruta en el orden en que las recorre. Muchas relaciones de OSM son de ida y vuelta
+    («Portal - Bocagrande - Portal»): proyectar sobre el trazado puede caer en la vuelta, así que cuenta la
+    primera vez que la ruta pasa cerca de cada estación.
+    """
+    linea = a_metros(LineString(ruta.coordenadas))
+    posiciones = np.append(np.arange(0, linea.length, PASO_DE_MUESTREO_M), linea.length)
+    puntos = shapely.get_coordinates(shapely.line_interpolate_point(linea, posiciones))
+
+    def primera_pasada(estacion: Estacion) -> float:
+        p = a_metros(Point(estacion.longitud, estacion.latitud))
+        cerca = np.flatnonzero(np.hypot(puntos[:, 0] - p.x, puntos[:, 1] - p.y) <= RADIO_DE_ESTACION_M * 2)
+        return float(posiciones[cerca[0]]) if len(cerca) else linea.project(p)
+
+    return sorted((e for e in estaciones if ruta.id in e.rutas), key=primera_pasada)

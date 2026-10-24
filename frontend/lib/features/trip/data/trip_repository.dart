@@ -39,6 +39,9 @@ class TripRepository {
     return RouteSuggestions.fromJson(data);
   }
 
+  Future<PaginaDeRuta> ruta(String codigo) async =>
+      PaginaDeRuta.fromJson(await api.get('/routes/$codigo') as Map<String, dynamic>);
+
   Future<List<Stop>> nearbyStops(LatLng punto) async {
     final data = await api.get('/stops/nearby', query: {
       'lat': punto.latitude.toStringAsFixed(6),

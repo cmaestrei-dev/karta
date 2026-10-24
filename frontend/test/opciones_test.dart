@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:karta/features/incidents/domain/models/incident_models.dart';
 import 'package:karta/features/trip/domain/trip_models.dart';
+import 'package:karta/features/trip/presentation/screens/route_page_screen.dart';
 import 'package:karta/features/trip/presentation/widgets/tarjeta_de_opcion.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -74,5 +75,53 @@ void main() {
     final robo = reporte('robo', 'seguridad', _c);
     final lleno = reporte('lleno', 'servicio', _a, votos: 9);
     expect(reportesEnElCamino(opcion, [lejos, lleno, trancon, robo]).map((r) => r.id), ['robo', 'trancon', 'lleno']);
+  });
+
+  test('la página de una ruta lee su horario y sus estaciones', () {
+    final pagina = PaginaDeRuta.fromJson({
+      'codigo': 'T103',
+      'nombre': 'Troncal 103',
+      'tipo': 'troncal',
+      'desde': 'Patio Portal',
+      'hasta': 'Bocagrande',
+      'geometria': {
+        'type': 'LineString',
+        'coordinates': [
+          [-75.47, 10.39],
+          [-75.55, 10.40],
+        ],
+      },
+      'estaciones': [
+        {'id': 'bazurto', 'nombre': 'Bazurto', 'latitud': 10.4139, 'longitud': -75.5243},
+      ],
+      'horario': {
+        'lunes_a_viernes': {'primera': '05:00', 'ultima': '21:00'},
+        'sabado': {'primera': '05:30', 'ultima': '20:30'},
+        'domingo_y_festivos': null,
+      },
+      'hoy': 'sabado',
+      'opera_ahora': true,
+    });
+    expect(pagina.puntos.first.longitude, -75.47);
+    expect(pagina.estaciones.single.nombre, 'Bazurto');
+    expect(pagina.horario['sabado'], (primera: '05:30', ultima: '20:30'));
+    expect(pagina.horario['domingo_y_festivos'], isNull);
+    expect(pagina.tieneHorario, isTrue);
+
+    final sinHorario = PaginaDeRuta.fromJson({
+      'codigo': 'C018', 'nombre': 'C018', 'tipo': 'complementaria', 'desde': '', 'hasta': '',
+      'geometria': {'type': 'LineString', 'coordinates': []}, 'estaciones': [], 'horario': null,
+      'hoy': 'sabado', 'opera_ahora': null,
+    });
+    expect(sinHorario.tieneHorario, isFalse);
+    expect(sinHorario.operaAhora, isNull);
+  });
+
+  test('el título de una ruta es su recorrido, sin repetir tipo ni código', () {
+    expect(recorridoDeRuta('Pretroncal X105 - Ciudadela 2000 - Crisanto Luque - Bocagrande', 'X105'),
+        'Ciudadela 2000 · Crisanto Luque · Bocagrande');
+    expect(recorridoDeRuta('Troncal 103 - Portal - Bocagrande - Portal', 'T103'), 'Portal · Bocagrande · Portal');
+    expect(recorridoDeRuta('Ruta A107 - Blas de Lezo - Santa Lucía', 'A107'), 'Blas de Lezo · Santa Lucía');
+    expect(recorridoDeRuta('Ruta C018', 'C018'), 'Ruta C018');
   });
 }

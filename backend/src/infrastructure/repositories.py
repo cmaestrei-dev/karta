@@ -192,6 +192,10 @@ class MongoTransitRepository:
     def route_codes(self) -> set[str]:
         return set(self._routes.distinct("_id"))
 
+    def route(self, codigo: str) -> RutaTransporte | None:
+        doc = self._routes.find_one({"_id": codigo})
+        return _to_ruta(doc) if doc else None
+
 
 class MongoSavedPlaceRepository:
     """Los lugares guardados viven embebidos en el documento del usuario (`lugares_guardados`)."""
@@ -290,6 +294,7 @@ def _to_ruta(doc: dict) -> RutaTransporte:
         id=doc["_id"], nombre=doc["nombre"], tipo=doc["tipo"],
         coordenadas=[tuple(c) for c in doc["geometria"]["coordinates"]],
         cortes_en_osm=doc.get("cortes_en_osm", 0),
+        desde=doc.get("desde", ""), hasta=doc.get("hasta", ""),
     )
 
 

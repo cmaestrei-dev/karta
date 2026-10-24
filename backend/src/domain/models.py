@@ -94,6 +94,8 @@ class RutaTransporte:
     tipo: str  # troncal | pretroncal | alimentadora | complementaria
     coordenadas: list[tuple[float, float]]  # (lon, lat)
     cortes_en_osm: int
+    desde: str = ""   # cabeceras, como las nombra OSM («Ciudad Jardín», «Patio Portal»)
+    hasta: str = ""
 
 
 class EmailYaRegistrado(Exception):

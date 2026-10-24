@@ -178,4 +178,11 @@ void main() {
       expect(tramosResaltados('La Popa', 'a'), [('La Popa', false)]);
     });
   });
+
+  test('horas del horario en formato de Colombia', () {
+    expect(horaLegible('05:30'), '5:30${nbsp}a.${nbsp}m.');
+    expect(horaLegible('21:00'), '9:00${nbsp}p.${nbsp}m.');
+    expect(horaLegible('12:15'), '12:15${nbsp}p.${nbsp}m.');
+    expect(horaLegible('00:05'), '12:05${nbsp}a.${nbsp}m.');
+  });
 }

@@ -178,6 +178,76 @@ class RutaEnMapa extends Equatable {
   List<Object?> get props => [codigo, nombre, tipo, puntos];
 }
 
+/// Primer y último despacho de un tipo de día, en hora de Colombia («05:00», «21:00»).
+typedef FranjaDeServicio = ({String primera, String ultima});
+
+/// La página de una ruta: su recorrido, sus estaciones en el orden en que las recorre y su horario.
+class PaginaDeRuta extends Equatable {
+  final String codigo;
+  final String nombre;
+  final String tipo;
+  final String desde;
+  final String hasta;
+  final List<LatLng> puntos;
+  final List<({String nombre, LatLng punto})> estaciones;
+
+  /// Por tipo de día (lunes_a_viernes, sabado, domingo_y_festivos); null si ese día no opera.
+  /// Vacío si Transcaribe no publica el horario de la ruta.
+  final Map<String, FranjaDeServicio?> horario;
+  final String hoy;
+  final bool? operaAhora;
+
+  const PaginaDeRuta({
+    required this.codigo,
+    required this.nombre,
+    required this.tipo,
+    required this.desde,
+    required this.hasta,
+    required this.puntos,
+    required this.estaciones,
+    required this.horario,
+    required this.hoy,
+    required this.operaAhora,
+  });
+
+  bool get tieneHorario => horario.isNotEmpty;
+
+  factory PaginaDeRuta.fromJson(Map<String, dynamic> json) {
+    final horario = json['horario'] as Map<String, dynamic>?;
+    FranjaDeServicio? franja(dynamic f) =>
+        f == null ? null : (primera: f['primera'] as String, ultima: f['ultima'] as String);
+    return PaginaDeRuta(
+      codigo: json['codigo'] as String,
+      nombre: json['nombre'] as String,
+      tipo: json['tipo'] as String,
+      desde: json['desde'] as String? ?? '',
+      hasta: json['hasta'] as String? ?? '',
+      puntos: [
+        for (final c in json['geometria']['coordinates'] as List<dynamic>)
+          LatLng((c[1] as num).toDouble(), (c[0] as num).toDouble()),
+      ],
+      estaciones: [
+        for (final e in json['estaciones'] as List<dynamic>)
+          (nombre: e['nombre'] as String, punto: LatLng((e['latitud'] as num).toDouble(), (e['longitud'] as num).toDouble())),
+      ],
+      horario: horario == null ? const {} : {for (final dia in diasDeServicio) dia: franja(horario[dia])},
+      hoy: json['hoy'] as String,
+      operaAhora: json['opera_ahora'] as bool?,
+    );
+  }
+
+  @override
+  List<Object?> get props => [codigo, nombre, tipo, desde, hasta, puntos, estaciones, horario, hoy, operaAhora];
+}
+
+/// Tipos de día del horario de Transcaribe, en orden, con su nombre para mostrar.
+const diasDeServicio = ['lunes_a_viernes', 'sabado', 'domingo_y_festivos'];
+const nombreDeDia = {
+  'lunes_a_viernes': 'Lunes a viernes',
+  'sabado': 'Sábados',
+  'domingo_y_festivos': 'Domingos y festivos',
+};
+
 /// Estación de Transcaribe cercana.
 class Stop extends Equatable {
   final String id;

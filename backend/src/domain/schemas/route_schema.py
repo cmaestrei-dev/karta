@@ -89,3 +89,35 @@ class RouteGeometryResponse(BaseModel):
     nombre: str
     tipo: str
     geometria: dict = Field(..., description="GeoJSON LineString con coordenadas [lon, lat]")
+
+
+class EstacionDeRuta(BaseModel):
+    id: str
+    nombre: str
+    latitud: float
+    longitud: float
+
+
+class FranjaDeServicio(BaseModel):
+    primera: str = Field(..., description='Primer despacho, "HH:MM" en hora de Colombia')
+    ultima: str = Field(..., description='Último despacho, "HH:MM"')
+
+
+class HorarioDeRuta(BaseModel):
+    lunes_a_viernes: FranjaDeServicio | None = None
+    sabado: FranjaDeServicio | None = None
+    domingo_y_festivos: FranjaDeServicio | None = None
+
+
+class RoutePageResponse(BaseModel):
+    """La página de una ruta: recorrido, estaciones en orden y horario."""
+    codigo: str
+    nombre: str
+    tipo: str
+    desde: str
+    hasta: str
+    geometria: dict = Field(..., description="GeoJSON LineString con coordenadas [lon, lat]")
+    estaciones: List[EstacionDeRuta]
+    horario: HorarioDeRuta | None = Field(None, description="Null si Transcaribe no publica el horario de la ruta")
+    hoy: Literal["lunes_a_viernes", "sabado", "domingo_y_festivos"]
+    opera_ahora: bool | None = Field(None, description="Null si no hay horario para saberlo")
