@@ -31,7 +31,8 @@ class RouteDetailScreen extends StatefulWidget {
 }
 
 class _RouteDetailScreenState extends State<RouteDetailScreen> with SingleTickerProviderStateMixin {
-  static const _hojaInicial = 0.42;
+  /// En horizontal la pantalla es baja: la hoja empieza más abajo para que el recorrido se vea.
+  double _hojaInicial(BuildContext context) => MediaQuery.sizeOf(context).aspectRatio > 1 ? 0.3 : 0.42;
 
   late final AnimationController _trazo = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
   late final Animation<double> _avance = CurvedAnimation(parent: _trazo, curve: Curves.easeOutCubic);
@@ -156,7 +157,8 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> with SingleTicker
               backgroundColor: fondoDelMapa(Theme.of(context).brightness),
               initialCameraFit: CameraFit.bounds(
                 bounds: LatLngBounds.fromPoints(puntos.length > 1 ? puntos : [widget.origen.punto, widget.destino.punto]),
-                padding: EdgeInsets.fromLTRB(40, 96, 40, alto * _hojaInicial + 32),
+                padding: EdgeInsets.fromLTRB(40, 96, 40, alto * _hojaInicial(context) + 32),
+                minZoom: 11,
               ),
             ),
             // Orden de capas: recorrido, paradas y extremos, y encima los incidentes, que explican el riesgo.
@@ -205,7 +207,7 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> with SingleTicker
             ),
           ),
           DraggableScrollableSheet(
-            initialChildSize: _hojaInicial,
+            initialChildSize: _hojaInicial(context),
             minChildSize: 0.2,
             maxChildSize: 0.9,
             snap: true,

@@ -31,7 +31,11 @@ class PlanRouteScreen extends StatelessWidget {
   const PlanRouteScreen({super.key, required this.destino, this.origen});
 
   static Future<void> open(BuildContext context, {required TripPoint destino, TripPoint? origen}) {
-    return Navigator.of(context).push(MaterialPageRoute(builder: (_) => PlanRouteScreen(destino: destino, origen: origen)));
+    return Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PlanRouteScreen(destino: destino, origen: origen),
+      ),
+    );
   }
 
   @override
@@ -54,17 +58,32 @@ class _PlanRouteView extends StatefulWidget {
 }
 
 class _PlanRouteViewState extends State<_PlanRouteView> {
-  static const _hojaInicial = 0.46;
   static const _altoDeCabecera = 150.0;
 
+  /// En horizontal la pantalla es baja: la hoja empieza más abajo para que quede mapa a la vista.
+  double _hojaInicial(BuildContext context) => MediaQuery.sizeOf(context).aspectRatio > 1 ? 0.3 : 0.46;
+
+  /// Pantalla ancha y baja (teléfono en horizontal, tableta): las opciones van en un panel al lado del mapa.
+  static bool _apaisado(BuildContext context) {
+    final tamano = MediaQuery.sizeOf(context);
+    return tamano.aspectRatio > 1.2 && tamano.width >= 600;
+  }
+
+  @override
+  void dispose() {
+    _lista.dispose();
+    super.dispose();
+  }
+
   final _mapa = MapController();
+  final _lista = ScrollController(); // la lista del panel lateral, en horizontal
   late TripPoint _destino = widget.destinoInicial;
   late TripPoint? _origen = widget.origenInicial;
   String? _errorOrigen;
   CriterioDeRuta _criterio = CriterioDeRuta.rapida;
   DateTime? _salida; // null: ahora
   int _elegida = 0;
-  double _hoja = _hojaInicial;
+  double? _hoja; // fracción de pantalla que ocupa la hoja; null hasta que se mueve
 
   @override
   void initState() {
@@ -96,8 +115,12 @@ class _PlanRouteViewState extends State<_PlanRouteView> {
   }
 
   Future<void> _cambiarOrigen() async {
-    final nuevo = await PlaceSearchScreen.open(context,
-        hint: '¿Desde dónde sales?', permitirMiUbicacion: true, centroDelMapa: _origen?.punto);
+    final nuevo = await PlaceSearchScreen.open(
+      context,
+      hint: '¿Desde dónde sales?',
+      permitirMiUbicacion: true,
+      centroDelMapa: _origen?.punto,
+    );
     if (nuevo == null) return;
     setState(() {
       _origen = nuevo;
@@ -176,32 +199,53 @@ class _PlanRouteViewState extends State<_PlanRouteView> {
   }
 
   void _verRecorrido(RouteOption opcion) {
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => RouteDetailScreen(opcion: opcion, origen: _origen!, destino: _destino),
-    ));
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => RouteDetailScreen(opcion: opcion, origen: _origen!, destino: _destino),
+      ),
+    );
   }
 
   void _encuadrar(List<RouteOption> opciones) {
-    final puntos = [
-      for (final o in opciones) ...o.puntos,
-      ?_origen?.punto,
-      _destino.punto,
-    ];
+    final puntos = [for (final o in opciones) ...o.puntos, ?_origen?.punto, _destino.punto];
     if (puntos.length < 2) return;
+    if (_apaisado(context)) {
+      // El mapa está a la derecha del panel: nada lo tapa.
+      _mapa.fitCamera(
+        CameraFit.coordinates(
+          coordinates: puntos,
+          padding: const EdgeInsets.fromLTRB(80, 48, 80, 48),
+          maxZoom: 16,
+          minZoom: 11,
+        ),
+      );
+      return;
+    }
     final alto = MediaQuery.sizeOf(context).height;
-    final arriba = MediaQuery.paddingOf(context).top + _altoDeCabecera + 24;
-    _mapa.fitCamera(CameraFit.coordinates(
-      coordinates: puntos,
-      // Margen a los lados para que las burbujas de minutos (hasta ~170 px de ancho) no se corten.
-      padding: EdgeInsets.fromLTRB(64, arriba, 64, alto * _hoja + 24),
-      maxZoom: 16,
-    ));
+    var arriba = MediaQuery.paddingOf(context).top + _altoDeCabecera + 24;
+    var abajo = alto * (_hoja ?? _hojaInicial(context)) + 24;
+    // Si la cabecera y la hoja casi no dejan mapa (pantalla baja, en horizontal), se encuadra en lo que queda:
+    // pedir más margen que pantalla hace que el mapa se aleje hasta mostrar el mundo entero.
+    const minimoVisible = 120.0;
+    if (alto - arriba - abajo < minimoVisible) {
+      final sobra = math.max(0.0, alto - minimoVisible);
+      final escala = sobra / (arriba + abajo);
+      arriba *= escala;
+      abajo *= escala;
+    }
+    _mapa.fitCamera(
+      CameraFit.coordinates(
+        coordinates: puntos,
+        // Margen a los lados para que las burbujas de minutos (hasta ~170 px de ancho) no se corten.
+        padding: EdgeInsets.fromLTRB(64, arriba, 64, abajo),
+        maxZoom: 16,
+        minZoom: 11, // nunca más lejos que toda Cartagena
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final b = Bahia.de(context);
-
     return BlocListener<TripPlanCubit, TripPlanState>(
       listener: (context, state) {
         if (state is TripPlanLoaded) {
@@ -210,138 +254,190 @@ class _PlanRouteViewState extends State<_PlanRouteView> {
           });
         }
       },
-      child: Scaffold(
-        body: Stack(
-          children: [
-            FlutterMap(
-              mapController: _mapa,
-              options: MapOptions(
-                initialCenter: _destino.punto,
-                initialZoom: 13,
-                backgroundColor: fondoDelMapa(Theme.of(context).brightness),
-                interactionOptions: const InteractionOptions(flags: InteractiveFlag.all & ~InteractiveFlag.rotate),
-              ),
-              children: [
-                const CapaBahia(),
-                BlocBuilder<TripPlanCubit, TripPlanState>(
-                  builder: (context, state) {
-                    final opciones = state is TripPlanLoaded ? state.sugerencias.opciones : const <RouteOption>[];
-                    return _CapasDeOpciones(
-                      opciones: opciones,
-                      elegida: _elegida.clamp(0, opciones.isEmpty ? 0 : opciones.length - 1),
-                    );
-                  },
-                ),
-                MarkerLayer(markers: [
-                  if (_origen != null)
-                    Marker(
-                      point: _origen!.punto,
-                      width: 40,
-                      height: 40,
-                      child: UserLocationDot(etiqueta: 'Origen: ${_origen!.nombre}', pulso: _origen!.esMiUbicacion),
-                    ),
-                  Marker(
-                    point: _destino.punto,
-                    width: 36,
-                    height: 48,
-                    alignment: Alignment.topCenter,
-                    child: MapPin(etiqueta: 'Destino: ${_destino.nombre}'),
-                  ),
-                ]),
-                // Las burbujas van encima de todo: se tocan para elegir la opción.
-                BlocBuilder<TripPlanCubit, TripPlanState>(
-                  builder: (context, state) {
-                    final opciones = state is TripPlanLoaded ? state.sugerencias.opciones : const <RouteOption>[];
-                    return _Burbujas(
-                      opciones: opciones,
-                      elegida: _elegida.clamp(0, opciones.isEmpty ? 0 : opciones.length - 1),
-                      onElegir: (k) => setState(() => _elegida = k),
-                    );
-                  },
-                ),
-              ],
-            ),
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-                child: _Cabecera(
-                  origen: _origen,
-                  errorOrigen: _errorOrigen,
-                  destino: _destino,
-                  criterio: _criterio,
-                  salida: _salida,
-                  onVolver: () => Navigator.of(context).pop(),
-                  onOrigen: _cambiarOrigen,
-                  onDestino: _cambiarDestino,
-                  onInvertir: _origen == null ? null : _invertir,
-                  onCriterio: _elegirCriterio,
-                  onSalida: _elegirSalida,
-                ),
-              ),
-            ),
-            NotificationListener<DraggableScrollableNotification>(
-              onNotification: (n) {
-                _hoja = n.extent;
-                return false;
-              },
-              child: DraggableScrollableSheet(
-                initialChildSize: _hojaInicial,
-                minChildSize: 0.22,
-                maxChildSize: 0.86,
-                snap: true,
-                snapSizes: const [_hojaInicial],
-                builder: (context, controlador) => Material(
-                  color: b.hoja,
-                  elevation: 12,
-                  shadowColor: Colors.black.withValues(alpha: 0.45),
-                  shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(26))),
-                  clipBehavior: Clip.antiAlias,
-                  child: _errorOrigen != null
-                      ? _Aviso(
-                          controlador: controlador,
-                          icono: Icons.location_off_outlined,
-                          titulo: 'No sabemos desde dónde sales',
-                          detalle: _errorOrigen!,
-                          acciones: [
-                            FilledButton(onPressed: _ubicarOrigen, child: const Text('Reintentar')),
-                            TextButton(onPressed: _cambiarOrigen, child: const Text('Elegir el origen')),
-                          ],
-                        )
-                      : BlocBuilder<TripPlanCubit, TripPlanState>(
-                          builder: (context, state) => switch (state) {
-                            TripPlanLoading() => _Cargando(controlador: controlador),
-                            TripPlanFailed(:final mensaje) => _Aviso(
-                                controlador: controlador,
-                                icono: Icons.wifi_off_outlined,
-                                titulo: 'No pudimos buscar rutas',
-                                detalle: mensaje,
-                                acciones: [FilledButton(onPressed: _planear, child: const Text('Reintentar'))],
-                              ),
-                            TripPlanLoaded(:final sugerencias) when sugerencias.opciones.isEmpty =>
-                              _sinOpciones(controlador, sugerencias),
-                            TripPlanLoaded(:final sugerencias) => _Opciones(
-                                controlador: controlador,
-                                sugerencias: sugerencias,
-                                elegida: _elegida.clamp(0, sugerencias.opciones.length - 1),
-                                onElegir: (k) => setState(() => _elegida = k),
-                                onVerRecorrido: _verRecorrido,
-                                onOtraHora: _elegirSalida,
-                              ),
-                          },
-                        ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+      child: Scaffold(body: _apaisado(context) ? _conPanelLateral(context) : _conHoja(context)),
     );
   }
 
-  Widget _sinOpciones(ScrollController controlador, RouteSuggestions sugerencias) {
+  Widget _elMapa(BuildContext context) {
+    return FlutterMap(
+      mapController: _mapa,
+      options: MapOptions(
+        initialCenter: _destino.punto,
+        initialZoom: 13,
+        backgroundColor: fondoDelMapa(Theme.of(context).brightness),
+        interactionOptions: const InteractionOptions(flags: InteractiveFlag.all & ~InteractiveFlag.rotate),
+      ),
+      children: [
+        const CapaBahia(),
+        BlocBuilder<TripPlanCubit, TripPlanState>(
+          builder: (context, state) {
+            final opciones = state is TripPlanLoaded ? state.sugerencias.opciones : const <RouteOption>[];
+            return _CapasDeOpciones(
+              opciones: opciones,
+              elegida: _elegida.clamp(0, opciones.isEmpty ? 0 : opciones.length - 1),
+            );
+          },
+        ),
+        MarkerLayer(
+          markers: [
+            if (_origen != null)
+              Marker(
+                point: _origen!.punto,
+                width: 40,
+                height: 40,
+                child: UserLocationDot(etiqueta: 'Origen: ${_origen!.nombre}', pulso: _origen!.esMiUbicacion),
+              ),
+            Marker(
+              point: _destino.punto,
+              width: 36,
+              height: 48,
+              alignment: Alignment.topCenter,
+              child: MapPin(etiqueta: 'Destino: ${_destino.nombre}'),
+            ),
+          ],
+        ),
+        // Las burbujas van encima de todo: se tocan para elegir la opción.
+        BlocBuilder<TripPlanCubit, TripPlanState>(
+          builder: (context, state) {
+            final opciones = state is TripPlanLoaded ? state.sugerencias.opciones : const <RouteOption>[];
+            return _Burbujas(
+              opciones: opciones,
+              elegida: _elegida.clamp(0, opciones.isEmpty ? 0 : opciones.length - 1),
+              onElegir: (k) => setState(() => _elegida = k),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _laCabecera(BuildContext context, {bool flotante = true}) {
+    return _Cabecera(
+      flotante: flotante,
+      origen: _origen,
+      errorOrigen: _errorOrigen,
+      destino: _destino,
+      criterio: _criterio,
+      salida: _salida,
+      onVolver: () => Navigator.of(context).pop(),
+      onOrigen: _cambiarOrigen,
+      onDestino: _cambiarDestino,
+      onInvertir: _origen == null ? null : _invertir,
+      onCriterio: _elegirCriterio,
+      onSalida: _elegirSalida,
+    );
+  }
+
+  /// Lo que va en la hoja o en el panel: las opciones, o por qué no las hay.
+  Widget _contenido(ScrollController controlador, {bool conAsa = true}) {
+    return _errorOrigen != null
+        ? _Aviso(
+            controlador: controlador,
+            conAsa: conAsa,
+            icono: Icons.location_off_outlined,
+            titulo: 'No sabemos desde dónde sales',
+            detalle: _errorOrigen!,
+            acciones: [
+              FilledButton(onPressed: _ubicarOrigen, child: const Text('Reintentar')),
+              TextButton(onPressed: _cambiarOrigen, child: const Text('Elegir el origen')),
+            ],
+          )
+        : BlocBuilder<TripPlanCubit, TripPlanState>(
+            builder: (context, state) => switch (state) {
+              TripPlanLoading() => _Cargando(controlador: controlador, conAsa: conAsa),
+              TripPlanFailed(:final mensaje) => _Aviso(
+                controlador: controlador,
+                conAsa: conAsa,
+                icono: Icons.wifi_off_outlined,
+                titulo: 'No pudimos buscar rutas',
+                detalle: mensaje,
+                acciones: [FilledButton(onPressed: _planear, child: const Text('Reintentar'))],
+              ),
+              TripPlanLoaded(:final sugerencias) when sugerencias.opciones.isEmpty => _sinOpciones(
+                controlador,
+                sugerencias,
+                conAsa: conAsa,
+              ),
+              TripPlanLoaded(:final sugerencias) => _Opciones(
+                controlador: controlador,
+                conAsa: conAsa,
+                sugerencias: sugerencias,
+                elegida: _elegida.clamp(0, sugerencias.opciones.length - 1),
+                onElegir: (k) => setState(() => _elegida = k),
+                onVerRecorrido: _verRecorrido,
+                onOtraHora: _elegirSalida,
+              ),
+            },
+          );
+  }
+
+  /// En vertical: el mapa a pantalla completa, la cabecera flotando arriba y las opciones en una hoja.
+  Widget _conHoja(BuildContext context) {
+    final b = Bahia.de(context);
+    return Stack(
+      children: [
+        _elMapa(context),
+        SafeArea(
+          child: Padding(padding: const EdgeInsets.fromLTRB(12, 8, 12, 0), child: _laCabecera(context)),
+        ),
+        NotificationListener<DraggableScrollableNotification>(
+          onNotification: (n) {
+            _hoja = n.extent;
+            return false;
+          },
+          child: DraggableScrollableSheet(
+            initialChildSize: _hojaInicial(context),
+            minChildSize: 0.22,
+            maxChildSize: 0.86,
+            snap: true,
+            snapSizes: [_hojaInicial(context)],
+            builder: (context, controlador) => Material(
+              color: b.hoja,
+              elevation: 12,
+              shadowColor: Colors.black.withValues(alpha: 0.45),
+              shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(26))),
+              clipBehavior: Clip.antiAlias,
+              child: _contenido(controlador),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// En horizontal: la cabecera y las opciones en un panel a la izquierda, el mapa a la derecha.
+  Widget _conPanelLateral(BuildContext context) {
+    final b = Bahia.de(context);
+    final ancho = math.min(420.0, MediaQuery.sizeOf(context).width * 0.48);
+    return Row(
+      children: [
+        Material(
+          color: b.hoja,
+          elevation: 12,
+          shadowColor: Colors.black.withValues(alpha: 0.45),
+          child: SizedBox(
+            width: ancho,
+            child: SafeArea(
+              right: false,
+              child: Column(
+                children: [
+                  Padding(padding: const EdgeInsets.fromLTRB(8, 8, 8, 4), child: _laCabecera(context, flotante: false)),
+                  Expanded(child: _contenido(_lista, conAsa: false)),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Expanded(child: _elMapa(context)),
+      ],
+    );
+  }
+
+  Widget _sinOpciones(ScrollController controlador, RouteSuggestions sugerencias, {bool conAsa = true}) {
     if (sugerencias.aviso != null) {
       return _Aviso(
         controlador: controlador,
+        conAsa: conAsa,
         icono: Icons.nights_stay_outlined,
         titulo: 'Transcaribe no opera a esa hora',
         detalle: sugerencias.aviso!,
@@ -351,16 +447,21 @@ class _PlanRouteViewState extends State<_PlanRouteView> {
     if (_criterio == CriterioDeRuta.sinTransbordo) {
       return _Aviso(
         controlador: controlador,
+        conAsa: conAsa,
         icono: Icons.sync_alt,
         titulo: 'Ninguna ruta te lleva sin cambiar de bus',
         detalle: sugerencias.nota,
         acciones: [
-          FilledButton(onPressed: () => _elegirCriterio(CriterioDeRuta.rapida), child: const Text('Ver con transbordo')),
+          FilledButton(
+            onPressed: () => _elegirCriterio(CriterioDeRuta.rapida),
+            child: const Text('Ver con transbordo'),
+          ),
         ],
       );
     }
     return _Aviso(
       controlador: controlador,
+      conAsa: conAsa,
       icono: Icons.wrong_location_outlined,
       titulo: 'Sin rutas por aquí',
       detalle: '${sugerencias.nota} Prueba con un punto más cerca de una estación o de una vía principal.',
@@ -372,6 +473,8 @@ class _PlanRouteViewState extends State<_PlanRouteView> {
 // ---------------------------------------------------------------- cabecera
 
 class _Cabecera extends StatelessWidget {
+  /// Sobre el mapa lleva sombra; dentro del panel lateral, no.
+  final bool flotante;
   final TripPoint? origen;
   final String? errorOrigen;
   final TripPoint destino;
@@ -385,6 +488,7 @@ class _Cabecera extends StatelessWidget {
   final VoidCallback onSalida;
 
   const _Cabecera({
+    this.flotante = true,
     required this.origen,
     required this.errorOrigen,
     required this.destino,
@@ -404,7 +508,7 @@ class _Cabecera extends StatelessWidget {
     final nombreOrigen = origen?.nombre ?? (errorOrigen != null ? 'Elige el origen' : 'Buscando tu ubicación…');
     return Material(
       color: b.hoja,
-      elevation: 8,
+      elevation: flotante ? 8 : 0,
       shadowColor: Colors.black.withValues(alpha: 0.35),
       borderRadius: BorderRadius.circular(22),
       child: Padding(
@@ -507,11 +611,18 @@ class _Extremo extends StatelessWidget {
     final b = Bahia.de(context);
     final texto = Theme.of(context).textTheme;
     final marca = destacado
-        ? Container(width: 10, height: 10, decoration: BoxDecoration(color: b.acento, borderRadius: BorderRadius.circular(2)))
+        ? Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(color: b.acento, borderRadius: BorderRadius.circular(2)),
+          )
         : Container(
             width: 10,
             height: 10,
-            decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: b.acento, width: 3)),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: b.acento, width: 3),
+            ),
           );
     return Semantics(
       button: true,
@@ -550,7 +661,13 @@ class _Ficha extends StatelessWidget {
   final VoidCallback onTap;
   final String? semantica;
 
-  const _Ficha({required this.icono, required this.etiqueta, required this.elegida, required this.onTap, this.semantica});
+  const _Ficha({
+    required this.icono,
+    required this.etiqueta,
+    required this.elegida,
+    required this.onTap,
+    this.semantica,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -600,33 +717,42 @@ class _CapasDeOpciones extends StatelessWidget {
     final elegidaOpcion = opciones[elegida];
     return Stack(
       children: [
-        PolylineLayer(polylines: [
-          for (final (k, o) in opciones.indexed)
-            if (k != elegida)
-              Polyline(
-                points: o.puntos,
-                strokeWidth: 5,
-                color: colorDeOpcion(context, o).withValues(alpha: 0.55),
-                borderStrokeWidth: 1.5,
-                borderColor: b.bordeDeRuta.withValues(alpha: 0.6),
-              ),
-          for (final tramo in elegidaOpcion.tramos)
-            tramo.esCaminata
-                ? Polyline(points: tramo.puntos, strokeWidth: 5, color: b.texto, pattern: const StrokePattern.dotted())
-                : Polyline(
-                    points: tramo.puntos,
-                    strokeWidth: 7,
-                    color: RouteCapsule.colorDe(tramo.tipoRuta),
-                    borderStrokeWidth: 2.5,
-                    borderColor: b.bordeDeRuta,
-                  ),
-        ]),
+        PolylineLayer(
+          polylines: [
+            for (final (k, o) in opciones.indexed)
+              if (k != elegida)
+                Polyline(
+                  points: o.puntos,
+                  strokeWidth: 5,
+                  color: colorDeOpcion(context, o).withValues(alpha: 0.55),
+                  borderStrokeWidth: 1.5,
+                  borderColor: b.bordeDeRuta.withValues(alpha: 0.6),
+                ),
+            for (final tramo in elegidaOpcion.tramos)
+              tramo.esCaminata
+                  ? Polyline(
+                      points: tramo.puntos,
+                      strokeWidth: 5,
+                      color: b.texto,
+                      pattern: const StrokePattern.dotted(),
+                    )
+                  : Polyline(
+                      points: tramo.puntos,
+                      strokeWidth: 7,
+                      color: RouteCapsule.colorDe(tramo.tipoRuta),
+                      borderStrokeWidth: 2.5,
+                      borderColor: b.bordeDeRuta,
+                    ),
+          ],
+        ),
         BlocBuilder<IncidentBloc, IncidentState>(
           buildWhen: (_, actual) => actual is IncidentsLoaded,
-          builder: (context, state) => MarkerLayer(markers: [
-            if (state is IncidentsLoaded)
-              for (final r in reportesEnElCamino(elegidaOpcion, state.incidents)) marcadorDeReporte(context, r),
-          ]),
+          builder: (context, state) => MarkerLayer(
+            markers: [
+              if (state is IncidentsLoaded)
+                for (final r in reportesEnElCamino(elegidaOpcion, state.incidents)) marcadorDeReporte(context, r),
+            ],
+          ),
         ),
       ],
     );
@@ -645,24 +771,26 @@ class _Burbujas extends StatelessWidget {
   Widget build(BuildContext context) {
     if (opciones.isEmpty) return const SizedBox.shrink();
     final burbujas = _puntosDeBurbujas(opciones);
-    return MarkerLayer(markers: [
-          for (final (k, o) in opciones.indexed)
-            Marker(
-              key: ValueKey('burbuja-$k-${o.tiempoTotalMin}'),
-              point: burbujas[k],
-              width: 170,
-              height: 44,
-              child: Center(
-                child: _BurbujaDeTiempo(
-                  opcion: o,
-                  etiqueta: etiquetaDeOpcion(opciones, k),
-                  elegida: k == elegida,
-                  retraso: Duration(milliseconds: 120 * k),
-                  onTap: () => onElegir(k),
-                ),
+    return MarkerLayer(
+      markers: [
+        for (final (k, o) in opciones.indexed)
+          Marker(
+            key: ValueKey('burbuja-$k-${o.tiempoTotalMin}'),
+            point: burbujas[k],
+            width: 170,
+            height: 44,
+            child: Center(
+              child: _BurbujaDeTiempo(
+                opcion: o,
+                etiqueta: etiquetaDeOpcion(opciones, k),
+                elegida: k == elegida,
+                retraso: Duration(milliseconds: 120 * k),
+                onTap: () => onElegir(k),
               ),
             ),
-    ]);
+          ),
+      ],
+    );
   }
 
   /// Dónde va la burbuja de cada opción: sobre su recorrido en bus, donde se separa de las demás opciones
@@ -700,7 +828,10 @@ class _Burbujas extends StatelessWidget {
         puestas.add(opcion.puntos.isNotEmpty ? opcion.puntos.first : const LatLng(0, 0));
         continue;
       }
-      final otras = cada([for (final (j, o) in opciones.indexed) if (j != k) ...o.puntos], 80);
+      final otras = cada([
+        for (final (j, o) in opciones.indexed)
+          if (j != k) ...o.puntos,
+      ], 80);
       var mejor = candidatos[candidatos.length ~/ 2];
       var mejorPuntaje = -1.0;
       for (final p in candidatos) {
@@ -761,12 +892,13 @@ class _BurbujaDeTiempo extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('${opcion.tiempoTotalMin} min',
-                    style: texto.titleSmall?.copyWith(color: tinta, fontFeatures: tabularFigures)),
+                Text(
+                  '${opcion.tiempoTotalMin} min',
+                  style: texto.titleSmall?.copyWith(color: tinta, fontFeatures: tabularFigures),
+                ),
                 if (etiqueta != null) ...[
                   const SizedBox(width: 4),
-                  Text('· $etiqueta',
-                      style: texto.labelMedium?.copyWith(color: elegida ? tinta : b.textoSuave)),
+                  Text('· $etiqueta', style: texto.labelMedium?.copyWith(color: elegida ? tinta : b.textoSuave)),
                 ],
               ],
             ),
@@ -784,17 +916,18 @@ class _Asa extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-        child: Container(
-          margin: const EdgeInsets.only(top: 10, bottom: 12),
-          width: 40,
-          height: 4,
-          decoration: BoxDecoration(color: Bahia.de(context).asa, borderRadius: BorderRadius.circular(2)),
-        ),
-      );
+    child: Container(
+      margin: const EdgeInsets.only(top: 10, bottom: 12),
+      width: 40,
+      height: 4,
+      decoration: BoxDecoration(color: Bahia.de(context).asa, borderRadius: BorderRadius.circular(2)),
+    ),
+  );
 }
 
 class _Opciones extends StatelessWidget {
   final ScrollController controlador;
+  final bool conAsa;
   final RouteSuggestions sugerencias;
   final int elegida;
   final ValueChanged<int> onElegir;
@@ -803,6 +936,7 @@ class _Opciones extends StatelessWidget {
 
   const _Opciones({
     required this.controlador,
+    this.conAsa = true,
     required this.sugerencias,
     required this.elegida,
     required this.onElegir,
@@ -826,7 +960,7 @@ class _Opciones extends StatelessWidget {
                 controller: controlador,
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                 children: [
-                  const _Asa(),
+                  if (conAsa) const _Asa(),
                   if (sugerencias.aviso != null) ...[
                     _AvisoEnLinea(texto: sugerencias.aviso!, accion: 'Otra hora', onAccion: onOtraHora),
                     const SizedBox(height: 10),
@@ -893,8 +1027,9 @@ class _AvisoEnLinea extends StatelessWidget {
 
 class _Cargando extends StatelessWidget {
   final ScrollController controlador;
+  final bool conAsa;
 
-  const _Cargando({required this.controlador});
+  const _Cargando({required this.controlador, this.conAsa = true});
 
   @override
   Widget build(BuildContext context) {
@@ -903,16 +1038,15 @@ class _Cargando extends StatelessWidget {
       controller: controlador,
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       children: [
-        const _Asa(),
-        Semantics(
-          liveRegion: true,
-          label: 'Buscando formas de llegar',
-          child: const LinearProgressIndicator(),
-        ),
+        if (conAsa) const _Asa(),
+        Semantics(liveRegion: true, label: 'Buscando formas de llegar', child: const LinearProgressIndicator()),
         const SizedBox(height: 12),
         // Siluetas de las tarjetas que vienen: la hoja no salta cuando llegan.
         for (var k = 0; k < 3; k++) ...[
-          Container(height: 96, decoration: BoxDecoration(color: b.tarjeta, borderRadius: BorderRadius.circular(18))),
+          Container(
+            height: 96,
+            decoration: BoxDecoration(color: b.tarjeta, borderRadius: BorderRadius.circular(18)),
+          ),
           const SizedBox(height: 10),
         ],
       ],
@@ -922,6 +1056,7 @@ class _Cargando extends StatelessWidget {
 
 class _Aviso extends StatelessWidget {
   final ScrollController controlador;
+  final bool conAsa;
   final IconData icono;
   final String titulo;
   final String detalle;
@@ -929,6 +1064,7 @@ class _Aviso extends StatelessWidget {
 
   const _Aviso({
     required this.controlador,
+    this.conAsa = true,
     required this.icono,
     required this.titulo,
     required this.detalle,
@@ -943,10 +1079,14 @@ class _Aviso extends StatelessWidget {
       controller: controlador,
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
       children: [
-        const _Asa(),
+        if (conAsa) const _Asa(),
         Row(
           children: [
-            CircleAvatar(radius: 24, backgroundColor: b.acentoSuave, child: Icon(icono, color: b.acento)),
+            CircleAvatar(
+              radius: 24,
+              backgroundColor: b.acentoSuave,
+              child: Icon(icono, color: b.acento),
+            ),
             const SizedBox(width: 12),
             Expanded(child: Text(titulo, style: texto.titleLarge)),
           ],
