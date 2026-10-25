@@ -191,7 +191,8 @@ class _ViajeViewState extends State<_ViajeView> {
                   )
                 : bus?.ruta != null && llegada != null
                     ? _EnVivo(
-                        ruta: state.rutaQueLlega ?? bus!.ruta!,
+                        // Sin datos de ninguna, «Nadie ha visto pasar el T103 ni el T101».
+                        ruta: state.rutaQueLlega ?? bus!.rutas.join(' ni el '),
                         llegada: llegada,
                         onPasoLleno: state.estado.fase == Fase.esperando && cubit.haySesion()
                             ? () => _pasoLleno(state.rutaQueLlega ?? bus!.ruta!)

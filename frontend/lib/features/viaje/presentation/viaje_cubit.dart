@@ -518,7 +518,7 @@ class ViajeCubit extends Cubit<ViajeState> {
   final actual = seguidor.tramoActual;
   return switch (evento) {
     EventoDelViaje.llegasteALaParada =>
-      (titulo: 'Llegaste a ${actual.desde}', texto: 'Espera el ${actual.ruta}. Te avisamos antes de bajarte.'),
+      (titulo: 'Llegaste a ${actual.desde}', texto: 'Espera el ${actual.rutas.join(' o el ')}. Te avisamos antes de bajarte.'),
     EventoDelViaje.subiste => null,
     EventoDelViaje.bajateEnLaProxima => (
         titulo: comoPedirLaParada(actual) == ComoPedirLaParada.paraSolo

@@ -80,7 +80,7 @@ class TarjetaDeOpcion extends StatelessWidget {
       selected: elegida,
       label: [
         '${opcion.tiempoTotalMin} minutos',
-        opcion.buses.isEmpty ? 'a pie' : 'en ${opcion.buses.map((b) => b.ruta).join(' y luego ')}',
+        opcion.buses.isEmpty ? 'a pie' : 'en ${opcion.buses.map((b) => b.rutasEnTexto).join(' y luego ')}',
         if (bus != null) 'sube en ${bus.desde}',
         if (transbordo != null) 'cambias de bus en $transbordo',
         resumenReportes,
