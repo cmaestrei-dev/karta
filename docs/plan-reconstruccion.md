@@ -183,6 +183,58 @@ Con eso el servidor estima «sale en ~6 min, según 3 viajeros». Todo vence sol
     - batería y datos móviles por hora de viaje.
 - **Trazas para pruebas:** con permiso expreso de quienes hagan el piloto, se graban los recorridos GPS reales. Se usan para reproducir viajes en las pruebas automáticas y para afinar el seguidor. Nunca salen del equipo de desarrollo y se borran al terminar.
 
+**D18 · Estaciones por dentro: plataformas, sentido y estaciones confusas** (propuesto el 25 de octubre).
+- **El problema real:**
+  - en Patio Portal hay varias plataformas;
+  - Santa Lucía (alimentadores) y Madre Bernarda (troncales y pretroncales, incluido el T100E) quedan una frente a la otra, a unos 65 m.
+
+  Hoy Karta solo conoce las 17 estaciones del corredor: **Patio Portal y Santa Lucía no existen como estaciones**.
+- **Lo que ya hay en OpenStreetMap:** áreas de parada de Santa Lucía y Patio Portal, y plataformas por ruta. Por ejemplo:
+  - una con A103, A104, A105, A107, A108 y A111;
+  - otra con T100E, T101, T102, T103, X102 y X103;
+  - otra con A101, A102, A114, A117 y C016.
+- **Modelo:** cada estación tiene plataformas, y cada plataforma lleva:
+  - nombre y coordenadas;
+  - las rutas y el sentido de cada una;
+  - una descripción («lado del Éxito»);
+  - la fuente (OSM, oficial o comunidad) y la confianza («según N viajeros»).
+- **Lo que ve el viajero al subir:**
+  - «Sube al T103 en **Madre Bernarda**, plataforma hacia el Centro», con un plano pequeño de la estación que muestra dónde está él y a dónde caminar;
+  - en las estaciones confusas, una advertencia: «Ojo: Santa Lucía, la de enfrente, es solo de alimentadores».
+  - Cada tramo en bus dice su sentido: «hacia La Bodeguita» o «hacia Portal».
+- **Cómo aprende de la comunidad:**
+  - **Sin preguntar:** con el viaje compartido activo, el punto donde la gente sube a cada ruta. Agrupados, esos puntos revelan la plataforma de cada ruta y sentido. Solo se usa el punto de subida, sin el recorrido.
+  - **Preguntando una vez:** tras subir en una estación con varias plataformas, «¿Desde dónde tomaste el T103?».
+  - **Guardianes de estación** (niveles 4 y 5): corrigen el plano.
+  - **Fuente oficial:** pedirle a Transcaribe los planos de módulos de sus estaciones.
+- **Primer paso, sin depender de la comunidad:** importar Patio Portal, Santa Lucía y las plataformas por ruta desde OpenStreetMap.
+
+**D19 · «El que pase primero».** Varias rutas sirven el mismo trayecto (en la troncal, el T101, el T102 y el T103 comparten estaciones).
+- **Opciones agrupadas:** «Toma el T101 o el T103, el que pase primero», con la llegada de cada uno.
+- **Cálculo:**
+  - para cada ruta se usa la llegada según los viajeros;
+  - si no hay datos, la espera esperada es la mitad de la frecuencia habitual. La frecuencia se aprende de los avistamientos por franja horaria; al principio se usan valores por tipo de ruta.
+  - Se suma el tiempo a bordo, porque un expreso como el T100E puede pasar después y llegar antes.
+  - Karta distingue «Pasa primero» de «Llegas primero».
+- **En el viaje:** Karta detecta en cuál se subió cuando las rutas se separan. Solo pregunta si cambia algo.
+- **Honestidad:** «Calculado con 3 viajeros en la última media hora», o «Sin datos: estimado con la frecuencia habitual».
+
+**D20 · Identidad y comunidad.**
+- **Tono:** cercano, con identidad propia y diciendo siempre para qué sirve cada aporte («Esta llegada es precisa gracias a 3 viajeros»).
+- **Reconocimiento sin dinero:** «Gracias», «Tu impacto», marcos e insignias, confianza por nivel, Guardianes de ruta o de estación, acceso anticipado y eventos de mapeo.
+- **Límites:** sin trampas de diseño y con puntos solo por aportes validados.
+- **Detalle:** [plan-comunidad.md](plan-comunidad.md).
+
+**D21 · Brechas del estudio de reseñas** ([estudio-resenas.md](estudio-resenas.md)):
+- mostrar **hace cuánto** se actualizó cada llegada;
+- reportar «no paró en el paradero»;
+- el sentido en cada bus (D18);
+- un límite de caminata elegible;
+- una consulta de un vistazo (notificación con el próximo bus);
+- planificar sin conexión;
+- reportar «ruta o paradero desactualizado».
+- **Dos reglas de proceso:** nunca quitar una función sin avisar, y publicar las reglas de moderación.
+
 ## 5. Modelo de datos v2 (MongoDB)
 
 | Colección | Cambio |
@@ -239,7 +291,8 @@ Cada fase termina con una demostración en el teléfono y un PR fusionado.
 | 1 · Mapa y reportes | mié 28 oct – mar 3 nov | Inicio con mapa propio; reportes v2 (catálogo, dos pasos, detalles); «¿Sigue ahí?», votos y reputación; límite de peticiones | En el teléfono se reporta «el bus no pasa», otro usuario lo confirma y la reputación cambia |
 | 2 · Planificar | mié 4 – mar 10 nov | Búsqueda; puntos de subida nombrados por cruce; opciones comparadas en el mapa; criterios; transbordo; horarios de servicio | De Bazurto a Bocagrande salen opciones con y sin transbordo, ordenadas por criterio |
 | 3 · Viaje activo y tiempo real | mié 11 – mar 17 nov | Máquina de estados; avisos de subir, bajar y transbordar; alertas y re-enrutar; avistamientos, ocupación y posición compartida; estimación «según N viajeros»; cuenta invisible (D9); «¡Toca el timbre!» en paraderos (D11); «¿El bus se desvió?» (D12) | Un viaje real en el T103 avanza solo y avisa antes de bajarse |
-| 3b · Comunidad | — | Reportes «por confirmar» y pesos por reputación (D9); premios visuales y «Tu impacto» (D10); base de conocimiento de la comunidad (D12); buses varados (D14); buscar direcciones (D15); rutas y paraderos cerca (D16) | Un reporte sin cuenta queda «por confirmar» hasta que otro lo confirma; al bajarse en un paradero, Karta pregunta cómo se pidió la parada |
+| 3b · Comunidad y datos | — | Buscar direcciones (D15); buses varados (D14); pesos por reputación (D9); premios visuales, «Gracias» y «Tu impacto» (D10, D20); base de conocimiento (D12); antigüedad del dato y «no paró» (D21) | Escribir «Calle 9 # 3-50» encuentra la dirección; un bus varado se pregunta, se reporta y deja de contar en las llegadas |
+| 3c · Encontrar y abordar | — | Patio Portal, Santa Lucía y plataformas por ruta (D18); sentido en cada bus; rutas y paraderos cerca (D16); «el que pase primero» (D19); límite de caminata (D21) | En Madre Bernarda, Karta dice la plataforma y el sentido del T103 y advierte que Santa Lucía es de alimentadores | Un reporte sin cuenta queda «por confirmar» hasta que otro lo confirma; al bajarse en un paradero, Karta pregunta cómo se pidió la parada |
 | 4 · Despliegue y piloto | mié 18 – lun 23 nov | API en la nube con HTTPS; APK firmado; piloto con compañeros durante 4–5 días; corrección de errores, rendimiento y accesibilidad; modo ligero y prueba en teléfonos económicos (D13); pruebas comparativas con Google Maps y Moovit (D17); política de tratamiento de datos escrita (Ley 1581) | Hay datos reales del piloto y no queda ningún error crítico abierto |
 | 5 · Cierre | mar 24 – vie 27 nov | Documentación final (diagramas, modelo de datos, API, DESIGN.md), resultados del piloto, presentación y video demo | Entrega lista con un día de margen |
 
