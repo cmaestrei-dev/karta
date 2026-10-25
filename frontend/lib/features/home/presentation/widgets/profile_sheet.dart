@@ -340,16 +340,20 @@ class _TuImpacto extends StatelessWidget {
   Widget build(BuildContext context) {
     final b = Bahia.de(context);
     final texto = Theme.of(context).textTheme;
+    // En dos columnas: con cuatro, «confirmaciones» se parte a mitad de palabra en un teléfono.
     Widget dato(int valor, String que) => Expanded(
           child: Semantics(
             label: '$valor $que',
             excludeSemantics: true,
-            child: Column(
-              children: [
-                Text('$valor', style: texto.titleLarge?.copyWith(fontFeatures: tabularFigures)),
-                const SizedBox(height: 2),
-                Text(que, textAlign: TextAlign.center, style: texto.bodySmall?.copyWith(color: b.textoSuave)),
-              ],
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('$valor', style: texto.titleLarge?.copyWith(fontFeatures: tabularFigures)),
+                  Text(que, style: texto.bodySmall?.copyWith(color: b.textoSuave)),
+                ],
+              ),
             ),
           ),
         );
@@ -366,10 +370,16 @@ class _TuImpacto extends StatelessWidget {
               child: Text('Tu impacto', style: texto.titleMedium),
             ),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 dato(impacto.vistas, 'personas vieron tus reportes'),
-                dato(impacto.confirmaciones, 'confirmaciones'),
-                dato(impacto.gracias, 'gracias'),
+                dato(impacto.confirmaciones, 'confirmaciones de tus reportes'),
+              ],
+            ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                dato(impacto.gracias, 'gracias recibidas'),
                 FutureBuilder<int>(
                   future: PreferenciaDeCompartir().viajesCompartidos(),
                   builder: (context, viajes) => dato(viajes.data ?? 0, 'buses compartidos'),
