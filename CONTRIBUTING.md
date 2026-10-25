@@ -4,7 +4,9 @@ Gracias por querer ayudar. Karta es el tiempo real de Transcaribe hecho por sus 
 
 ## Antes de tu primer aporte
 
-- **Acepta el [acuerdo de contribución](docs/acuerdo-de-contribucion.md):** sigues siendo autor, pero le das al titular permiso para cambiar la licencia en el futuro.
+- **Acepta el [acuerdo de contribución](docs/acuerdo-de-contribucion.md)** escribiendo en tu primer pull request «Acepto el Acuerdo de Contribución de Karta, versión 1.0» con tu nombre completo. Sigues siendo autor, pero le das al titular permiso para cambiar la licencia en el futuro.
+  - Versión 1.0, SHA-256 `a8d0f76b7941c37476d728823f6c6d090b4b1403a74f162ddac53932e3dd437c`.
+- **Si usaste inteligencia artificial** para escribir parte de tu aporte, dilo en el pull request (cláusula 7 del acuerdo).
 - **Lee el [plan de reconstrucción](docs/plan-reconstruccion.md)**, que dice en qué fase va el proyecto y por qué se decidió cada cosa.
 
 ## Reglas que no se negocian

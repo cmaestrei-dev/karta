@@ -9,6 +9,8 @@ Karta es código abierto. Copyright © 2026 Camilo Andres Maestre Iglesias ([cma
 | Documentación (`docs/`, `README.md`, `DESIGN.md`, `PRODUCT.md`, diagramas) | **Creative Commons Atribución 4.0** (`CC-BY-4.0`) | [docs/LICENSE](docs/LICENSE) |
 | Datos de terceros (`backend/data/`) | Los de su fuente; ver abajo | — |
 
+**Ámbito y plazo.** El titular otorga la licencia AGPL del servidor con **ámbito territorial mundial** y por todo el término de protección legal. Apache 2.0 y CC BY 4.0 ya lo dicen; la ley colombiana (Ley 23 de 1982, art. 183) exige que conste.
+
 **Por qué dos licencias** (detalles en [docs/plan-codigo-abierto.md](docs/plan-codigo-abierto.md)):
 - **Servidor en AGPL:** quien monte un servidor de Karta modificado y lo ofrezca a otros tiene que publicar sus cambios. Así nadie puede cerrar una copia mejorada del servicio.
 - **App en Apache 2.0:** es permisiva y compatible con las tiendas de aplicaciones. Las licencias de la familia GPL chocan con los términos de la App Store de Apple.

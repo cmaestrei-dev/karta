@@ -32,9 +32,10 @@
 
 - **Hoy todo el código es de Camilo:** los 58 commits del repositorio son suyos.
 - **Las obras de otras personas son de ellas aunque estén en el repositorio.** Para que Karta pueda cambiar de licencia en el futuro (por ejemplo, a una versión privada), cada colaborador acepta el [acuerdo de contribución](acuerdo-de-contribucion.md): conserva la autoría, pero le da al titular permiso amplio para relicenciar.
-- **José:** si aportó textos, diagramas o diseños a las entregas, conviene que firme el acuerdo cubriendo esos aportes anteriores, para que no quede ninguna duda.
-- **Universidad:** antes de explotar Karta comercialmente, hay que revisar el estatuto de propiedad intelectual de la Universidad de Cartagena para las obras hechas en cursos, y hablarlo con la docente.
-- **Ley colombiana:** la cesión de derechos patrimoniales de autor debe constar por escrito (Ley 23 de 1982, modificada por la Ley 1450 de 2011). Los derechos morales (ser reconocido como autor) no se ceden.
+- **José:** si aportó textos, diagramas o diseños a las entregas, es coautor de esos textos (no del código). Conviene que acepte el acuerdo por esos aportes.
+- **Universidad, código hecho con IA y registro:** el análisis completo, con las normas vigentes verificadas, está en [propiedad-intelectual.md](propiedad-intelectual.md).
+  - Los riesgos son bajos y hay un paso para cada uno: el registro gratuito en la DNDA, el concepto del Comité de Propiedad Intelectual de la UdeC y la declaración honesta del aporte de la IA.
+- **Ley colombiana:** las licencias y cesiones se limitan a las modalidades, el plazo y el territorio pactados (Ley 23 de 1982, art. 183, en el texto del art. 181 de la Ley 1955 de 2019). Los derechos morales no se ceden ni se renuncian.
 
 ## 4. Qué nunca va al repositorio
 
@@ -77,9 +78,11 @@ El código abierto no impide publicar. No se necesita ninguna certificación. Lo
 
 ## 8. Pendientes
 
-1. **José:** firma del acuerdo de contribución por sus aportes anteriores.
-2. **Universidad:** revisar el estatuto de propiedad intelectual.
-3. **Política de tratamiento de datos** publicada antes del piloto (fase 4).
+1. **Registro del software en la DNDA** (gratuito, en línea).
+2. **Concepto del Comité de Propiedad Intelectual de la UdeC**, con la carta ya redactada.
+3. **José:** aceptación del acuerdo de contribución por sus aportes anteriores.
+4. **Marca:** búsqueda de antecedentes en SIPI y radicación antes del lanzamiento.
+5. **Política de tratamiento de datos** publicada antes del piloto (fase 4).
 
 ## Fuentes
 
