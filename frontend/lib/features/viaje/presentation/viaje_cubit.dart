@@ -35,6 +35,10 @@ class ViajeState extends Equatable {
   /// Es momento de pedir la parada (pantalla completa) hasta que diga que ya lo hizo o se baje.
   final ComoPedirLaParada? pedirLaParada;
 
+  /// A bordo y fuera del recorrido, el viajero confirmó que el bus se desvió: se le sigue acompañando, sin
+  /// proponerle otra ruta, hasta que el bus vuelva a su recorrido.
+  final bool desvioDelBus;
+
   const ViajeState({
     required this.estado,
     this.posicion,
@@ -44,6 +48,7 @@ class ViajeState extends Equatable {
     this.compartiendo = false,
     this.ocupacion,
     this.pedirLaParada,
+    this.desvioDelBus = false,
   });
 
   /// Los campos que pueden volver a null se pasan como función: `llegada: () => null`.
@@ -56,6 +61,7 @@ class ViajeState extends Equatable {
     bool? compartiendo,
     Ocupacion? Function()? ocupacion,
     ComoPedirLaParada? Function()? pedirLaParada,
+    bool? desvioDelBus,
   }) =>
       ViajeState(
         estado: estado ?? this.estado,
@@ -66,10 +72,12 @@ class ViajeState extends Equatable {
         compartiendo: compartiendo ?? this.compartiendo,
         ocupacion: ocupacion != null ? ocupacion() : this.ocupacion,
         pedirLaParada: pedirLaParada != null ? pedirLaParada() : this.pedirLaParada,
+        desvioDelBus: desvioDelBus ?? this.desvioDelBus,
       );
 
   @override
-  List<Object?> get props => [estado, posicion, ultimoEvento, error, llegada, compartiendo, ocupacion, pedirLaParada];
+  List<Object?> get props =>
+      [estado, posicion, ultimoEvento, error, llegada, compartiendo, ocupacion, pedirLaParada, desvioDelBus];
 }
 
 /// El viaje activo: escucha el GPS, se lo pasa al [SeguidorDeViaje] y convierte sus eventos en avisos.
@@ -155,6 +163,8 @@ class ViajeCubit extends Cubit<ViajeState> {
       posicion: punto,
       ultimoEvento: eventos.isNotEmpty ? eventos.last : null,
       error: () => null,
+      // El desvío confirmado dura mientras el bus siga fuera del recorrido y el viajero a bordo.
+      desvioDelBus: state.desvioDelBus && seguidor.estado.desviado && seguidor.estado.fase == Fase.aBordo,
     ));
     for (final evento in eventos) {
       if (evento == EventoDelViaje.bajaste) _alBajar();
@@ -222,6 +232,11 @@ class ViajeCubit extends Cubit<ViajeState> {
   void _alSubir() {
     if (state.ocupacion != null) emit(state.copyWith(ocupacion: () => null));
     if (_quiereCompartir) _empezarACompartir();
+  }
+
+  /// «¿El T103 se desvió?» → «Sí»: se le sigue acompañando sin proponerle otra ruta.
+  void elBusSeDesvio() {
+    if (!isClosed && seguidor.estado.fase == Fase.aBordo) emit(state.copyWith(desvioDelBus: true));
   }
 
   /// Ya tocó el timbre (o gritó): se quita la pantalla completa.
@@ -322,7 +337,9 @@ class ViajeCubit extends Cubit<ViajeState> {
         _ => (titulo: 'Camina a $destino', texto: 'Ya casi llegas.'),
       },
     EventoDelViaje.llegaste => (titulo: 'Llegaste a $destino', texto: 'Buen viaje con Karta.'),
-    EventoDelViaje.teDesviaste =>
-      (titulo: 'Te saliste del recorrido', texto: 'Abre Karta para buscar otra forma de llegar.'),
+    // A bordo, salirse del recorrido es casi siempre un desvío del bus (un trancón, una vía cerrada).
+    EventoDelViaje.teDesviaste => seguidor.estado.fase == Fase.aBordo
+        ? (titulo: '¿El ${actual.ruta ?? 'bus'} se desvió?', texto: 'Abre Karta para seguir el viaje o buscar otra ruta.')
+        : (titulo: 'Te saliste del recorrido', texto: 'Abre Karta para buscar otra forma de llegar.'),
   };
 }

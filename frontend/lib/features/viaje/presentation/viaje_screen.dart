@@ -277,7 +277,15 @@ class _ViajeViewState extends State<_ViajeView> {
                       if (state.estado.desviado)
                         Padding(
                           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                          child: _Desvio(onRecalcular: _recalcular),
+                          child: state.estado.fase != Fase.aBordo
+                              ? _Desvio(onRecalcular: _recalcular)
+                              : state.desvioDelBus
+                                  ? _BusDesviado(ruta: seguidor.tramoActual.ruta ?? 'bus')
+                                  : _DesvioDelBus(
+                                      ruta: seguidor.tramoActual.ruta ?? 'bus',
+                                      onSi: cubit.elBusSeDesvio,
+                                      onMeBaje: _recalcular,
+                                    ),
                         ),
                       state.estado.fase == Fase.llegaste
                           ? _Llegaste(destino: cubit.destino, onTerminar: _terminar)
@@ -453,6 +461,82 @@ class _Desvio extends StatelessWidget {
             const SizedBox(width: 10),
             Expanded(child: Text('Te saliste del recorrido', style: Theme.of(context).textTheme.titleSmall)),
             FilledButton(onPressed: onRecalcular, child: const Text('Otra ruta')),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A bordo y fuera del recorrido: ¿se desvió el bus (se le sigue acompañando) o se bajó (otra ruta)?
+class _DesvioDelBus extends StatelessWidget {
+  final String ruta;
+  final VoidCallback onSi;
+  final VoidCallback onMeBaje;
+
+  const _DesvioDelBus({required this.ruta, required this.onSi, required this.onMeBaje});
+
+  @override
+  Widget build(BuildContext context) {
+    final b = Bahia.de(context);
+    final texto = Theme.of(context).textTheme;
+    return Material(
+      color: b.hoja,
+      elevation: 8,
+      shadowColor: Colors.black.withValues(alpha: 0.35),
+      borderRadius: BorderRadius.circular(22),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.alt_route, color: b.via),
+                const SizedBox(width: 10),
+                Expanded(child: Text('¿El $ruta se desvió?', style: texto.titleSmall)),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text('Va por fuera de su recorrido.', style: texto.bodySmall?.copyWith(color: b.textoSuave)),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(child: FilledButton(onPressed: onSi, child: const Text('Sí, va desviado'))),
+                const SizedBox(width: 8),
+                Expanded(child: OutlinedButton(onPressed: onMeBaje, child: const Text('Me bajé'))),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BusDesviado extends StatelessWidget {
+  final String ruta;
+
+  const _BusDesviado({required this.ruta});
+
+  @override
+  Widget build(BuildContext context) {
+    final b = Bahia.de(context);
+    return Material(
+      color: b.hoja,
+      elevation: 6,
+      shadowColor: Colors.black.withValues(alpha: 0.35),
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Row(
+          children: [
+            Icon(Icons.alt_route, size: 20, color: b.via),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text('El $ruta va desviado. Te seguimos avisando cuando vuelva a su recorrido.',
+                  style: Theme.of(context).textTheme.bodyMedium),
+            ),
           ],
         ),
       ),

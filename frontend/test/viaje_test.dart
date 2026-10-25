@@ -192,4 +192,32 @@ void main() {
       await posiciones.close();
     });
   });
+
+  test('a bordo, salirse del recorrido pregunta si el bus se desvió; al volver a la ruta se olvida', () async {
+    final posiciones = StreamController<LatLng>();
+    final avisos = _AvisosDePrueba();
+    final cubit = ViajeCubit(opcion: _viaje(), avisos: avisos, fuente: (_) => posiciones.stream);
+    await cubit.iniciar();
+    Future<void> en(LatLng p) async {
+      posiciones.add(p);
+      await Future<void>.delayed(Duration.zero);
+    }
+
+    await en(_p(0, 195));
+    await en(_p(300, 200));
+    await en(_p(900, 600)); // 400 m fuera de la troncal, lejos de la bajada
+    expect(cubit.state.estado.desviado, isTrue);
+    expect(avisos.mostrados.last, '¿El T103 se desvió?');
+
+    cubit.elBusSeDesvio();
+    expect(cubit.state.desvioDelBus, isTrue);
+    await en(_p(1200, 620));
+    expect(cubit.state.desvioDelBus, isTrue); // sigue desviado
+
+    await en(_p(1500, 200)); // volvió a su recorrido
+    expect((cubit.state.estado.desviado, cubit.state.desvioDelBus), (false, false));
+    expect(cubit.state.estado.fase, Fase.aBordo);
+    await cubit.close();
+    await posiciones.close();
+  });
 }
