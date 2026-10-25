@@ -30,6 +30,7 @@ def ensure_indexes(db: Database) -> None:
     db.stations.create_index([("ubicacion", GEOSPHERE)])
     db.transit_routes.create_index([("geometria", GEOSPHERE)])
     db.intersections.create_index([("ubicacion", GEOSPHERE)])
+    db.address_crossings.create_index([("vias", ASCENDING)])  # «calle:9»: los cruces de una vía numerada
     # Un voto por viajero y reporte; los votos y las ventanas de límite de peticiones vencen solos.
     db.incident_votes.create_index([("incidente", ASCENDING), ("usuario", ASCENDING)], unique=True)
     db.incident_votes.create_index([("expira_en", ASCENDING)], expireAfterSeconds=0)

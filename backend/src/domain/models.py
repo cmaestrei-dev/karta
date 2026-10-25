@@ -70,12 +70,13 @@ MAX_LUGARES_GUARDADOS = 10
 
 @dataclass(frozen=True)
 class Lugar:
-    """Punto buscable de la ciudad (barrio, sitio turístico, estación...)."""
+    """Punto buscable de la ciudad (barrio, sitio turístico, estación, dirección...)."""
     id: str | None
     nombre: str
     tipo: str
     latitud: float
     longitud: float
+    detalle: str | None = None  # para distinguir resultados con el mismo nombre: «Dirección aproximada · Bocagrande»
 
 
 @dataclass(frozen=True)

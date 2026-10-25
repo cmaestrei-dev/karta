@@ -1,3 +1,4 @@
+import 'package:latlong2/latlong.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:karta/core/format.dart';
@@ -184,5 +185,16 @@ void main() {
     expect(horaLegible('21:00'), '9:00${nbsp}p.${nbsp}m.');
     expect(horaLegible('12:15'), '12:15${nbsp}p.${nbsp}m.');
     expect(horaLegible('00:05'), '12:05${nbsp}a.${nbsp}m.');
+  });
+
+  test('una dirección del buscador muestra su detalle y su ícono', () {
+    final lugar = Place.fromJson({
+      'id': null, 'nombre': 'Calle 9 # 3-50', 'tipo': 'Dirección', 'latitud': 10.4043, 'longitud': -75.5524,
+      'detalle': 'Dirección aproximada · Bocagrande',
+    });
+    expect(lugar.subtitulo, 'Dirección aproximada · Bocagrande');
+    expect(lugar.icono, Icons.signpost_outlined);
+    const barrio = Place(nombre: 'Bocagrande', tipo: 'Barrio', punto: LatLng(10.399, -75.554));
+    expect(barrio.subtitulo, 'Barrio'); // sin detalle, el tipo
   });
 }

@@ -12,6 +12,7 @@ class PlaceResponse(BaseModel):
     tipo: str
     latitud: float
     longitud: float
+    detalle: str | None = Field(None, description="Para distinguir resultados: «Dirección aproximada · Bocagrande»")
 
 class SavedPlaceCreate(BaseModel):
     nombre: str = Field(..., min_length=1, max_length=40, description='Ej: "Casa", "Trabajo"')

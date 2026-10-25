@@ -9,6 +9,7 @@ from pymongo import DESCENDING, ReturnDocument
 from pymongo.database import Database
 from pymongo.errors import DuplicateKeyError
 
+from src.domain.direcciones import Cruce, Via
 from src.domain.models import (
     ALIAS_SIN_CUENTA, REPUTACION_INICIAL, EmailYaRegistrado, Estacion, IconoLugar, Incidente, LimiteLugaresGuardados,
     Lugar, LugarGuardado, LugarGuardadoNoEncontrado, RutaTransporte, TipoViajero, Usuario,
@@ -186,6 +187,12 @@ class MongoIncidentRepository:
 class MongoPlaceRepository:
     def __init__(self, db: Database):
         self._places = db.places
+        self._crossings = db.address_crossings
+
+    def crossings_on(self, via_clave: str) -> list[Cruce]:
+        return [Cruce(nombre=d["nombre"], vias=tuple(Via(*v.split(":", 1)) for v in d["vias"]),
+                      longitud=d["ubicacion"]["coordinates"][0], latitud=d["ubicacion"]["coordinates"][1])
+                for d in self._crossings.find({"vias": via_clave})]
 
     def search(self, tokens: list[str], limite: int) -> list[Lugar]:
         # Cada token debe ser el comienzo de alguna palabra del nombre ("boca" → "bocagrande").
@@ -193,8 +200,8 @@ class MongoPlaceRepository:
         filtro = {"tokens": {"$all": [re.compile("^" + re.escape(t)) for t in tokens]}}
         return [_to_lugar(doc) for doc in self._places.find(filtro).limit(limite)]
 
-    def nearest(self, lon: float, lat: float, radio_m: float) -> tuple[Lugar, float] | None:
-        docs = list(self._places.aggregate(_cercanos(lon, lat, radio_m, 1)))
+    def nearest(self, lon: float, lat: float, radio_m: float, tipo: str | None = None) -> tuple[Lugar, float] | None:
+        docs = list(self._places.aggregate(_cercanos(lon, lat, radio_m, 1, {"tipo": tipo} if tipo else None)))
         return (_to_lugar(docs[0]), docs[0]["distancia_m"]) if docs else None
 
 
@@ -303,7 +310,7 @@ class MongoSavedPlaceRepository:
             raise LugarGuardadoNoEncontrado()
 
 
-def _cercanos(lon: float, lat: float, radio_m: float, limite: int) -> list[dict]:
+def _cercanos(lon: float, lat: float, radio_m: float, limite: int, filtro: dict | None = None) -> list[dict]:
     """Etapas de agregación: documentos dentro del radio, del más cercano al más lejano, con su distancia."""
     return [
         {"$geoNear": {
@@ -311,6 +318,7 @@ def _cercanos(lon: float, lat: float, radio_m: float, limite: int) -> list[dict]
             "distanceField": "distancia_m",
             "maxDistance": radio_m,
             "spherical": True,
+            **({"query": filtro} if filtro else {}),
         }},
         {"$limit": limite},
     ]

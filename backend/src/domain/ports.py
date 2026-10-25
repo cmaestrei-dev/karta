@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from typing import Protocol
 
 from src.domain.horarios import HorarioRuta
+from src.domain.direcciones import Cruce
 from src.domain.models import (
     Estacion, IconoLugar, Incidente, Lugar, LugarGuardado, RutaTransporte, TipoViajero, Usuario,
 )
@@ -80,8 +81,12 @@ class PlaceRepository(Protocol):
         """Lugares cuyo nombre tiene palabras que empiezan por cada token."""
         ...
 
-    def nearest(self, lon: float, lat: float, radio_m: float) -> tuple[Lugar, float] | None:
-        """Lugar más cercano dentro del radio y su distancia en metros."""
+    def nearest(self, lon: float, lat: float, radio_m: float, tipo: str | None = None) -> tuple[Lugar, float] | None:
+        """Lugar más cercano dentro del radio (opcionalmente, de un tipo) y su distancia en metros."""
+        ...
+
+    def crossings_on(self, via_clave: str) -> list[Cruce]:
+        """Los cruces de una vía numerada («calle:9»), para ubicar direcciones."""
         ...
 
 
