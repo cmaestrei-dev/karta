@@ -350,7 +350,9 @@ class _FilaDeTramo extends StatelessWidget {
                 Semantics(
                   container: true,
                   button: true,
-                  label: 'Ruta ${tramo.ruta}, ${tramo.nombreRuta ?? ''}. Toca para ver su horario y estaciones',
+                  label: tramo.alternativas.isEmpty
+                      ? 'Ruta ${tramo.ruta}, ${tramo.nombreRuta ?? ''}. Toca para ver su horario y estaciones'
+                      : 'Rutas ${tramo.rutasEnTexto}: toma la que pase primero. Toca para ver la ${tramo.ruta}',
                   excludeSemantics: true,
                   child: InkWell(
                     borderRadius: BorderRadius.circular(10),
@@ -358,9 +360,18 @@ class _FilaDeTramo extends StatelessWidget {
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(minHeight: 48),
                       child: Row(children: [
-                        RouteCapsule(codigo: tramo.ruta ?? '', tipo: tramo.tipoRuta, grande: true),
+                        for (final (k, ruta) in tramo.rutas.indexed) ...[
+                          if (k > 0)
+                            Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: Text('o', style: texto.labelLarge)),
+                          RouteCapsule(codigo: ruta, tipo: tramo.tipoRuta, grande: true),
+                        ],
                         const SizedBox(width: 8),
-                        Expanded(child: Text(tramo.nombreRuta ?? '', style: texto.bodySmall, maxLines: 2)),
+                        Expanded(
+                          child: Text(
+                              tramo.alternativas.isEmpty ? tramo.nombreRuta ?? '' : 'Toma el que pase primero',
+                              style: texto.bodySmall,
+                              maxLines: 2),
+                        ),
                         Icon(Icons.chevron_right, color: scheme.onSurfaceVariant),
                       ]),
                     ),

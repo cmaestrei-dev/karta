@@ -120,6 +120,19 @@ class _TiempoReal implements TiempoRealRepository {
   }
 }
 
+/// Cada ruta llega a su hora: para «el que pase primero».
+class _TiempoRealPorRuta extends _TiempoReal {
+  final Map<String, int?> minutos;
+
+  _TiempoRealPorRuta(this.minutos);
+
+  @override
+  Future<Llegada> llegada(String ruta, {required LatLng desde, required LatLng hasta}) async {
+    llamadas.add('llegada $ruta');
+    return Llegada(minutos: minutos[ruta], fuentes: minutos[ruta] == null ? 0 : 1);
+  }
+}
+
 /// El mismo servidor, hasta que el teléfono se queda sin red.
 class _TiempoRealSinRed extends _TiempoReal {
   final _TiempoReal otro;
@@ -351,6 +364,44 @@ void main() {
       expect(textoDeLoQueSeSabe(const ComoSePideAqui(como: ComoSePidio.paroSolo, viajeros: 3)),
           'Aquí suele parar solo, según 3 viajeros. Por si acaso, pídela.');
     });
+  });
+
+  test('el que pase primero: muestra la ruta que llega antes y, a bordo, se cuenta en la que dijo que va', () async {
+    final servidorPorRuta = _TiempoRealPorRuta({'T103': 6, 'T101': 2});
+    final base = _viaje();
+    final bus = base.tramos[1];
+    final opcion = RouteOption(
+      resumen: 'T103 o T101', tiempoTotalMin: base.tiempoTotalMin, distanciaCaminataM: base.distanciaCaminataM,
+      riesgo: base.riesgo,
+      tramos: [
+        base.tramos[0],
+        Leg(modo: 'bus', desde: bus.desde, hasta: bus.hasta, distanciaM: bus.distanciaM, duracionMin: bus.duracionMin,
+            esperaMin: 2, ruta: 'T103', tipoRuta: 'troncal', puntos: bus.puntos, alternativas: const ['T101']),
+        base.tramos[2],
+      ],
+    );
+    final c = ViajeCubit(
+      opcion: opcion,
+      avisos: _Avisos(),
+      fuente: (_) => gps.stream,
+      tiempoReal: servidorPorRuta,
+      preferencia: _Preferencia(si: false, vioElAviso: true),
+      haySesion: () => true,
+      reloj: () => ahora,
+    );
+    await c.iniciar();
+    await _pasa();
+    expect(c.state.rutaQueLlega, 'T101');
+    expect(c.state.llegada!.minutos, 2);
+    expect(servidorPorRuta.llamadas.where((l) => l.startsWith('llegada')).toSet(), {'llegada T103', 'llegada T101'});
+
+    await en(_p(0, 195));
+    await en(_p(300, 200)); // subió: se supone el que llegaba primero
+    expect(c.rutaDelBus, 'T101');
+    c.voyEn('T103'); // pero dice que va en el T103
+    await c.contarOcupacion(Ocupacion.dePie);
+    expect(servidorPorRuta.llamadas.last, 'avistamiento T103 de_pie');
+    await c.close();
   });
 
   test('sin conexión mantiene la última llegada unos minutos, envejecida; después no dice nada', () async {

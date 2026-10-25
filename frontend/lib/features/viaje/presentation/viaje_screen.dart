@@ -182,17 +182,19 @@ class _ViajeViewState extends State<_ViajeView> {
             final llegada = state.llegada;
             final Widget? enVivo = state.estado.fase == Fase.aBordo && cubit.puedeContar
                 ? _ComoVa(
-                    ruta: seguidor.tramoActual.ruta!,
+                    ruta: cubit.rutaDelBus!,
+                    alternativas: state.rutaABordo == null ? seguidor.tramoActual.rutas : const [],
+                    onVoyEn: cubit.voyEn,
                     contada: state.ocupacion,
                     compartiendo: state.compartiendo,
                     onContar: _contar,
                   )
                 : bus?.ruta != null && llegada != null
                     ? _EnVivo(
-                        ruta: bus!.ruta!,
+                        ruta: state.rutaQueLlega ?? bus!.ruta!,
                         llegada: llegada,
                         onPasoLleno: state.estado.fase == Fase.esperando && cubit.haySesion()
-                            ? () => _pasoLleno(bus.ruta!)
+                            ? () => _pasoLleno(state.rutaQueLlega ?? bus!.ruta!)
                             : null,
                       )
                     : null;
@@ -305,13 +307,13 @@ class _ViajeViewState extends State<_ViajeView> {
                           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                           child: state.preguntarVarado
                               ? _VaradoDelBus(
-                                  ruta: seguidor.tramoActual.ruta ?? 'bus',
+                                  ruta: cubit.rutaDelBus ?? 'bus',
                                   onSeVaro: () => _accionDeVarado(cubit.seVaro),
                                   onTrancon: () => _accionDeVarado(cubit.esTrancon),
                                   onMeBaje: _recalcular,
                                 )
                               : _VaradoReportado(
-                                  ruta: seguidor.tramoActual.ruta ?? 'bus',
+                                  ruta: cubit.rutaDelBus ?? 'bus',
                                   onOtraRuta: _recalcular,
                                   onCerrar: cubit.cerrarVarado,
                                 ),
@@ -331,9 +333,9 @@ class _ViajeViewState extends State<_ViajeView> {
                           child: state.estado.fase != Fase.aBordo
                               ? _Desvio(onRecalcular: _recalcular)
                               : state.desvioDelBus
-                                  ? _BusDesviado(ruta: seguidor.tramoActual.ruta ?? 'bus')
+                                  ? _BusDesviado(ruta: cubit.rutaDelBus ?? 'bus')
                                   : _DesvioDelBus(
-                                      ruta: seguidor.tramoActual.ruta ?? 'bus',
+                                      ruta: cubit.rutaDelBus ?? 'bus',
                                       onSi: cubit.elBusSeDesvio,
                                       onMeBaje: _recalcular,
                                     ),
@@ -908,7 +910,18 @@ class _ComoVa extends StatelessWidget {
   final bool compartiendo;
   final ValueChanged<Ocupacion> onContar;
 
-  const _ComoVa({required this.ruta, required this.contada, required this.compartiendo, required this.onContar});
+  /// Con «el que pase primero», las rutas entre las que puede ir, hasta que diga en cuál va.
+  final List<String> alternativas;
+  final ValueChanged<String> onVoyEn;
+
+  const _ComoVa({
+    required this.ruta,
+    required this.contada,
+    required this.compartiendo,
+    required this.onContar,
+    this.alternativas = const [],
+    required this.onVoyEn,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -919,6 +932,23 @@ class _ComoVa extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (alternativas.length > 1) ...[
+            Text('¿En cuál vas?', style: texto.titleSmall),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.only(right: 8, bottom: 12),
+              child: Row(
+                children: [
+                  for (final (k, alternativa) in alternativas.indexed) ...[
+                    if (k > 0) const SizedBox(width: 8),
+                    Expanded(
+                      child: _Pildora(etiqueta: alternativa, elegida: alternativa == ruta, onTap: () => onVoyEn(alternativa)),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
           Text(
             contada == null ? '¿Cómo va el $ruta?' : 'Gracias: lo verán quienes esperan el $ruta',
             style: texto.titleSmall,

@@ -21,12 +21,16 @@ Instruccion instruccionDe(SeguidorDeViaje seguidor, String destino) {
         icono: Icons.directions_walk,
         titulo: 'Camina a ${actual.hasta}',
         detalle: '${metros(falta)} · ${minutos(minutosAPie(falta))} a pie',
-        luego: siguiente != null ? 'sube al ${siguiente.ruta}' : null,
+        luego: siguiente != null ? 'sube al ${siguiente.rutas.join(' o al ')}' : null,
       ),
     Fase.esperando => (
         icono: Icons.directions_bus,
-        titulo: 'Sube al ${actual.ruta}',
-        detalle: actual.comoAbordar != null ? 'en ${actual.desde} · ${actual.comoAbordar}' : 'en ${actual.desde}',
+        titulo: 'Sube al ${actual.rutas.join(' o al ')}',
+        detalle: [
+          'en ${actual.desde}',
+          if (actual.alternativas.isNotEmpty) 'el que pase primero',
+          ?actual.comoAbordar,
+        ].join(' · '),
         luego: _bajarse(actual),
       ),
     Fase.aBordo => (

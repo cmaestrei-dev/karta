@@ -231,7 +231,12 @@ class LegSequence extends StatelessWidget {
               Icon(Icons.directions_walk, size: 18, color: b.texto),
               Text('${tramo.duracionMin}', style: estilo),
             ])
-          : RouteCapsule(codigo: tramo.ruta ?? '', tipo: tramo.tipoRuta));
+          : Row(mainAxisSize: MainAxisSize.min, children: [
+              for (final (k, ruta) in tramo.rutas.indexed) ...[
+                if (k > 0) Padding(padding: const EdgeInsets.symmetric(horizontal: 3), child: Text('o', style: estilo)),
+                RouteCapsule(codigo: ruta, tipo: tramo.tipoRuta),
+              ],
+            ]));
     }
     return Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: 4, runSpacing: 4, children: piezas);
   }

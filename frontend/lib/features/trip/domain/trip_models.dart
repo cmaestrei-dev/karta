@@ -44,6 +44,9 @@ class Leg extends Equatable {
   final String? modulo;
   final String? hacia;
 
+  /// Otras rutas igual de buenas en este tramo: se toma la que pase primero (D19).
+  final List<String> alternativas;
+
   const Leg({
     required this.modo,
     required this.desde,
@@ -59,7 +62,14 @@ class Leg extends Equatable {
     this.indicacion,
     this.modulo,
     this.hacia,
+    this.alternativas = const [],
   });
+
+  /// Todas las rutas que sirven en este tramo, la principal primero.
+  List<String> get rutas => [?ruta, ...alternativas];
+
+  /// «T103 o T101».
+  String get rutasEnTexto => rutas.join(' o ');
 
   /// «módulo A1, hacia Bocagrande»: dónde hacer la fila y en qué sentido. Null si no se sabe.
   String? get comoAbordar {
@@ -99,6 +109,7 @@ class Leg extends Equatable {
         indicacion: json['indicacion'] as String?,
         modulo: json['modulo'] as String?,
         hacia: json['hacia'] as String?,
+        alternativas: [for (final r in json['alternativas'] as List? ?? const []) r as String],
         paradas: [
           for (final p in json['paradas'] as List<dynamic>? ?? const [])
             (nombre: p['nombre'] as String, punto: LatLng((p['latitud'] as num).toDouble(), (p['longitud'] as num).toDouble())),
