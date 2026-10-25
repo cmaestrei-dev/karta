@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/widgets/plaque.dart';
 
-/// Estructura común de las pantallas de inicio de sesión y registro: la marca en su placa.
+/// Estructura común de las pantallas de inicio de sesión y registro: la marca en su placa. Se abren desde el
+/// perfil, así que llevan el botón de volver.
 class AuthLayout extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -24,6 +25,8 @@ class AuthLayout extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  if (Navigator.of(context).canPop())
+                    const Align(alignment: Alignment.centerLeft, child: BackButton()),
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Plaque(

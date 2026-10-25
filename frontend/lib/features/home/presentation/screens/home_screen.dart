@@ -110,8 +110,10 @@ class _HomeViewState extends State<_HomeView> {
     );
     if (creado == null || !mounted) return;
     context.read<IncidentBloc>().add(LoadIncidentsEvent());
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content: Text('Listo: tu reporte ya está en el mapa para los viajeros cercanos.'),
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(creado.porConfirmar
+          ? 'Listo: tu reporte queda por confirmar hasta que otro viajero lo vea. Con cuenta, sale al instante.'
+          : 'Listo: tu reporte ya está en el mapa para los viajeros cercanos.'),
     ));
   }
 
@@ -209,7 +211,7 @@ class _HomeViewState extends State<_HomeView> {
                       builder: (context, state) => state is AuthAuthenticated
                           ? Semantics(
                               button: true,
-                              label: 'Tu perfil: ${state.usuario.nombre}, nivel ${state.usuario.nivel}',
+                              label: 'Tu perfil: ${state.usuario.nombre ?? 'sin cuenta'}, nivel ${state.usuario.nivel}',
                               excludeSemantics: true,
                               child: GestureDetector(
                                 onTap: () => showProfileSheet(context),

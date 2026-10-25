@@ -13,17 +13,37 @@ abstract class AuthState extends Equatable {
 /// Verificando si hay una sesión guardada (al abrir la app).
 class AuthUnknown extends AuthState {}
 
-class AuthInProgress extends AuthState {}
-
+/// Hay sesión: la cuenta invisible del teléfono o una con correo. [aviso] se muestra una vez
+/// («Tu sesión expiró…»).
 class AuthAuthenticated extends AuthState {
   final Usuario usuario;
+  final String? aviso;
 
-  const AuthAuthenticated(this.usuario);
+  const AuthAuthenticated(this.usuario, {this.aviso});
+
+  /// Terminó de entrar con correo o de registrarse (no está en curso ni falló).
+  bool get conCuentaLista => runtimeType == AuthAuthenticated && !usuario.sinCuenta;
 
   @override
-  List<Object?> get props => [usuario];
+  List<Object?> get props => [usuario, aviso];
 }
 
+/// Entrando con correo o registrándose desde el perfil; mientras tanto sigue la sesión actual.
+class AuthInProgress extends AuthAuthenticated {
+  const AuthInProgress(super.usuario);
+}
+
+/// No se pudo entrar o registrarse; sigue la sesión actual.
+class AuthFailure extends AuthAuthenticated {
+  final String message;
+
+  const AuthFailure(super.usuario, this.message);
+
+  @override
+  List<Object?> get props => [usuario, message];
+}
+
+/// Sin ninguna sesión: la primera vez que se abre Karta sin conexión (no hay cuenta invisible todavía).
 class AuthUnauthenticated extends AuthState {
   final String? message;
 
@@ -72,6 +92,7 @@ class RegisterRequested extends AuthEvent {
 /// Pide el perfil de nuevo para mostrar la reputación y el nivel al día.
 class ProfileRefreshRequested extends AuthEvent {}
 
+/// Cierra la sesión con correo y vuelve a la cuenta invisible del teléfono; [message] se le muestra al viajero.
 class LogoutRequested extends AuthEvent {
   final String? message;
 
@@ -82,59 +103,78 @@ class LogoutRequested extends AuthEvent {
 }
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
+  static const sinConexion = 'Karta necesita internet la primera vez que se abre. Revisa tus datos o tu Wi-Fi.';
+
   final AuthRepository repository;
 
   AuthBloc({required this.repository}) : super(AuthUnknown()) {
-
+    // Nunca se pide iniciar sesión para entrar: sin sesión guardada se usa la cuenta invisible.
     on<AuthStarted>((event, emit) async {
       try {
-        final usuario = await repository.restoreSession();
-        emit(usuario == null ? const AuthUnauthenticated() : AuthAuthenticated(usuario));
-      } catch (e) {
-        emit(AuthUnauthenticated(message: _clean(e)));
+        final usuario = await repository.restoreSession() ?? await repository.entrarSinCuenta();
+        emit(AuthAuthenticated(usuario));
+      } catch (_) {
+        emit(const AuthUnauthenticated(message: sinConexion));
       }
     });
 
     on<LoginRequested>((event, emit) async {
-      emit(AuthInProgress());
+      final actual = _actual;
+      if (actual == null) return;
+      emit(AuthInProgress(actual));
       try {
-        final usuario = await repository.login(email: event.email, password: event.password);
-        emit(AuthAuthenticated(usuario));
+        emit(AuthAuthenticated(await repository.login(email: event.email, password: event.password)));
       } catch (e) {
-        emit(AuthUnauthenticated(message: _clean(e)));
+        emit(AuthFailure(actual, _clean(e)));
       }
     });
 
+    // Desde la cuenta invisible, el servidor le pone correo a esa misma cuenta.
     on<RegisterRequested>((event, emit) async {
-      emit(AuthInProgress());
+      final actual = _actual;
+      if (actual == null) return;
+      emit(AuthInProgress(actual));
       try {
-        final usuario = await repository.register(
+        emit(AuthAuthenticated(await repository.register(
           nombre: event.nombre,
           email: event.email,
           password: event.password,
           tipoViajero: event.tipoViajero,
-        );
-        emit(AuthAuthenticated(usuario));
+        )));
       } catch (e) {
-        emit(AuthUnauthenticated(message: _clean(e)));
+        emit(AuthFailure(actual, _clean(e)));
       }
     });
 
     on<ProfileRefreshRequested>((event, emit) async {
-      if (state is! AuthAuthenticated) return;
+      final actual = _actual;
+      if (actual == null) return;
       try {
         final usuario = await repository.refresh();
         if (usuario != null && state is AuthAuthenticated) emit(AuthAuthenticated(usuario));
       } on SesionVencida {
-        await repository.logout();
-        emit(const AuthUnauthenticated(message: 'Tu sesión expiró. Inicia sesión de nuevo.'));
+        await _volverASinCuenta(
+          emit,
+          actual.sinCuenta ? null : 'Tu sesión expiró. Entra de nuevo con tu correo desde tu perfil.',
+        );
       }
     });
 
-    on<LogoutRequested>((event, emit) async {
-      await repository.logout();
-      emit(AuthUnauthenticated(message: event.message));
-    });
+    on<LogoutRequested>((event, emit) => _volverASinCuenta(emit, event.message));
+  }
+
+  Usuario? get _actual => switch (state) {
+        AuthAuthenticated(:final usuario) => usuario,
+        _ => null,
+      };
+
+  Future<void> _volverASinCuenta(Emitter<AuthState> emit, String? aviso) async {
+    await repository.logout();
+    try {
+      emit(AuthAuthenticated(await repository.entrarSinCuenta(), aviso: aviso));
+    } catch (_) {
+      emit(AuthUnauthenticated(message: aviso ?? sinConexion));
+    }
   }
 
   static String _clean(Object error) => error.toString().replaceAll('Exception: ', '');
