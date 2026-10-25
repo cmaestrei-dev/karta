@@ -383,7 +383,8 @@ def _cercanos(lon: float, lat: float, radio_m: float, limite: int, filtro: dict 
 
 def _to_lugar(doc: dict) -> Lugar:
     longitud, latitud = doc["ubicacion"]["coordinates"]
-    return Lugar(id=str(doc["_id"]), nombre=doc["nombre"], tipo=doc["tipo"], latitud=latitud, longitud=longitud)
+    return Lugar(id=str(doc["_id"]), nombre=doc["nombre"], tipo=doc["tipo"], latitud=latitud, longitud=longitud,
+                 detalle=f"{doc['tipo']} · {doc['zona']}" if doc.get("zona") else None)
 
 
 def _to_lugar_guardado(doc: dict) -> LugarGuardado:

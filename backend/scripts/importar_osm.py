@@ -3,7 +3,8 @@ Descarga de OpenStreetMap las rutas y estaciones de Transcaribe y los lugares bu
 Cartagena, y los guarda procesados en backend/data/ para cargarlos en MongoDB con el seed.
 
 Uso (desde backend/):
-    python -m scripts.importar_osm
+    python -m scripts.importar_osm                  # rutas, estaciones y lugares
+    python -m scripts.importar_osm --solo-lugares   # solo los lugares buscables
 
 Datos © colaboradores de OpenStreetMap, disponibles bajo la licencia ODbL.
 """
@@ -36,10 +37,11 @@ rel(r.r)["public_transport"="platform"]; out tags center;"""
 
 CONSULTA_LUGARES = f"""[out:json][timeout:180];{AREA}
 (
-  nwr["place"~"^(suburb|neighbourhood|quarter|square)$"]["name"](area.a);
-  nwr["tourism"~"^(attraction|museum|viewpoint)$"]["name"](area.a);
-  nwr["amenity"~"^(university|college|hospital|bus_station|marketplace|townhall|library)$"]["name"](area.a);
-  nwr["shop"="mall"]["name"](area.a);
+  nwr["place"~"^(suburb|neighbourhood|quarter|square|village|hamlet|locality|island)$"]["name"](area.a);
+  nwr["tourism"~"^(attraction|museum|viewpoint|hotel|hostel|guest_house)$"]["name"](area.a);
+  nwr["amenity"~"^(university|college|hospital|bus_station|marketplace|townhall|library|place_of_worship|school|clinic|fuel|police)$"]["name"](area.a);
+  nwr["shop"~"^(mall|supermarket)$"]["name"](area.a);
+  nwr["landuse"="retail"]["name"](area.a);
   nwr["aeroway"="aerodrome"]["name"](area.a);
   nwr["leisure"~"^(park|stadium)$"]["name"](area.a);
   nwr["historic"~"^(castle|fort|monument|city_gate)$"]["name"](area.a);
@@ -57,14 +59,28 @@ TIPO_LUGAR = [
     ("amenity", "marketplace", "Mercado"),
     ("amenity", "townhall", "Entidad pública"),
     ("amenity", "library", "Biblioteca"),
+    ("amenity", "clinic", "Clínica"),
+    ("amenity", "school", "Colegio"),
+    ("amenity", "place_of_worship", "Iglesia"),
+    ("amenity", "police", "Policía"),
+    ("amenity", "fuel", "Estación de servicio"),
     ("shop", "mall", "Centro comercial"),
+    ("shop", "supermarket", "Supermercado"),
+    ("landuse", "retail", "Zona comercial"),   # el Mercado de Bazurto y Caribe Plaza están mapeados así
     ("tourism", "museum", "Museo"),
     ("tourism", "attraction", "Sitio turístico"),
     ("tourism", "viewpoint", "Mirador"),
+    ("tourism", "hotel", "Hotel"),
+    ("tourism", "hostel", "Hotel"),
+    ("tourism", "guest_house", "Hotel"),
     ("historic", None, "Sitio histórico"),
     ("leisure", "stadium", "Estadio"),
     ("leisure", "park", "Parque"),
     ("place", "square", "Plaza"),
+    ("place", "village", "Corregimiento"),     # La Boquilla, Bocachica, Pasacaballos
+    ("place", "hamlet", "Caserío"),
+    ("place", "locality", "Sector"),
+    ("place", "island", "Isla"),
     ("place", None, "Barrio"),
 ]
 
@@ -156,11 +172,14 @@ def tipo_de_lugar(etiquetas: dict) -> str | None:
 
 
 DISTANCIA_DUPLICADO_M = 1500
+DISTANCIA_MISMO_SITIO_M = 300   # mismo nombre con dos etiquetas («Mall Plaza» centro comercial y zona comercial)
 
 
 def procesar_lugares(elementos: list[dict], estaciones: list[dict]) -> list[dict]:
-    lugares, vistos = [], {}
-    for e in elementos:
+    lugares, vistos, por_nombre = [], {}, {}
+    orden = {tipo: k for k, (_, _, tipo) in enumerate(TIPO_LUGAR)}
+    # Primero los tipos más específicos: si un sitio tiene dos etiquetas, queda la que mejor lo describe.
+    for e in sorted(elementos, key=lambda e: orden.get(tipo_de_lugar(e["tags"]), len(orden))):
         etiquetas = e["tags"]
         tipo = tipo_de_lugar(etiquetas)
         centro = e.get("center") or {"lat": e.get("lat"), "lon": e.get("lon")}
@@ -172,7 +191,11 @@ def procesar_lugares(elementos: list[dict], estaciones: list[dict]) -> list[dict
         previos = vistos.setdefault((normalizar(nombre), tipo), [])
         if any(distancia_m(punto, previo) < DISTANCIA_DUPLICADO_M for previo in previos):
             continue
+        mismo_nombre = por_nombre.setdefault(normalizar(nombre), [])
+        if any(distancia_m(punto, previo) < DISTANCIA_MISMO_SITIO_M for previo in mismo_nombre):
+            continue
         previos.append(punto)
+        mismo_nombre.append(punto)
         lugares.append({
             "_id": f"osm-{e['type'][0]}{e['id']}",
             "nombre": nombre,
@@ -180,6 +203,7 @@ def procesar_lugares(elementos: list[dict], estaciones: list[dict]) -> list[dict
             "ubicacion": {"type": "Point", "coordinates": [round(centro["lon"], 6), round(centro["lat"], 6)]},
             "tokens": tokens(nombre),
         })
+    poner_zonas(lugares)
     for estacion in estaciones:
         lugares.append({
             "_id": f"estacion-{estacion['_id']}",
@@ -189,6 +213,23 @@ def procesar_lugares(elementos: list[dict], estaciones: list[dict]) -> list[dict
             "tokens": tokens(f"Estación {estacion['nombre']} Transcaribe"),
         })
     return sorted(lugares, key=lambda l: l["nombre"])
+
+
+ZONAS = ("Barrio", "Corregimiento", "Sector", "Caserío")
+RADIO_DE_ZONA_M = 1500
+
+
+def poner_zonas(lugares: list[dict]) -> None:
+    """A cada sitio, el barrio más cercano: así se distinguen las diez «Terpel» o los hoteles con el mismo nombre."""
+    zonas = [l for l in lugares if l["tipo"] in ZONAS]
+    for lugar in lugares:
+        if lugar["tipo"] in ZONAS or lugar["tipo"] == "Isla":
+            continue
+        punto = tuple(lugar["ubicacion"]["coordinates"])
+        cerca = min(((distancia_m(punto, tuple(z["ubicacion"]["coordinates"])), z["nombre"]) for z in zonas),
+                    default=None)
+        if cerca and cerca[0] <= RADIO_DE_ZONA_M:
+            lugar["zona"] = cerca[1]
 
 
 # Estaciones cuyos andenes no tienen nombre en OSM: sin ellas, las alimentadoras no tienen dónde integrarse con la
@@ -227,9 +268,22 @@ def solo_estaciones_de_integracion():
     print(f"✅ {len(datos['transcaribe.json']['estaciones'])} estaciones.")
 
 
+def solo_lugares():
+    """Vuelve a descargar los lugares buscables sin tocar las rutas ni las estaciones."""
+    transcaribe = json.loads((DATA_DIR / "transcaribe.json").read_text(encoding="utf-8"))
+    lugares = procesar_lugares(consultar_overpass(CONSULTA_LUGARES), transcaribe["estaciones"])
+    agregar_estaciones_de_integracion(transcaribe, lugares)
+    atribucion = "Datos © colaboradores de OpenStreetMap (ODbL), descargados el " + time.strftime("%Y-%m-%d")
+    with open(DATA_DIR / "lugares.json", "w", encoding="utf-8") as archivo:
+        json.dump({"atribucion": atribucion, "lugares": lugares}, archivo, ensure_ascii=False, separators=(",", ":"))
+    print(f"✅ {len(lugares)} lugares.")
+
+
 def main():
     if "--solo-integraciones" in sys.argv:
         return solo_estaciones_de_integracion()
+    if "--solo-lugares" in sys.argv:
+        return solo_lugares()
     DATA_DIR.mkdir(exist_ok=True)
     print("Descargando rutas de Transcaribe…")
     relaciones = consultar_overpass(CONSULTA_RUTAS)

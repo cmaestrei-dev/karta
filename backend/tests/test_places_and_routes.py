@@ -23,6 +23,17 @@ def test_buscador_ignora_tildes_y_busca_por_prefijo(api):
     assert estaciones[0]["tipo"] == "Estación Transcaribe"
 
 
+def test_buscador_encuentra_mercados_hoteles_y_corregimientos(api):
+    # En OpenStreetMap el mercado y Caribe Plaza son zonas comerciales, y La Boquilla una localidad.
+    for consulta, nombre in [("mercado bazurto", "Mercado de Bazurto"), ("la boquilla", "La Boquilla"),
+                             ("hotel caribe", "Hotel Caribe"), ("caribe plaza", "Caribe Plaza")]:
+        assert api.get("/api/v1/places/search", params={"q": consulta}).json()[0]["nombre"] == nombre
+    # Varios sitios con el mismo nombre se distinguen por el barrio.
+    terpel = api.get("/api/v1/places/search", params={"q": "terpel"}).json()
+    assert len(terpel) > 1 and all(t["detalle"].startswith("Estación de servicio · ") for t in terpel)
+    assert len({t["detalle"] for t in terpel}) == len(terpel)
+
+
 def test_buscador_entiende_los_nombres_populares(api):
     # En OpenStreetMap es «Puerta del Reloj»; en la calle, la Torre del Reloj. También mientras se escribe.
     for consulta in ("Torre del Reloj", "torre del re"):
