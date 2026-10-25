@@ -73,7 +73,7 @@ class TipoDeReporte extends Equatable {
     final ruta = respuestas['ruta'];
     return switch (clave) {
       'bus_no_pasa' => ruta != null ? 'el $ruta no pasa' : 'el bus no pasa',
-      'bus_lleno' => ruta != null ? 'el $ruta va lleno' : 'bus lleno',
+      'bus_lleno' => ruta != null ? 'el $ruta no paró' : 'el bus no paró',
       _ => nombre.isEmpty ? nombre : nombre[0].toLowerCase() + nombre.substring(1),
     };
   }
@@ -227,12 +227,16 @@ class IncidentDetail extends Equatable {
   final bool? miVoto;
   final bool misGracias;
 
+  /// El nivel de quien reportó, al reportar: una señal de confianza junto a su alias.
+  final int nivelAutor;
+
   const IncidentDetail({
     required this.incidente,
     required this.aliasAutor,
     required this.esMio,
     this.miVoto,
     this.misGracias = false,
+    this.nivelAutor = 1,
   });
 
   bool get puedeVotar => !esMio && miVoto == null;
@@ -244,14 +248,17 @@ class IncidentDetail extends Equatable {
         esMio: json['es_mio'] as bool? ?? false,
         miVoto: json['mi_voto'] as bool?,
         misGracias: json['mis_gracias'] as bool? ?? false,
+        nivelAutor: json['nivel_autor'] as int? ?? 1,
       );
 
   IncidentDetail conVoto(Incident actualizado, bool sigue) => IncidentDetail(
-      incidente: actualizado, aliasAutor: aliasAutor, esMio: esMio, miVoto: sigue, misGracias: misGracias);
+      incidente: actualizado, aliasAutor: aliasAutor, esMio: esMio, miVoto: sigue, misGracias: misGracias,
+      nivelAutor: nivelAutor);
 
   IncidentDetail conGracias(Incident actualizado) => IncidentDetail(
-      incidente: actualizado, aliasAutor: aliasAutor, esMio: esMio, miVoto: miVoto, misGracias: true);
+      incidente: actualizado, aliasAutor: aliasAutor, esMio: esMio, miVoto: miVoto, misGracias: true,
+      nivelAutor: nivelAutor);
 
   @override
-  List<Object?> get props => [incidente, aliasAutor, esMio, miVoto, misGracias];
+  List<Object?> get props => [incidente, aliasAutor, esMio, miVoto, misGracias, nivelAutor];
 }

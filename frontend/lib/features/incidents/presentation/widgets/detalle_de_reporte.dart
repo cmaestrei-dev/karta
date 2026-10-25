@@ -6,6 +6,7 @@ import '../../../../core/design/ilustracion.dart';
 import '../../../../core/format.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../data/repositories/incident_repository.dart';
+import '../../../auth/domain/models/usuario.dart';
 import '../../domain/models/incident_models.dart';
 import '../bloc/incident_bloc.dart';
 import '../cubit/report_cubits.dart';
@@ -132,9 +133,13 @@ class _Detalle extends StatelessWidget {
   }
 
   String _comunidad(IncidentDetail? detalle, Incident incidente) {
+    // El nivel de quien reportó es una señal de confianza: «Lo reportó Ana P. · nivel 3, Bahía».
+    final marco = detalle == null ? null : marcosPorNivel[detalle.nivelAutor.clamp(1, 5)];
     final quien = detalle == null
         ? 'Lo reportó un viajero'
-        : (detalle.esMio ? 'Lo reportaste tú' : 'Lo reportó ${detalle.aliasAutor}');
+        : detalle.esMio
+            ? 'Lo reportaste tú'
+            : 'Lo reportó ${detalle.aliasAutor}${marco != null ? ' · nivel ${detalle.nivelAutor}, $marco' : ''}';
     final confirmaciones = switch (incidente.votosSi) {
       0 when incidente.porConfirmar => 'por confirmar: no cuenta en el riesgo de las rutas hasta que alguien lo vea',
       0 => 'nadie lo ha confirmado todavía',

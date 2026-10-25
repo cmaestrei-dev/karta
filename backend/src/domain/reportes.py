@@ -48,8 +48,12 @@ CATALOGO: dict[str, TipoReporte] = {t.clave: t for t in [
         CampoDetalle("espera", "¿Hace cuánto esperas?",
                      opciones=(("10", "10 min"), ("20", "20 min"), ("30", "30 min o más"))),
     )),
-    TipoReporte("bus_lleno", "Bus lleno, no paró", Grupo.SERVICIO, peso=2, vigencia=timedelta(minutes=30),
-                campos=(_RUTA,)),
+    TipoReporte("bus_lleno", "El bus no paró", Grupo.SERVICIO, peso=2, vigencia=timedelta(minutes=30), campos=(
+        _RUTA,
+        CampoDetalle("motivo", "¿Por qué no paró?", opciones=(
+            ("lleno", "Iba lleno"), ("no_se_acerco", "No se acercó al paradero"),
+            ("apagado", "Pasó apagado o fuera de servicio"))),
+    )),
     TipoReporte("estacion_cerrada", "Estación cerrada", Grupo.SERVICIO, peso=6, vigencia=timedelta(hours=4)),
     # Un bus varado deja de contar en las llegadas de su ruta (src/domain/tiempo_real.py).
     TipoReporte("bus_varado", "Bus varado", Grupo.SERVICIO, peso=3, vigencia=timedelta(hours=1), campos=(_RUTA,)),

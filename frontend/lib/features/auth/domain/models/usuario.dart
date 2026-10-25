@@ -23,6 +23,53 @@ class Impacto extends Equatable {
   List<Object> get props => [reportes, confirmaciones, gracias, vistas];
 }
 
+/// Una insignia ganada con aportes que la comunidad validó.
+class Insignia extends Equatable {
+  final String clave;
+  final String nombre;
+  final String descripcion;
+
+  const Insignia({required this.clave, required this.nombre, required this.descripcion});
+
+  factory Insignia.fromJson(Map<String, dynamic> json) => Insignia(
+        clave: json['clave'] as String,
+        nombre: json['nombre'] as String,
+        descripcion: json['descripcion'] as String? ?? '',
+      );
+
+  Map<String, dynamic> toJson() => {'clave': clave, 'nombre': nombre, 'descripcion': descripcion};
+
+  @override
+  List<Object> get props => [clave, nombre, descripcion];
+}
+
+/// La insignia sin ganar más cercana: «Ojo de halcón: 3 de 10 confirmaciones».
+class AvanceDeInsignia extends Equatable {
+  final Insignia insignia;
+  final int llevas;
+  final int meta;
+  final String unidad;
+
+  const AvanceDeInsignia({required this.insignia, required this.llevas, required this.meta, required this.unidad});
+
+  factory AvanceDeInsignia.fromJson(Map<String, dynamic> json) => AvanceDeInsignia(
+        insignia: Insignia.fromJson(json['insignia'] as Map<String, dynamic>),
+        llevas: json['llevas'] as int,
+        meta: json['meta'] as int,
+        unidad: json['unidad'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {'insignia': insignia.toJson(), 'llevas': llevas, 'meta': meta, 'unidad': unidad};
+
+  double get fraccion => meta == 0 ? 1 : (llevas / meta).clamp(0.0, 1.0);
+
+  @override
+  List<Object> get props => [insignia, llevas, meta, unidad];
+}
+
+/// Los marcos del avatar por nivel, con nombres de Cartagena (el nivel 1 aún no tiene).
+const marcosPorNivel = {2: 'Muralla', 3: 'Bahía', 4: 'Castillo', 5: 'La Popa'};
+
 /// Un viajero. [sinCuenta]: la cuenta invisible del teléfono, sin nombre ni correo; registrarse le pone correo
 /// a esa misma cuenta.
 class Usuario extends Equatable {
@@ -33,6 +80,8 @@ class Usuario extends Equatable {
   final int reputacion;
   final bool sinCuenta;
   final Impacto impacto;
+  final List<Insignia> insignias;
+  final AvanceDeInsignia? siguienteInsignia;
 
   /// Nombre corto que ven los demás viajeros en los reportes («Ana P.»).
   final String alias;
@@ -50,7 +99,12 @@ class Usuario extends Equatable {
     required this.nivel,
     this.sinCuenta = false,
     this.impacto = const Impacto(),
+    this.insignias = const [],
+    this.siguienteInsignia,
   });
+
+  /// El marco del avatar según el nivel («Bahía»), o null en el nivel 1.
+  String? get marco => marcosPorNivel[nivel.clamp(1, 5)];
 
   /// Las iniciales del avatar: «Camilo Maestre» → «CM». Vacías sin cuenta (el avatar muestra un ícono).
   String get iniciales {
@@ -79,6 +133,12 @@ class Usuario extends Equatable {
       nivel: json['nivel'] as int? ?? nivelPorReputacion(reputacion),
       sinCuenta: json['sin_cuenta'] as bool? ?? json['email'] == null,
       impacto: Impacto.fromJson(json['impacto'] as Map<String, dynamic>?),
+      insignias: [
+        for (final i in json['insignias'] as List? ?? const []) Insignia.fromJson(i as Map<String, dynamic>),
+      ],
+      siguienteInsignia: json['siguiente_insignia'] == null
+          ? null
+          : AvanceDeInsignia.fromJson(json['siguiente_insignia'] as Map<String, dynamic>),
     );
   }
 
@@ -92,10 +152,13 @@ class Usuario extends Equatable {
         'nivel': nivel,
         'sin_cuenta': sinCuenta,
         'impacto': impacto.toJson(),
+        'insignias': [for (final i in insignias) i.toJson()],
+        if (siguienteInsignia != null) 'siguiente_insignia': siguienteInsignia!.toJson(),
       };
 
   @override
-  List<Object?> get props => [id, email, nombre, tipoViajero, reputacion, alias, nivel, sinCuenta, impacto];
+  List<Object?> get props =>
+      [id, email, nombre, tipoViajero, reputacion, alias, nivel, sinCuenta, impacto, insignias, siguienteInsignia];
 }
 
 /// Reputación con la que empieza cada nivel, del 2 al 5 (todos arrancan en 100, nivel 1).

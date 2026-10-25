@@ -48,6 +48,21 @@ class Usuario:
     def sin_cuenta(self) -> bool:
         return self.email is None
 
+    @property
+    def marco(self) -> str | None:
+        from src.domain.reconocimiento import marco
+        return marco(self.nivel)
+
+    @property
+    def insignias(self) -> list:
+        from src.domain.reconocimiento import insignias
+        return insignias(self.impacto)
+
+    @property
+    def siguiente_insignia(self):
+        from src.domain.reconocimiento import siguiente_insignia
+        return siguiente_insignia(self.impacto)
+
 
 @dataclass(frozen=True)
 class Incidente:

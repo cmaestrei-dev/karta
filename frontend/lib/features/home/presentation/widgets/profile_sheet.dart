@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -11,7 +13,7 @@ import '../../../places/presentation/cubit/saved_places_cubit.dart';
 import '../../../places/presentation/screens/saved_places_screen.dart';
 import '../../../viaje/data/preferencia_de_compartir.dart';
 
-/// Avatar del viajero con sus iniciales y su nivel en una insignia.
+/// Avatar del viajero con sus iniciales, el marco de su nivel y el nivel en una insignia.
 class AvatarDeViajero extends StatelessWidget {
   final Usuario usuario;
   final double tamano;
@@ -24,22 +26,25 @@ class AvatarDeViajero extends StatelessWidget {
     return SizedBox.square(
       dimension: tamano + 6,
       child: Stack(
+        clipBehavior: Clip.none,
         children: [
-          Container(
-            width: tamano,
-            height: tamano,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: b.hoja,
-              shape: BoxShape.circle,
-              border: Border.all(color: b.acento, width: 2),
+          Positioned.fill(
+            child: Padding(
+              padding: const EdgeInsets.all(3),
+              child: CustomPaint(
+                foregroundPainter: PintorDeMarco(marco: usuario.marco, acento: b.acento),
+                child: Container(
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(color: b.hoja, shape: BoxShape.circle),
+                  child: usuario.sinCuenta
+                      ? Icon(Icons.person_outline, size: tamano * 0.5, color: b.texto)
+                      : Text(
+                          usuario.iniciales,
+                          style: TextStyle(fontSize: tamano * 0.34, fontWeight: FontWeight.w800, color: b.texto),
+                        ),
+                ),
+              ),
             ),
-            child: usuario.sinCuenta
-                ? Icon(Icons.person_outline, size: tamano * 0.5, color: b.texto)
-                : Text(
-                    usuario.iniciales,
-                    style: TextStyle(fontSize: tamano * 0.34, fontWeight: FontWeight.w800, color: b.texto),
-                  ),
           ),
           Positioned(
             right: 0,
@@ -62,6 +67,82 @@ class AvatarDeViajero extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Los marcos del avatar, uno por nivel y con imágenes de Cartagena: se ganan con reputación, no se compran.
+/// Son trazos simples, sin animación, para que no pesen en un teléfono económico.
+class PintorDeMarco extends CustomPainter {
+  final String? marco;
+  final Color acento;
+
+  const PintorDeMarco({required this.marco, required this.acento});
+
+  static const arena = Color(0xFFC9A46A);
+  static const oro = Color(0xFFE0B84F);
+  static const mar = [Color(0xFF1F8FC9), Color(0xFF2EC4B6), Color(0xFF1F8FC9)];
+  static const atardecer = [Color(0xFFFF9A3C), Color(0xFFFF5E7E), Color(0xFF8E5CF7), Color(0xFFFF9A3C)];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final centro = size.center(Offset.zero);
+    final radio = size.shortestSide / 2;
+    final grosor = (size.shortestSide * 0.075).clamp(2.5, 6.0);
+    final aro = Rect.fromCircle(center: centro, radius: radio - grosor / 2);
+    final pincel = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = grosor;
+    switch (marco) {
+      case 'Muralla':
+        // Bloques de piedra coralina, como los de la muralla.
+        pincel.color = arena;
+        const bloques = 12, hueco = 0.1;
+        for (var i = 0; i < bloques; i++) {
+          canvas.drawArc(aro, -pi / 2 + i * 2 * pi / bloques + hueco / 2, 2 * pi / bloques - hueco, false, pincel);
+        }
+      case 'Bahía':
+        pincel.shader = const SweepGradient(colors: mar).createShader(aro);
+        canvas.drawOval(aro, pincel);
+      case 'Castillo':
+        // Doble muro dorado con cuatro baluartes, como el San Felipe.
+        pincel.color = oro;
+        canvas.drawOval(aro, pincel);
+        canvas.drawOval(
+            aro.deflate(grosor),
+            Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 1
+              ..color = oro.withValues(alpha: 0.7));
+        final baluarte = Paint()..color = oro;
+        for (var i = 0; i < 4; i++) {
+          final angulo = -pi / 2 + i * pi / 2;
+          canvas
+            ..save()
+            ..translate(centro.dx + cos(angulo) * aro.width / 2, centro.dy + sin(angulo) * aro.height / 2)
+            ..rotate(angulo + pi / 4)
+            ..drawRect(Rect.fromCenter(center: Offset.zero, width: grosor * 1.7, height: grosor * 1.7), baluarte)
+            ..restore();
+        }
+      case 'La Popa':
+        // El atardecer visto desde La Popa, con un halo.
+        canvas.drawOval(
+            aro,
+            Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = grosor * 1.6
+              ..color = const Color(0x59FF5E7E)
+              ..maskFilter = MaskFilter.blur(BlurStyle.normal, grosor));
+        pincel.shader = const SweepGradient(colors: atardecer).createShader(aro);
+        canvas.drawOval(aro, pincel);
+      default:
+        pincel
+          ..color = acento
+          ..strokeWidth = 2;
+        canvas.drawOval(Rect.fromCircle(center: centro, radius: radio - 1), pincel);
+    }
+  }
+
+  @override
+  bool shouldRepaint(PintorDeMarco antes) => antes.marco != marco || antes.acento != acento;
 }
 
 /// Cuenta del viajero: alias, nivel y reputación (al día), lugares guardados y cerrar sesión.
@@ -90,6 +171,7 @@ void showProfileSheet(BuildContext context) {
                         children: [
                           _Reputacion(usuario: state.usuario),
                           _TuImpacto(impacto: state.usuario.impacto),
+                          _Insignias(usuario: state.usuario),
                           if (state.usuario.sinCuenta) _CrearCuenta(hoja: hoja, raiz: context),
                         ],
                       )
@@ -288,6 +370,10 @@ class _Reputacion extends StatelessWidget {
                   textBaseline: TextBaseline.alphabetic,
                   children: [
                     Text('Nivel ${usuario.nivel}', style: texto.titleLarge),
+                    if (usuario.marco != null) ...[
+                      const SizedBox(width: 8),
+                      _MarcoGanado(marco: usuario.marco!),
+                    ],
                     const Spacer(),
                     Text('${usuario.reputacion} de reputación',
                         style: texto.bodyMedium?.copyWith(color: b.textoSuave, fontFeatures: tabularFigures)),
@@ -311,7 +397,7 @@ class _Reputacion extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  falta == null ? 'Llegaste al nivel más alto.' : 'Te faltan $falta para el nivel ${usuario.nivel + 1}.',
+                  _queFalta(usuario),
                   style: texto.bodyMedium,
                 ),
                 const SizedBox(height: 4),
@@ -328,6 +414,50 @@ class _Reputacion extends StatelessWidget {
       ),
     );
   }
+}
+
+/// El nombre del marco con una muestra en miniatura, junto al nivel.
+class _MarcoGanado extends StatelessWidget {
+  final String marco;
+
+  const _MarcoGanado({required this.marco});
+
+  @override
+  Widget build(BuildContext context) {
+    final b = Bahia.de(context);
+    return Semantics(
+      label: 'Marco $marco',
+      excludeSemantics: true,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(5, 3, 9, 3),
+        decoration: BoxDecoration(color: b.campo, borderRadius: BorderRadius.circular(12)),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox.square(
+                dimension: 16, child: CustomPaint(painter: PintorDeMarco(marco: marco, acento: b.acento))),
+            const SizedBox(width: 5),
+            Text(marco, style: Theme.of(context).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w700)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// «Te faltan 40 para el nivel 4 y el marco Castillo».
+String _queFalta(Usuario usuario) {
+  // Sin partir «La Popa» entre dos líneas.
+  String entero(String? nombre) => (nombre ?? '').replaceAll(' ', '\u00A0');
+  final falta = usuario.faltaParaSubir;
+  if (falta == null) return 'Llegaste al nivel más alto y al marco ${entero(usuario.marco)}.';
+  final siguiente = entero(marcosPorNivel[usuario.nivel + 1]);
+  final marco = siguiente.isEmpty
+      ? ''
+      : usuario.marco == null
+          ? ' y tu primer marco: $siguiente'
+          : ' y el marco $siguiente';
+  return 'Te faltan $falta para el nivel ${usuario.nivel + 1}$marco.';
 }
 
 /// «Tu impacto»: lo que el viajero le ha aportado a la comunidad, en números que se entienden.
@@ -388,6 +518,183 @@ class _TuImpacto extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Cómo se ve cada insignia: el color de la medalla y su ícono, siempre en [tintaDeMedalla].
+const medallas = {
+  'primer_aviso': (Color(0xFFFF9A3C), Icons.campaign_outlined),
+  'ojo_de_halcon': (Color(0xFF1F8FC9), Icons.visibility_outlined),
+  'gracias_a_ti': (Color(0xFFFF5E7E), Icons.volunteer_activism_outlined),
+  'faro_de_la_bahia': (Color(0xFFE0B84F), Icons.flare),
+  'viajero_solidario': (Color(0xFF2EC4B6), Icons.directions_bus_outlined),
+};
+const tintaDeMedalla = Color(0xFF14181F);
+
+/// Compartir la posición del bus es anónimo: su insignia se cuenta en el teléfono, no en el servidor.
+const _viajeroSolidario = Insignia(
+    clave: 'viajero_solidario', nombre: 'Viajero solidario', descripcion: 'Compartiste la posición de 5 buses');
+const _busesParaSerSolidario = 5;
+
+/// Las insignias ganadas y la que está más cerca, con cuánto falta.
+class _Insignias extends StatelessWidget {
+  final Usuario usuario;
+
+  const _Insignias({required this.usuario});
+
+  @override
+  Widget build(BuildContext context) {
+    final b = Bahia.de(context);
+    final texto = Theme.of(context).textTheme;
+    return FutureBuilder<int>(
+      future: PreferenciaDeCompartir().viajesCompartidos(),
+      builder: (context, viajes) {
+        final buses = viajes.data ?? 0;
+        final solidario = buses >= _busesParaSerSolidario;
+        final ganadas = [...usuario.insignias, if (solidario) _viajeroSolidario];
+        final proximas = [
+          if (usuario.siguienteInsignia != null) usuario.siguienteInsignia!,
+          if (!solidario)
+            AvanceDeInsignia(
+                insignia: _viajeroSolidario, llevas: buses, meta: _busesParaSerSolidario, unidad: 'buses compartidos'),
+        ];
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(color: b.tarjeta, borderRadius: BorderRadius.circular(18)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('Tus insignias', style: texto.titleMedium),
+                const SizedBox(height: 4),
+                if (ganadas.isEmpty)
+                  Text('Se ganan cuando otros viajeros confirman, agradecen o usan lo que aportas.',
+                      style: texto.bodySmall?.copyWith(color: b.textoSuave))
+                else ...[
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 4,
+                    runSpacing: 12,
+                    children: [for (final insignia in ganadas) _InsigniaGanada(insignia: insignia)],
+                  ),
+                ],
+                if (ganadas.isNotEmpty && proximas.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Text('Por ganar', style: texto.labelMedium?.copyWith(color: b.textoSuave)),
+                ],
+                for (final avance in proximas) ...[
+                  const SizedBox(height: 10),
+                  _ProximaInsignia(avance: avance),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _Medalla extends StatelessWidget {
+  final String clave;
+  final bool ganada;
+  final double tamano;
+
+  const _Medalla({required this.clave, required this.ganada, this.tamano = 52});
+
+  @override
+  Widget build(BuildContext context) {
+    final b = Bahia.de(context);
+    final (fondo, icono) = medallas[clave] ?? (b.acento, Icons.star_outline);
+    return Container(
+      width: tamano,
+      height: tamano,
+      decoration: BoxDecoration(
+        color: ganada ? fondo : b.campo,
+        shape: BoxShape.circle,
+        border: Border.all(color: ganada ? Colors.white.withValues(alpha: 0.45) : b.divisor, width: 2),
+      ),
+      child: Icon(icono, size: tamano * 0.48, color: ganada ? tintaDeMedalla : b.textoSuave),
+    );
+  }
+}
+
+class _InsigniaGanada extends StatelessWidget {
+  final Insignia insignia;
+
+  const _InsigniaGanada({required this.insignia});
+
+  @override
+  Widget build(BuildContext context) {
+    final texto = Theme.of(context).textTheme;
+    return Tooltip(
+      message: insignia.descripcion,
+      triggerMode: TooltipTriggerMode.tap,
+      child: Semantics(
+        label: 'Insignia ${insignia.nombre}: ${insignia.descripcion}',
+        excludeSemantics: true,
+        child: SizedBox(
+          width: 76,
+          child: Column(
+            children: [
+              _Medalla(clave: insignia.clave, ganada: true),
+              const SizedBox(height: 6),
+              Text(insignia.nombre,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  style: texto.labelMedium?.copyWith(fontWeight: FontWeight.w700, height: 1.2)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProximaInsignia extends StatelessWidget {
+  final AvanceDeInsignia avance;
+
+  const _ProximaInsignia({required this.avance});
+
+  @override
+  Widget build(BuildContext context) {
+    final b = Bahia.de(context);
+    final texto = Theme.of(context).textTheme;
+    return Semantics(
+      label: 'Próxima insignia, ${avance.insignia.nombre}: llevas ${avance.llevas} de ${avance.meta} '
+          '${avance.unidad}',
+      excludeSemantics: true,
+      child: Row(
+        children: [
+          _Medalla(clave: avance.insignia.clave, ganada: false, tamano: 40),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Expanded(child: Text(avance.insignia.nombre, style: texto.titleSmall)),
+                    Text('${avance.llevas} de ${avance.meta}',
+                        style: texto.bodySmall?.copyWith(color: b.textoSuave, fontFeatures: tabularFigures)),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(3),
+                  child: LinearProgressIndicator(value: avance.fraccion, minHeight: 6, backgroundColor: b.campo),
+                ),
+                const SizedBox(height: 4),
+                Text(avance.unidad, style: texto.bodySmall?.copyWith(color: b.textoSuave)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

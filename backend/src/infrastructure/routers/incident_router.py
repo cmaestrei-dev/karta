@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from src.application.incident_service import IncidentService
 from src.domain.models import Usuario
+from src.domain.reconocimiento import marco
 from src.domain.reportes import (
     NOMBRE_GRUPO, DetallesInvalidos, GraciasRepetidas, Grupo, IncidenteNoEncontrado, VotoPropio, VotoRepetido,
 )
@@ -80,6 +81,8 @@ def get_incident(incidente_id: str, usuario: Usuario | None = Depends(get_option
         raise NO_ENCONTRADO
     return IncidentDetailResponse(**IncidentResponse.model_validate(detalle.incidente).model_dump(),
                                   reportado_por_alias=detalle.alias_autor, es_mio=detalle.es_mio,
+                                  nivel_autor=detalle.incidente.nivel_autor,
+                                  marco_autor=marco(detalle.incidente.nivel_autor),
                                   mi_voto=detalle.mi_voto, mis_gracias=detalle.mis_gracias)
 
 

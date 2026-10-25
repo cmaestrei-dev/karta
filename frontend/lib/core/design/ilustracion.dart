@@ -6,7 +6,7 @@ import 'bahia.dart';
 /// Tipos de reporte con ilustración propia. La clave es la misma que usa el catálogo del backend.
 enum TipoIlustrado {
   busNoPasa('bus_no_pasa', 'El bus no pasa', 'servicio'),
-  busLleno('bus_lleno', 'Bus lleno, no paró', 'servicio'),
+  busLleno('bus_lleno', 'El bus no paró', 'servicio'),
   busVarado('bus_varado', 'Bus varado', 'servicio'),
   estacionCerrada('estacion_cerrada', 'Estación cerrada', 'servicio'),
   trancon('trancon', 'Trancón', 'via'),

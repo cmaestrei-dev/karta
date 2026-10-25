@@ -29,6 +29,9 @@ void main() {
       expect(noPasa.fraseDeEnvio({'ruta': 'T103'}), 'el T103 no pasa');
       expect(noPasa.fraseDeEnvio({}), 'el bus no pasa');
       expect(catalogo.tipo('calle_inundada')!.fraseDeEnvio({}), 'calle inundada');
+      const noParo = TipoDeReporte(clave: 'bus_lleno', nombre: 'El bus no paró', grupo: 'servicio', vigenciaMin: 30, campos: []);
+      expect(noParo.fraseDeEnvio({'ruta': 'X103', 'motivo': 'no_se_acerco'}), 'el X103 no paró');
+      expect(noParo.fraseDeEnvio({}), 'el bus no paró');
     });
 
     test('la vigencia se dice en palabras', () {
@@ -70,6 +73,11 @@ void main() {
       expect(IncidentDetail.fromJson({...base, 'es_mio': true}).puedeVotar, isFalse);
       expect(IncidentDetail.fromJson({...base, 'es_mio': false, 'mi_voto': true}).puedeVotar, isFalse);
       expect(ajeno.conVoto(ajeno.incidente, false).miVoto, isFalse);
+      // El nivel del autor se conserva al votar y al agradecer; si no viene, es 1.
+      final confiable = IncidentDetail.fromJson({...base, 'es_mio': false, 'nivel_autor': 4});
+      expect(confiable.conVoto(confiable.incidente, true).nivelAutor, 4);
+      expect(confiable.conGracias(confiable.incidente).nivelAutor, 4);
+      expect(ajeno.nivelAutor, 1);
     });
   });
 }
