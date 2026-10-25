@@ -8,9 +8,9 @@ Notas de trabajo de [derecho-de-peticion-transcaribe.md](derecho-de-peticion-tra
 
 | Archivo | Qué es |
 |---|---|
-| `docs/legal/derecho-de-peticion-transcaribe.md` | La carta lista para firmar, de 2 páginas en tamaño carta. |
+| `docs/legal/derecho-de-peticion-transcaribe.md` | La carta lista para firmar, de 3 páginas en tamaño carta. |
 | `docs/legal/derecho-de-peticion-transcaribe-notas.md` | Este archivo. |
-| `derecho-de-peticion-transcaribe.docx` (carpeta temporal de la sesión, `scratchpad/peticion/`) | La misma carta en Word: Arial 10,5, tamaño carta, numeración «Página X de 2». Se generó con `generar_docx.py` desde el Markdown y se revisó en PDF. La carpeta temporal se borra al reiniciar el equipo: cópiala antes. |
+| `~/Descargas/derecho-de-peticion-transcaribe.docx` | La misma carta en Word: Arial 10,5, tamaño carta, numeración «Página X de Y». Se generó desde el Markdown y se revisó en PDF. |
 
 ## 2. Antes de radicar
 
@@ -202,6 +202,11 @@ Los términos se cuentan en **días hábiles** desde el día siguiente a la rece
 - **Contrato TC-SO-001-2023** entre Transcaribe y SONDA S.A. (recaudo, gestión y control de flota e información al usuario), firmado digitalmente el 17 de agosto de 2023:
   - la cláusula cuarta, num. 1, define «Aplicaciones de transporte urbano: Aplicaciones móviles que ofrecen información al usuario de transporte público, como GMaps, Moovit, Petal Maps, entre otras»;
   - la cláusula quinta, num. 3, obliga al contratista a «Reconocer la titularidad de la información que pertenece a TRANSCARIBE S.A.».
+- **Capa «Rutas STM» de la Alcaldía** (consultada por la API de ArcGIS el 25 de octubre de 2026): servicio `services5.arcgis.com/NH8goQnevWdS65Vx/arcgis/rest/services/Equipamiento_e_Infraestructura/FeatureServer/0`, ítem `dc57967d890b49198cc8dd8454098940`, propietario «sig_cartagena», 26 polilíneas, última edición el 4 de junio de 2025, sin licencia ni descripción. El campo `FolderPath` de cada trazado empieza por «Trazados de rutas con paradas SITM-TRANSCARIBE 28-10-24.kmz/…». La capa solo trae líneas: las paradas del KMZ no se publicaron.
+- **Manual de Operaciones del SITM** (Resolución 030 del 18 de febrero de 2016), págs. 23-24: estaciones dobles (tipo «B», 8) con un módulo para servicios corrientes y otro para expresos, y sencillas (tipo «A», 9) con uno solo; tabla de módulos por estación.
+- **Manual de imagen y señalética, parte 2 de 3** (PDF de marzo de 2017, «todos los derechos reservados»): «el desarrollo específico de cada mapa por estaciones se encuentra realizado en los archivos de producción suministrados en formato digital». Los planos de las págs. 46-51 son genéricos: no dicen hacia dónde queda cada módulo.
+- **Anexo técnico del proceso TC-CPN-001-19** (consultoría de actualización del modelo de transporte y del diseño operacional): la estrategia de transferencia de conocimiento debe incluir «la entregar [sic] de toda la información digital georreferenciada, las bases de datos y todas las herramientas que se generen».
+- **Lo que no dice ningún documento público:** en qué extremo de cada estación (hacia el Centro o hacia el Portal) está el módulo A y en cuál el B. En los datos de 2025, el sufijo 1 es siempre la ida (desde el Portal, hacia el Centro) y el 2 la vuelta (77 de 77 casos cada uno).
 - **Google Maps:** que muestra paradas y horarios de Transcaribe es observación de Camilo. No encontré un convenio público entre Google y Transcaribe. Por eso la carta habla de lo que «Transcaribe o sus contratistas suministran a terceros como Google» y pide la información equivalente si no existe en GTFS.
 - **Precedente comparable:** TransMilenio publica «Especificación GTFS – SITP» en datosabiertos.bogota.gov.co con licencia CC BY-SA 4.0 (modificado el 18 de diciembre de 2023), también en datos.gov.co (`nysb-4689`).
 - **Norma de transporte sobre GTFS:** no encontré ninguna norma nacional (Ministerio de Transporte) que obligue a publicar GTFS. La Resolución 20223040045295 de 2022 es la compilación de tránsito y no trata el tema. El fundamento sigue siendo la Ley 1712 y las reglas de MinTIC.
@@ -237,13 +242,13 @@ Cartagena de Indias
 
 Yo, Camilo Andres Maestre Iglesias, identificado con la cédula de ciudadanía n.º [Cédula], en nombre propio y con fundamento en los artículos 23 y 74 de la Constitución, la Ley 1755 de 2015 y la Ley 1712 de 2014, presento la siguiente petición.
 
-**Antecedentes.** El Portal de Datos Abiertos del Distrito publica «Paraderos del Sistema Integrado de Transporte Masivo – Transcaribe S.A. Cartagena» y «Rutas del Sistema Integrado de Transporte Masivo – Transcaribe S.A. Cartagena», con autor «Oficina Asesora de Informatica». El primero también está en datos.gov.co (conjunto nemj-z89t), atribuido a esta Alcaldía. Los paraderos (948 registros) no traen coordenadas ni identificador único, y las rutas no traen su trazado. La licencia figura como «Creative Commons Attribution», sin versión, en el portal distrital, y como CC BY-SA 4.0 en datos.gov.co. El [fecha] presenté a Transcaribe S.A. una petición relacionada.
+**Antecedentes.** El Portal de Datos Abiertos del Distrito publica «Paraderos del Sistema Integrado de Transporte Masivo – Transcaribe S.A. Cartagena» y «Rutas del Sistema Integrado de Transporte Masivo – Transcaribe S.A. Cartagena», con autor «Oficina Asesora de Informatica». El primero también está en datos.gov.co (conjunto nemj-z89t), atribuido a esta Alcaldía. Los paraderos (948 registros) no traen coordenadas ni identificador único, y las rutas no traen su trazado. A la vez, la cuenta «sig_cartagena» de la Alcaldía publica en ArcGIS Online la capa «Rutas STM» (servicio «Equipamiento e Infraestructura»), con 26 trazados que provienen del archivo de Transcaribe «Trazados de rutas con paradas SITM-TRANSCARIBE 28-10-24.kmz», sin las paradas y sin licencia declarada. La licencia figura como «Creative Commons Attribution», sin versión, en el portal distrital, y como CC BY-SA 4.0 en datos.gov.co. El [fecha] presenté a Transcaribe S.A. una petición relacionada.
 
 **Peticiones.**
 
 1. Completar el conjunto de paraderos con un identificador único y las coordenadas de cada paradero (latitud y longitud en grados decimales, WGS 84 o MAGNA-SIRGAS) y, en las estaciones, el módulo donde para cada ruta. Publicarlo también en CSV o GeoJSON.
-2. Completar el conjunto de rutas con el trazado georreferenciado de cada ruta y sentido (GeoJSON, KML o shapefile).
-3. Informarme cuál es la licencia aprobada para estos conjuntos (Resolución MinTIC 1519 de 2020, anexo 4, num. 4.2.3), unificarla entre los dos portales y, de ser posible, adoptar CC BY 4.0, que permite reutilizarlos con atribución y combinarlos con otras bases abiertas, como OpenStreetMap.
+2. Completar el conjunto de rutas con el trazado georreferenciado de cada ruta y sentido (GeoJSON, KML o shapefile), y entregarme copia del archivo «Trazados de rutas con paradas SITM-TRANSCARIBE 28-10-24.kmz» que sirvió de base a la capa «Rutas STM», con sus paradas.
+3. Informarme cuál es la licencia aprobada para estos conjuntos y para la capa «Rutas STM» (Resolución MinTIC 1519 de 2020, anexo 4, num. 4.2.3), unificarla entre los dos portales y, de ser posible, adoptar CC BY 4.0, que permite reutilizarlos con atribución y combinarlos con otras bases abiertas, como OpenStreetMap.
 4. Si la información de base la tiene Transcaribe S.A., coordinar con esa entidad o remitirle esta petición e informármelo (Ley 1755 de 2015, art. 21).
 5. Indicarme la dependencia responsable de estos conjuntos y un correo para reportar inconsistencias y cambios de rutas.
 
@@ -277,7 +282,7 @@ C.C. [Cédula]
 1. **Si existe un GTFS de Transcaribe y quién lo tiene:** Transcaribe, SONDA u otro tercero. Google pudo armar los datos por otra vía. La carta está redactada para que, aun así, entreguen lo equivalente.
 2. **Composición accionaria.** Los documentos de Transcaribe dicen «orden distrital» y «aportes públicos». Un blog de El Universal atribuye participación a la Nación (Ministerios de Hacienda y de Transporte), pero no lo verifiqué en fuente oficial. Solo cambiaría el juez de la insistencia (juez administrativo o tribunal) y el reparto de la tutela. Las reglas de reparto no permiten rechazar la tutela por competencia (Decreto 1069 de 2015, art. 2.2.3.1.2.1, par. 2).
 3. **El numeral 4(a), publicar y adoptar una licencia:** es una petición de interés general. Publicar datos abiertos es un deber legal (Ley 1712, art. 11, lit. k), pero qué conjuntos y con qué licencia lo decide la entidad. Pueden negarlo con motivos.
-4. **Los planos de módulos pueden no existir como documento.** En ese caso aplica la sección 5.C.
+4. **Los planos de módulos pueden no existir como documento.** Sí existieron los «archivos de producción» de la señalización (2016-2017), que dibujan el mapa de cada estación, pero pueden estar en poder del contratista de entonces o desactualizados. En ese caso aplica la sección 5.C.
 5. **El manual de PQR de Transcaribe (Resolución 097 de 2018)** puede tener una versión más reciente que no encontré publicada.
 6. **La dependencia exacta de la Alcaldía que administra el portal:** la Oficina Asesora de Informática aparece como autora de los conjuntos. Radicar por SIGOB asegura el reparto interno.
 7. **Algunas páginas de la Alcaldía** (mipg.cartagena.gov.co, con el plan de apertura de datos 2024–2027 y los informes trimestrales) bloquean la descarga automática, y no pude leerlas.
@@ -317,6 +322,10 @@ Todas consultadas el 25 de octubre de 2026.
 - Rutas: https://transcaribe.gov.co/index.php/rutas-sitm/
 - Manual de PQR (Resolución 097 de 2018): https://transcaribe.gov.co/Centro%20de%20Documentacion/MANUAL%20PQR%202018_1.pdf
 - Resolución 137 de 2015 (naturaleza jurídica): https://transcaribe.gov.co/wp-content/uploads/2015/01/RESOLUCION-No.137-de-2015-31-de-julio-de-2015.pdf
+- Manual de Operaciones: http://transcaribe.gov.co/Centro%20de%20Documentacion/MANUAL%20DE%20OPERACIONES%20FINAL.pdf
+- Manual de imagen y señalética, parte 2: https://transcaribe.gov.co/Centro%20de%20Documentacion/proceso%20senaletica/Parte%202%20de%203%20Manual%20de%20imagen%20y%20se%C3%B1aletica%20Transcaribe.pdf
+- Anexo técnico TC-CPN-001-19: https://www.transcaribe.gov.co/documentos/Licitaciones%202019/TC-CPN-001-19/ANEXO%20No.%201.%20ANEXO%20TECNICO.pdf
+- Capa «Rutas STM» (Alcaldía): https://services5.arcgis.com/NH8goQnevWdS65Vx/arcgis/rest/services/Equipamiento_e_Infraestructura/FeatureServer/0
 - Contrato TC-SO-001-2023: https://www.transcaribe.gov.co/documentos/Licitaciones%202023/TC-SO-001-2023/CONTRATO%20DE%20PRESTACION%20DE%20SERVICIOS%20DE%20RECAUDO%20GESTION%20Y%20CONTROL%20DE%20FLOTA%2017082023.pdf
 - Contrato TC-IC-002-2024 (descripción jurídica): https://www.transcaribe.gov.co/documentos/Licitaciones%202024/TC-IC-002-2024/MINUTA%20%20FIRMADA.pdf
 
