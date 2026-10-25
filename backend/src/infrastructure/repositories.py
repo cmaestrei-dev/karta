@@ -9,6 +9,7 @@ from pymongo import DESCENDING, ReturnDocument
 from pymongo.database import Database
 from pymongo.errors import DuplicateKeyError
 
+from src.domain.conocimiento import ComoSePidio, RespuestaDeParada
 from src.domain.direcciones import Cruce, Via
 from src.domain.models import (
     ALIAS_SIN_CUENTA, REPUTACION_INICIAL, EmailYaRegistrado, Impacto, Estacion, IconoLugar, Incidente, LimiteLugaresGuardados,
@@ -460,10 +461,13 @@ class MongoRealtimeRepository:
     """
     VIGENCIA_AVISTAMIENTO = timedelta(minutes=30)
     VIGENCIA_VIAJE = timedelta(minutes=5)
+    # Cómo se pide la parada cambia poco, pero cambia (un paradero nuevo, otra regla): un año basta.
+    VIGENCIA_RESPUESTA_DE_PARADA = timedelta(days=365)
 
     def __init__(self, db: Database):
         self._sightings = db.sightings
         self._trips = db.live_trips
+        self._stop_answers = db.stop_answers
 
     def add_sighting(self, ruta: str, longitud: float, latitud: float, ocupacion: Ocupacion | None,
                      en: datetime) -> None:
@@ -502,3 +506,14 @@ class MongoRealtimeRepository:
         filtro = {"ruta": ruta, "en": {"$gte": desde}}
         return ([observacion(d, True) for d in self._trips.find({**filtro, "expira_en": {"$gt": desde}})]
                 + [observacion(d, False) for d in self._sightings.find(filtro)])
+
+    def add_stop_answer(self, ruta: str, longitud: float, latitud: float, como: ComoSePidio, en: datetime) -> None:
+        self._stop_answers.insert_one({
+            "ruta": ruta, "ubicacion": {"type": "Point", "coordinates": [longitud, latitud]}, "como": como.value,
+            "en": en, "expira_en": en + self.VIGENCIA_RESPUESTA_DE_PARADA,
+        })
+
+    def stop_answers(self, ruta: str, longitud: float, latitud: float, radio_m: float) -> list[RespuestaDeParada]:
+        cerca = {"$near": {"$geometry": {"type": "Point", "coordinates": [longitud, latitud]}, "$maxDistance": radio_m}}
+        return [RespuestaDeParada(ComoSePidio(d["como"]), *d["ubicacion"]["coordinates"], d["en"])
+                for d in self._stop_answers.find({"ruta": ruta, "ubicacion": cerca}).limit(500)]

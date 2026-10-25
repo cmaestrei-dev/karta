@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:equatable/equatable.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -45,7 +47,11 @@ class Llegada extends Equatable {
   final int? vistoHaceMin;
   final Varado? varado;
 
-  const Llegada({this.minutos, this.fuentes = 0, this.ocupacion, this.vistoHaceMin, this.varado});
+  /// La última estimación que se pudo consultar, envejecida mientras el teléfono no tiene conexión.
+  final bool sinConexion;
+
+  const Llegada(
+      {this.minutos, this.fuentes = 0, this.ocupacion, this.vistoHaceMin, this.varado, this.sinConexion = false});
 
   factory Llegada.fromJson(Map<String, dynamic> json) => Llegada(
         minutos: json['minutos'] as int?,
@@ -55,8 +61,47 @@ class Llegada extends Equatable {
         varado: json['varado'] == null ? null : Varado.fromJson(json['varado'] as Map<String, dynamic>),
       );
 
+  /// La misma llegada [transcurrido] después, sin poder volver a consultarla: el bus está más cerca y el dato es
+  /// más viejo, y se dice.
+  Llegada sinConexionDesde(Duration transcurrido) {
+    final m = transcurrido.inMinutes;
+    return Llegada(
+      minutos: minutos == null ? null : max(0, minutos! - m),
+      fuentes: fuentes,
+      ocupacion: ocupacion,
+      vistoHaceMin: vistoHaceMin == null ? null : vistoHaceMin! + m,
+      varado: varado,
+      sinConexion: true,
+    );
+  }
+
   @override
-  List<Object?> get props => [minutos, fuentes, ocupacion, vistoHaceMin, varado];
+  List<Object?> get props => [minutos, fuentes, ocupacion, vistoHaceMin, varado, sinConexion];
+}
+
+/// Cómo pidió la parada quien se bajó en un paradero (D12).
+enum ComoSePidio {
+  timbre('timbre', 'Toqué el timbre'),
+  paroSolo('paro_solo', 'Paró solo'),
+  conductor('conductor', 'Le avisé al conductor');
+
+  final String api;
+  final String etiqueta;
+
+  const ComoSePidio(this.api, this.etiqueta);
+
+  static ComoSePidio? deApi(String? valor) => values.where((c) => c.api == valor).firstOrNull;
+}
+
+/// Lo que saben los viajeros de un paradero: cómo pidió la parada la mayoría, y cuántos.
+class ComoSePideAqui extends Equatable {
+  final ComoSePidio como;
+  final int viajeros;
+
+  const ComoSePideAqui({required this.como, required this.viajeros});
+
+  @override
+  List<Object> get props => [como, viajeros];
 }
 
 /// El tiempo real de los viajeros: nada de lo que se envía lleva el nombre de quien lo envía.
@@ -106,6 +151,24 @@ class TiempoRealRepository {
   }
 
   Future<void> terminarViajeCompartido(String viaje) => api.delete('/trips/$viaje', auth: true);
+
+  /// Al bajarse en un paradero: cómo pidió la parada. Se envía el paradero, no el recorrido.
+  Future<void> comoPediLaParada(String ruta, LatLng paradero, ComoSePidio como) => api.post('/stop-requests', {
+        'ruta': ruta,
+        'como': como.api,
+        'latitud': paradero.latitude,
+        'longitud': paradero.longitude,
+      }, auth: true);
+
+  /// Cómo se pide la parada en ese paradero según los viajeros; null si aún no hay suficientes respuestas.
+  Future<ComoSePideAqui?> comoSePide(String ruta, LatLng paradero) async {
+    final data = await api.get('/routes/$ruta/stop-request', query: {
+      'latitud': paradero.latitude.toStringAsFixed(6),
+      'longitud': paradero.longitude.toStringAsFixed(6),
+    }) as Map<String, dynamic>;
+    final como = ComoSePidio.deApi(data['como'] as String?);
+    return como == null ? null : ComoSePideAqui(como: como, viajeros: data['viajeros'] as int? ?? 0);
+  }
 
   /// Un reporte de la comunidad desde el viaje («bus_varado» del T103, «trancon» detenido).
   Future<void> reportar(String tipo, Map<String, String> detalles, LatLng punto) => api.post('/incidents/', {

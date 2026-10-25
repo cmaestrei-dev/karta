@@ -124,6 +124,15 @@ class _ViajeViewState extends State<_ViajeView> {
     }
   }
 
+  Future<void> _responderComoPedi(ViajeCubit cubit, ComoSePidio como) async {
+    try {
+      await cubit.respondiComoPedi(como);
+      if (mounted) _mensaje('Gracias: así sabrán cómo se pide la parada aquí.');
+    } catch (e) {
+      if (mounted) _mensaje(e);
+    }
+  }
+
   Future<void> _accionDeVarado(Future<void> Function() accion) async {
     try {
       await accion();
@@ -187,6 +196,14 @@ class _ViajeViewState extends State<_ViajeView> {
                             : null,
                       )
                     : null;
+            final consejo =
+                state.estado.fase == Fase.esperando ? consejoDeEspera(seguidor.tramoActual, llegada) : null;
+            final arriba = consejo == null
+                ? enVivo
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [?enVivo, _Consejo(texto: consejo, solo: enVivo == null)],
+                  );
             return Stack(
               children: [
                 FlutterMap(
@@ -299,6 +316,15 @@ class _ViajeViewState extends State<_ViajeView> {
                                   onCerrar: cubit.cerrarVarado,
                                 ),
                         )
+                      else if (state.preguntarComoPediste != null)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                          child: _ComoPediste(
+                            paradero: state.preguntarComoPediste!,
+                            onResponder: (como) => _responderComoPedi(cubit, como),
+                            onSaltar: cubit.saltarComoPedi,
+                          ),
+                        )
                       else if (state.estado.desviado)
                         Padding(
                           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -314,7 +340,7 @@ class _ViajeViewState extends State<_ViajeView> {
                         ),
                       state.estado.fase == Fase.llegaste
                           ? _Llegaste(destino: cubit.destino, onTerminar: _terminar)
-                          : _BarraDeLlegada(seguidor: seguidor, arriba: enVivo, onTerminar: _terminar),
+                          : _BarraDeLlegada(seguidor: seguidor, arriba: arriba, onTerminar: _terminar),
                     ],
                   ),
                 ),
@@ -323,6 +349,7 @@ class _ViajeViewState extends State<_ViajeView> {
                     child: _PideLaParada(
                       como: state.pedirLaParada!,
                       paradero: seguidor.tramoActual.hasta,
+                      sabido: state.comoSePideAqui,
                       yaCasi: state.estado.faltaDelTramoM <= SeguidorDeViaje.bajateAquiEnParaderoM,
                       onListo: cubit.yaPediLaParada,
                     ),
@@ -594,6 +621,64 @@ class _VaradoDelBus extends StatelessWidget {
   }
 }
 
+/// Ya abajo, en un paradero: «¿Cómo pediste la parada?», con respuestas de un toque y siempre se puede saltar.
+class _ComoPediste extends StatelessWidget {
+  final String paradero;
+  final ValueChanged<ComoSePidio> onResponder;
+  final VoidCallback onSaltar;
+
+  const _ComoPediste({required this.paradero, required this.onResponder, required this.onSaltar});
+
+  @override
+  Widget build(BuildContext context) {
+    final b = Bahia.de(context);
+    final texto = Theme.of(context).textTheme;
+    return Material(
+      color: b.hoja,
+      elevation: 8,
+      shadowColor: Colors.black.withValues(alpha: 0.35),
+      borderRadius: BorderRadius.circular(22),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 6, 6, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.notifications_active_outlined, color: b.acento),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('¿Cómo pediste la parada?', style: texto.titleSmall),
+                      Text('En $paradero. Así sabrán qué funciona aquí.',
+                          style: texto.bodySmall?.copyWith(color: b.textoSuave)),
+                    ],
+                  ),
+                ),
+                IconButton(tooltip: 'Saltar la pregunta', onPressed: onSaltar, icon: const Icon(Icons.close)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.only(right: 10),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final como in ComoSePidio.values)
+                    OutlinedButton(onPressed: () => onResponder(como), child: Text(como.etiqueta)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _VaradoReportado extends StatelessWidget {
   final String ruta;
   final VoidCallback onOtraRuta;
@@ -738,6 +823,33 @@ class _BarraDeLlegada extends StatelessWidget {
   }
 }
 
+/// «Haz la fila del T103: se sube en orden»: una línea discreta, debajo de lo que importa.
+class _Consejo extends StatelessWidget {
+  final String texto;
+
+  /// Sin la llegada encima, necesita su propio margen arriba.
+  final bool solo;
+
+  const _Consejo({required this.texto, required this.solo});
+
+  @override
+  Widget build(BuildContext context) {
+    final b = Bahia.de(context);
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20, solo ? 14 : 0, 20, 14),
+      child: Row(
+        children: [
+          Icon(Icons.people_alt_outlined, size: 20, color: b.textoSuave),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(texto, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: b.textoSuave)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Mientras se camina a la parada o se espera: cuándo llega el bus según quienes lo vieron.
 class _EnVivo extends StatelessWidget {
   final String ruta;
@@ -758,7 +870,15 @@ class _EnVivo extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(20, 12, onPasoLleno != null ? 8 : 20, 12),
       child: Row(
         children: [
-          Icon(sabe ? Icons.sensors : Icons.sensors_off_outlined, size: 22, color: sabe ? b.enVivo : b.textoSuave),
+          Icon(
+            llegada.sinConexion
+                ? Icons.cloud_off_outlined
+                : sabe
+                    ? Icons.sensors
+                    : Icons.sensors_off_outlined,
+            size: 22,
+            color: sabe && !llegada.sinConexion ? b.enVivo : b.textoSuave,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Semantics(
@@ -933,7 +1053,11 @@ class _PideLaParada extends StatefulWidget {
   final bool yaCasi;
   final VoidCallback onListo;
 
-  const _PideLaParada({required this.como, required this.paradero, required this.yaCasi, required this.onListo});
+  /// Lo que saben los viajeros de ese paradero, si hay suficientes respuestas.
+  final ComoSePideAqui? sabido;
+
+  const _PideLaParada(
+      {required this.como, required this.paradero, required this.sabido, required this.yaCasi, required this.onListo});
 
   @override
   State<_PideLaParada> createState() => _PideLaParadaState();
@@ -962,6 +1086,7 @@ class _PideLaParadaState extends State<_PideLaParada> with SingleTickerProviderS
     final tinta = b.sobreReportar;
     final titulo = widget.yaCasi ? 'Bájate aquí' : textoDePedirLaParada(widget.como);
     final detalle = widget.yaCasi ? 'El bus está llegando a tu paradero' : 'Te bajas en el próximo paradero';
+    final sabido = widget.sabido == null || widget.yaCasi ? null : textoDeLoQueSeSabe(widget.sabido!);
     return Material(
       color: b.reportar,
       child: SafeArea(
@@ -969,7 +1094,7 @@ class _PideLaParadaState extends State<_PideLaParada> with SingleTickerProviderS
           padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
           child: Semantics(
             liveRegion: true,
-            label: frase(titulo, '$detalle: ${widget.paradero}'),
+            label: frase(titulo, '$detalle: ${widget.paradero}.${sabido != null ? ' $sabido' : ''}'),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -1017,6 +1142,19 @@ class _PideLaParadaState extends State<_PideLaParada> with SingleTickerProviderS
                     style: texto.titleMedium?.copyWith(color: tinta, fontWeight: FontWeight.w700),
                   ),
                 ),
+                if (sabido != null) ...[
+                  const SizedBox(height: 20),
+                  ExcludeSemantics(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.groups_outlined, size: 20, color: tinta),
+                        const SizedBox(width: 8),
+                        Flexible(child: Text(sabido, style: texto.bodyMedium?.copyWith(color: tinta))),
+                      ],
+                    ),
+                  ),
+                ],
                 const Spacer(),
                 FilledButton(
                   onPressed: widget.onListo,

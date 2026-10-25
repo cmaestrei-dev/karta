@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
+from src.domain.conocimiento import CERCA_DEL_PARADERO_M, ComoSePidio, LoQueSeSabe, como_se_pide
 from src.domain.geo import validar_cobertura
 from src.domain.ports import IncidentRepository, RealtimeRepository, TransitRepository
 from src.domain.tiempo_real import BusVarado, Estimacion, Ocupacion, estimar_llegada, varado_antes_de_la_parada
@@ -46,6 +47,19 @@ class RealtimeService:
 
     def end_trip(self, viaje: str) -> None:
         self.realtime.end_trip(viaje)
+
+    def answer_stop_request(self, ruta: str, latitud: float, longitud: float, como: ComoSePidio,
+                            ahora: datetime | None = None) -> None:
+        """«¿Cómo pediste la parada?», respondido al bajarse en un paradero (D12)."""
+        self._ruta_valida(ruta)
+        validar_cobertura(latitud, longitud)
+        self.realtime.add_stop_answer(ruta, longitud, latitud, como, ahora or datetime.now(timezone.utc))
+
+    def stop_request(self, ruta: str, latitud: float, longitud: float) -> LoQueSeSabe | None:
+        """Cómo se pide la parada en ese punto según los viajeros, si hay suficientes respuestas que coinciden."""
+        self._ruta_valida(ruta)
+        respuestas = self.realtime.stop_answers(ruta, longitud, latitud, CERCA_DEL_PARADERO_M)
+        return como_se_pide(respuestas, longitud, latitud)
 
     def arrival(self, ruta: str, subida: tuple[float, float], bajada: tuple[float, float],
                 ahora: datetime | None = None) -> tuple[Estimacion | None, tuple[BusVarado, float] | None]:

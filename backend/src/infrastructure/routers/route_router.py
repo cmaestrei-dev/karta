@@ -12,7 +12,7 @@ from src.domain.schemas.route_schema import (
     RouteSuggestRequest, RouteSuggestResponse, TramoResponse,
 )
 from src.domain.trip_planning import OpcionViaje
-from src.domain.schemas.realtime_schema import LlegadaResponse, VaradoResponse
+from src.domain.schemas.realtime_schema import ComoSePideResponse, LlegadaResponse, VaradoResponse
 from src.infrastructure.dependencies import get_incident_service, get_realtime_service, get_trip_service
 
 router = APIRouter(prefix="/api/v1/routes", tags=["Rutas"])
@@ -82,6 +82,23 @@ def next_arrival(codigo: str = Path(..., pattern=r"^[ATXC]\d{3}E?$"),
             hace_min=max(0, round((datetime.now(timezone.utc) - bus.en).total_seconds() / 60)),
         )
     return respuesta
+
+@router.get("/{codigo}/stop-request", summary="Cómo se pide la parada aquí", response_model=ComoSePideResponse,
+            responses={404: {"description": "No existe esa ruta"}})
+def how_to_request_stop(codigo: str = Path(..., pattern=r"^[ATXC]\d{3}E?$"),
+                        latitud: float = Query(..., ge=-90, le=90), longitud: float = Query(..., ge=-180, le=180),
+                        service: RealtimeService = Depends(get_realtime_service)):
+    """
+    Cómo pidieron la parada los viajeros que se bajaron de esta ruta en ese paradero: con al menos 3 respuestas y
+    una mayoría clara, `como` dice qué funciona allí; si no, es null y no se inventa nada.
+    """
+    try:
+        sabido = service.stop_request(codigo, latitud, longitud)
+    except RutaDesconocida:
+        raise HTTPException(status_code=404, detail=f"No existe la ruta {codigo}.")
+    if sabido is None:
+        return ComoSePideResponse()
+    return ComoSePideResponse(como=sabido.como.value, viajeros=sabido.viajeros, respuestas=sabido.respuestas)
 
 @router.post("/risk", summary="Riesgo de un recorrido", response_model=RouteRiskResponse)
 def evaluate_route_risk(request: RouteRiskRequest, service: IncidentService = Depends(get_incident_service)):

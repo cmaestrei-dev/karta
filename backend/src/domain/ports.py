@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from typing import Protocol
 
 from src.domain.horarios import HorarioRuta
+from src.domain.conocimiento import ComoSePidio, RespuestaDeParada
 from src.domain.direcciones import Cruce
 from src.domain.models import (
     Estacion, IconoLugar, Incidente, Lugar, LugarGuardado, RutaTransporte, TipoViajero, Usuario,
@@ -192,4 +193,11 @@ class RealtimeRepository(Protocol):
 
     def observations(self, ruta: str, desde: datetime) -> list[Observacion]:
         """Avistamientos y viajes compartidos de la ruta desde ese momento."""
+        ...
+
+    def add_stop_answer(self, ruta: str, longitud: float, latitud: float, como: ComoSePidio, en: datetime) -> None:
+        """«¿Cómo pediste la parada?»: la respuesta, sin quién la dio."""
+        ...
+
+    def stop_answers(self, ruta: str, longitud: float, latitud: float, radio_m: float) -> list[RespuestaDeParada]:
         ...

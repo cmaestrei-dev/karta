@@ -44,6 +44,9 @@ def ensure_indexes(db: Database) -> None:
     db.sightings.create_index([("expira_en", ASCENDING)], expireAfterSeconds=0)
     db.live_trips.create_index([("ruta", ASCENDING), ("en", ASCENDING)])
     db.live_trips.create_index([("expira_en", ASCENDING)], expireAfterSeconds=0)
+    # «¿Cómo pediste la parada?» (D12): anónimo, por ruta y punto; vence al año.
+    db.stop_answers.create_index([("ubicacion", GEOSPHERE), ("ruta", ASCENDING)])
+    db.stop_answers.create_index([("expira_en", ASCENDING)], expireAfterSeconds=0)
     migrar(db)
 
 
