@@ -132,12 +132,13 @@ void showProfileSheet(BuildContext context) {
 void _acercaDeKarta(BuildContext context) => showAboutDialog(
       context: context,
       applicationName: 'Karta',
-      applicationLegalese: '© 2026 Camilo Maestre',
+      applicationLegalese: '© 2026 Camilo Andres Maestre Iglesias',
       children: const [
         SizedBox(height: 16),
         Text('El tiempo real de Transcaribe, hecho por sus pasajeros. Sin anuncios.'),
         SizedBox(height: 12),
-        Text('La app es código abierto bajo la licencia Apache 2.0 y el servidor bajo la GNU AGPL 3.0.'),
+        Text('La app es código abierto bajo la licencia Apache 2.0, el servidor bajo la GNU AGPL 3.0 y la '
+            'documentación bajo CC BY 4.0.'),
         SizedBox(height: 12),
         SelectableText('Código fuente: github.com/cmaestrei-dev/karta'),
         SizedBox(height: 12),

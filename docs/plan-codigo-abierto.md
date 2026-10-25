@@ -9,7 +9,8 @@
 | Repositorio | **Público** ([cmaestrei-dev/karta](https://github.com/cmaestrei-dev/karta)) |
 | Servidor (`backend/`) | **GNU AGPL 3.0 o posterior** |
 | App (`frontend/`) | **Apache 2.0** |
-| Titular | **Camilo Maestre**, dueño del código y de la idea. José Herrera Gómez colabora en el proyecto del curso. |
+| Documentación | **CC BY 4.0** |
+| Titular | **Camilo Andres Maestre Iglesias**, dueño del código, de la documentación y de la idea. José Herrera Gómez colabora en el proyecto del curso. |
 | Contribuciones | Con el [acuerdo de contribución](acuerdo-de-contribucion.md) |
 
 **Por qué mantenerlo público:**
@@ -76,11 +77,9 @@ El código abierto no impide publicar. No se necesita ninguna certificación. Lo
 
 ## 8. Pendientes
 
-1. **Nombre completo de Camilo** en las notas de copyright (hoy dicen «Camilo Maestre»).
-2. **José:** firma del acuerdo de contribución por sus aportes anteriores.
-3. **Universidad:** revisar el estatuto de propiedad intelectual.
-4. **Licencia de la documentación** (`docs/`, diagramas). Propuesta: CC BY 4.0.
-5. **Política de tratamiento de datos** publicada antes del piloto (fase 4).
+1. **José:** firma del acuerdo de contribución por sus aportes anteriores.
+2. **Universidad:** revisar el estatuto de propiedad intelectual.
+3. **Política de tratamiento de datos** publicada antes del piloto (fase 4).
 
 ## Fuentes
 

@@ -205,9 +205,10 @@ Más allá del curso:
 
 ## Licencias
 
-Código abierto, © 2026 Camilo Maestre:
+Código abierto, © 2026 Camilo Andres Maestre Iglesias:
 - el servidor (`backend/`) bajo la **GNU AGPL 3.0 o posterior**;
-- la app (`frontend/`) bajo la **Apache 2.0**.
+- la app (`frontend/`) bajo la **Apache 2.0**;
+- la documentación bajo **CC BY 4.0**.
 
 Los datos de OpenStreetMap (ODbL) y de Datos Abiertos de Cartagena (CC BY 4.0) conservan su licencia. Detalles en [LICENSE.md](LICENSE.md); para aportar, [CONTRIBUTING.md](CONTRIBUTING.md).
 

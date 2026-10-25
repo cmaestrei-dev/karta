@@ -4,7 +4,7 @@
 
 > Borrador hecho para el proyecto; no reemplaza asesoría legal. Antes de usarlo con personas externas, conviene que lo revise un abogado (por ejemplo, el Consultorio Jurídico de la Universidad de Cartagena).
 
-Este acuerdo es entre quien contribuye («tú») y **Camilo Maestre**, titular del código y de la idea de Karta («el titular»).
+Este acuerdo es entre quien contribuye («tú») y **Camilo Andres Maestre Iglesias**, titular del código y de la idea de Karta («el titular»).
 
 Cubre todo lo que aportes a Karta («tus contribuciones»), incluidos los aportes que hayas hecho antes de aceptarlo:
 - código y documentos;
