@@ -79,3 +79,14 @@ def test_nivel_segun_reputacion(reputacion, esperado):
 ])
 def test_el_alias_publico_no_expone_el_nombre_completo(nombre, alias):
     assert alias_publico(nombre) == alias
+
+
+def test_un_reporte_de_alguien_de_confianza_pesa_mas_y_su_ya_no_retira_solo():
+    from src.domain.reportes import debe_retirarse, peso_en_riesgo
+    trancon = CATALOGO["trancon"]
+    assert peso_en_riesgo(trancon, 0, nivel_autor=1) == trancon.peso
+    assert peso_en_riesgo(trancon, 0, nivel_autor=5) == pytest.approx(trancon.peso * 1.6)
+    assert peso_en_riesgo(trancon, 0, nivel_autor=9) == peso_en_riesgo(trancon, 0, nivel_autor=5)
+    assert not debe_retirarse(1) and debe_retirarse(2)
+    assert debe_retirarse(1, nivel_de_quien_vota=3)
+

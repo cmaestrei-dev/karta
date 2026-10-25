@@ -108,7 +108,13 @@ VOTOS_PARA_RETIRAR = 2  # «ya no está» seguidos (sin un «sigue ahí» en med
 
 REPUTACION_POR_CONFIRMACION = 2  # para quien reportó, cada vez que otro confirma
 REPUTACION_POR_RETIRO = -5  # para quien reportó, si la comunidad lo desmiente
-REPUTACION_POR_VOTAR = 1  # para quien ayuda a validar
+# Para quien valida, solo cuando la comunidad le da la razón: otro confirma después de su «sigue ahí», o el
+# reporte se retira tras su «ya no está». Votar por votar no da puntos.
+REPUTACION_POR_VOTAR = 1
+
+# Desde este nivel, la comunidad confía más: un solo «ya no está» retira el reporte y sus reportes pesan más.
+NIVEL_DE_CONFIANZA = 3
+AUMENTO_DE_PESO_POR_NIVEL = 0.15  # nivel 5: 1,6 veces
 
 # Cada confirmación hace pesar más el reporte en el riesgo de una ruta, hasta el doble.
 AUMENTO_DE_PESO_POR_CONFIRMACION = 0.25
@@ -120,13 +126,14 @@ def expiracion_al_confirmar(tipo: TipoReporte, expira_en: datetime, ahora: datet
     return max(expira_en, ahora + tipo.vigencia)
 
 
-def debe_retirarse(no_seguidos: int) -> bool:
-    return no_seguidos >= VOTOS_PARA_RETIRAR
+def debe_retirarse(no_seguidos: int, nivel_de_quien_vota: int = 1) -> bool:
+    return no_seguidos >= VOTOS_PARA_RETIRAR or nivel_de_quien_vota >= NIVEL_DE_CONFIANZA
 
 
-def peso_en_riesgo(tipo: TipoReporte, confirmaciones: int) -> float:
+def peso_en_riesgo(tipo: TipoReporte, confirmaciones: int, nivel_autor: int = 1) -> float:
     factor = 1 + AUMENTO_DE_PESO_POR_CONFIRMACION * min(confirmaciones, CONFIRMACIONES_QUE_CUENTAN)
-    return tipo.peso * factor
+    confianza = 1 + AUMENTO_DE_PESO_POR_NIVEL * (min(max(nivel_autor, 1), 5) - 1)
+    return tipo.peso * factor * confianza
 
 
 NIVELES = [(450, 5), (300, 4), (200, 3), (150, 2)]
@@ -154,4 +161,8 @@ class VotoPropio(Exception):
 
 
 class VotoRepetido(Exception):
+    pass
+
+
+class GraciasRepetidas(Exception):
     pass

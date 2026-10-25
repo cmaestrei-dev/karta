@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class PreferenciaDeCompartir {
   static const _clave = 'karta_compartir_bus';
   static const _aviso = 'karta_aviso_compartir_visto';
+  static const _contador = 'karta_viajes_compartidos';
 
   /// Si comparte en sus viajes. Por defecto sí.
   Future<bool> compartir() async => (await SharedPreferences.getInstance()).getBool(_clave) ?? true;
@@ -14,4 +15,12 @@ class PreferenciaDeCompartir {
   Future<bool> avisoVisto() async => (await SharedPreferences.getInstance()).getBool(_aviso) ?? false;
 
   Future<void> marcarAvisoVisto() async => (await SharedPreferences.getInstance()).setBool(_aviso, true);
+
+  /// Cuántos buses ha compartido. Solo vive en el teléfono: los viajes compartidos son anónimos en el servidor.
+  Future<int> viajesCompartidos() async => (await SharedPreferences.getInstance()).getInt(_contador) ?? 0;
+
+  Future<void> sumarViajeCompartido() async {
+    final preferencias = await SharedPreferences.getInstance();
+    await preferencias.setInt(_contador, (preferencias.getInt(_contador) ?? 0) + 1);
+  }
 }

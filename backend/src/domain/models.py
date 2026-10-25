@@ -16,6 +16,15 @@ ALIAS_SIN_CUENTA = "Viajero sin cuenta"
 
 
 @dataclass(frozen=True)
+class Impacto:
+    """Lo que el viajero le ha aportado a la comunidad: se muestra en su perfil («Tu impacto»)."""
+    reportes: int = 0          # reportes hechos
+    confirmaciones: int = 0    # veces que otros confirmaron sus reportes
+    gracias: int = 0           # «Gracias» recibidos
+    vistas: int = 0            # personas que abrieron sus reportes
+
+
+@dataclass(frozen=True)
 class Usuario:
     """
     Un viajero. Sin correo es la cuenta invisible del teléfono: se crea sola al abrir Karta, sin nombre ni
@@ -29,6 +38,7 @@ class Usuario:
     password_hash: str | None
     creado_en: datetime
     alias: str  # nombre corto que ven los demás viajeros
+    impacto: Impacto = Impacto()
 
     @property
     def nivel(self) -> int:
@@ -56,6 +66,8 @@ class Incidente:
     expira_en: datetime
     # Lo reportó alguien sin cuenta y nadie lo ha confirmado: se ve en el mapa, pero no pesa en el riesgo.
     por_confirmar: bool = False
+    nivel_autor: int = 1   # el nivel de quien reportó, al reportar: pesa en el riesgo
+    gracias: int = 0       # «Gracias» de quienes usaron el reporte
 
 
 class IconoLugar(str, enum.Enum):

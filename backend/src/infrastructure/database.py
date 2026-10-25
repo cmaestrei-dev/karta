@@ -34,6 +34,10 @@ def ensure_indexes(db: Database) -> None:
     # Un voto por viajero y reporte; los votos y las ventanas de límite de peticiones vencen solos.
     db.incident_votes.create_index([("incidente", ASCENDING), ("usuario", ASCENDING)], unique=True)
     db.incident_votes.create_index([("expira_en", ASCENDING)], expireAfterSeconds=0)
+    # Un «Gracias» y una vista por viajero y reporte (para «Tu impacto»); vencen solos como los votos.
+    for coleccion in (db.incident_thanks, db.incident_views):
+        coleccion.create_index([("incidente", ASCENDING), ("usuario", ASCENDING)], unique=True)
+        coleccion.create_index([("expira_en", ASCENDING)], expireAfterSeconds=0)
     db.rate_limits.create_index([("expira_en", ASCENDING)], expireAfterSeconds=0)
     # Tiempo real de los viajeros: vence solo (30 min los avistamientos, 5 min sin moverse los viajes compartidos).
     db.sightings.create_index([("ruta", ASCENDING), ("en", ASCENDING)])

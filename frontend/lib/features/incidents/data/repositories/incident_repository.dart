@@ -40,6 +40,10 @@ class IncidentRepository {
     return IncidentDetail.fromJson(data as Map<String, dynamic>);
   }
 
+  /// «Gracias» a quien hizo el reporte. Devuelve el reporte con su nuevo total.
+  Future<Incident> thank(String id) async =>
+      Incident.fromJson(await api.post('/incidents/$id/thanks', const {}, auth: true) as Map<String, dynamic>);
+
   /// Devuelve el reporte actualizado y si este voto lo retiró del mapa.
   Future<(Incident, bool)> vote(String id, {required bool sigue}) async {
     final data = await api.post('/incidents/$id/votes', {'sigue': sigue}, auth: true) as Map<String, dynamic>;

@@ -49,6 +49,11 @@ class _Preferencia extends PreferenciaDeCompartir {
   Future<bool> compartir() async => si;
   @override
   Future<bool> avisoVisto() async => vioElAviso;
+
+  int viajesSumados = 0;
+
+  @override
+  Future<void> sumarViajeCompartido() async => viajesSumados++;
 }
 
 /// Anota cada llamada al servidor en el orden en que llegan.
@@ -184,6 +189,8 @@ void main() {
     ]);
     expect(c.state.compartiendo, isFalse);
     expect(c.state.estado.fase, Fase.caminandoAlDestino);
+    // «Buses compartidos» en «Tu impacto»: uno, aunque el viaje compartido se haya reiniciado al vencer.
+    expect((c.preferencia as _Preferencia).viajesSumados, 1);
     await c.close();
   });
 

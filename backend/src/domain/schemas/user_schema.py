@@ -20,6 +20,15 @@ class LoginRequest(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=1, max_length=128)
 
+class ImpactoResponse(BaseModel):
+    """«Tu impacto»: lo que el viajero le ha aportado a la comunidad."""
+    model_config = ConfigDict(from_attributes=True)
+
+    reportes: int = 0
+    confirmaciones: int = Field(0, description="Veces que otros confirmaron sus reportes")
+    gracias: int = Field(0, description="«Gracias» recibidos")
+    vistas: int = Field(0, description="Personas que abrieron sus reportes")
+
 class UserResponse(BaseModel):
     """Perfil público del viajero. Nunca incluye el hash de la contraseña."""
     model_config = ConfigDict(from_attributes=True)
@@ -32,6 +41,7 @@ class UserResponse(BaseModel):
     reputacion: int
     nivel: int = Field(..., description="Nivel según la reputación (1 a 5)")
     sin_cuenta: bool = Field(..., description="true: cuenta invisible del teléfono, sin correo")
+    impacto: ImpactoResponse = ImpactoResponse()
 
 class TokenResponse(BaseModel):
     access_token: str

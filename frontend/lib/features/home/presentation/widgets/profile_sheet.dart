@@ -89,6 +89,7 @@ void showProfileSheet(BuildContext context) {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           _Reputacion(usuario: state.usuario),
+                          _TuImpacto(impacto: state.usuario.impacto),
                           if (state.usuario.sinCuenta) _CrearCuenta(hoja: hoja, raiz: context),
                         ],
                       )
@@ -315,14 +316,68 @@ class _Reputacion extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Ganas 2 cuando alguien confirma tu reporte y 1 por validar los de otros. '
-                  'Si la comunidad desmiente uno tuyo, pierdes 5.',
+                  'Ganas 2 cuando alguien confirma tu reporte y 1 cuando la comunidad coincide con tu voto. '
+                  'Si desmienten uno tuyo, pierdes 5. Desde el nivel 3 confiamos más en ti: tus reportes pesan más '
+                  'y tu «ya no está» retira un reporte por sí solo.',
                   style: texto.bodySmall?.copyWith(color: b.textoSuave),
                 ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// «Tu impacto»: lo que el viajero le ha aportado a la comunidad, en números que se entienden.
+class _TuImpacto extends StatelessWidget {
+  final Impacto impacto;
+
+  const _TuImpacto({required this.impacto});
+
+  @override
+  Widget build(BuildContext context) {
+    final b = Bahia.de(context);
+    final texto = Theme.of(context).textTheme;
+    Widget dato(int valor, String que) => Expanded(
+          child: Semantics(
+            label: '$valor $que',
+            excludeSemantics: true,
+            child: Column(
+              children: [
+                Text('$valor', style: texto.titleLarge?.copyWith(fontFeatures: tabularFigures)),
+                const SizedBox(height: 2),
+                Text(que, textAlign: TextAlign.center, style: texto.bodySmall?.copyWith(color: b.textoSuave)),
+              ],
+            ),
+          ),
+        );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(8, 14, 8, 14),
+        decoration: BoxDecoration(color: b.tarjeta, borderRadius: BorderRadius.circular(18)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(left: 8, bottom: 10),
+              child: Text('Tu impacto', style: texto.titleMedium),
+            ),
+            Row(
+              children: [
+                dato(impacto.vistas, 'personas vieron tus reportes'),
+                dato(impacto.confirmaciones, 'confirmaciones'),
+                dato(impacto.gracias, 'gracias'),
+                FutureBuilder<int>(
+                  future: PreferenciaDeCompartir().viajesCompartidos(),
+                  builder: (context, viajes) => dato(viajes.data ?? 0, 'buses compartidos'),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -121,6 +121,7 @@ class ViajeCubit extends Cubit<ViajeState> {
   LatLng? _anclaQuieto;
   DateTime? _quietoDesde;
   bool _yaPreguntoVarado = false;
+  bool _contadoEsteBus = false;
   Leg? _busConsultado;
   DateTime? _ultimaLlegada;
   bool _quiereCompartir = false;
@@ -255,6 +256,7 @@ class ViajeCubit extends Cubit<ViajeState> {
   void _alSubir() {
     if (state.ocupacion != null) emit(state.copyWith(ocupacion: () => null));
     if (_quiereCompartir) _empezarACompartir();
+    _contadoEsteBus = false;
     // Con el bus quieto el GPS no manda posiciones (solo cada 10 m): un reloj revisa si lleva mucho quieto.
     _yaPreguntoVarado = false;
     _anclaQuieto = state.posicion;
@@ -358,6 +360,10 @@ class ViajeCubit extends Cubit<ViajeState> {
       final nuevo = await tiempoReal!.iniciarViajeCompartido(ruta, punto);
       if (state.compartiendo && !isClosed && seguidor.tramoActual.ruta == ruta) {
         _viajeCompartido = nuevo;
+        if (!_contadoEsteBus) {
+          _contadoEsteBus = true;
+          await preferencia.sumarViajeCompartido(); // para «Tu impacto», solo en el teléfono
+        }
       } else {
         await tiempoReal!.terminarViajeCompartido(nuevo); // se bajó o dejó de compartir mientras tanto
       }

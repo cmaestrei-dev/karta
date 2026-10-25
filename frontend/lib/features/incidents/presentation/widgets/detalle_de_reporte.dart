@@ -141,7 +141,12 @@ class _Detalle extends StatelessWidget {
       1 => 'lo confirmó 1 viajero',
       final n => 'lo confirmaron $n viajeros',
     };
-    return '$quien · $confirmaciones';
+    final gracias = switch (incidente.gracias) {
+      0 => '',
+      1 => ' · 1 gracias',
+      final n => ' · $n gracias',
+    };
+    return '$quien · $confirmaciones$gracias';
   }
 
   List<Widget> _validacion(BuildContext context, IncidentDetailState state, Color colorGrupo) {
@@ -171,6 +176,8 @@ class _Detalle extends StatelessWidget {
           icono: Icons.check_circle_outline,
           texto: detalle.miVoto! ? 'Confirmaste que sigue ahí. Gracias.' : 'Dijiste que ya no está. Gracias.',
         ),
+        const SizedBox(height: 10),
+        _Gracias(detalle: detalle),
       ];
     }
 
@@ -199,7 +206,37 @@ class _Detalle extends StatelessWidget {
           ),
         ],
       ),
+      const SizedBox(height: 6),
+      _Gracias(detalle: detalle),
     ];
+  }
+}
+
+/// «Gracias» a quien reportó: reconocimiento entre viajeros, sin puntos (suma a «Tu impacto» del autor).
+class _Gracias extends StatelessWidget {
+  final IncidentDetail detalle;
+
+  const _Gracias({required this.detalle});
+
+  @override
+  Widget build(BuildContext context) {
+    final b = Bahia.de(context);
+    if (detalle.misGracias) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.favorite, size: 18, color: b.seguridad),
+          const SizedBox(width: 6),
+          Text('Le diste las gracias a ${detalle.aliasAutor}',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: b.textoSuave)),
+        ],
+      );
+    }
+    return TextButton.icon(
+      onPressed: () => context.read<IncidentDetailCubit>().darGracias(),
+      icon: const Icon(Icons.favorite_border),
+      label: Text('Dar las gracias a ${detalle.aliasAutor}'),
+    );
   }
 }
 

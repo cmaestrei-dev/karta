@@ -23,6 +23,10 @@ class UserRepository(Protocol):
         """Suma (o resta) puntos de reputación de forma atómica."""
         ...
 
+    def sumar_impacto(self, user_id: str, campo: str, cantidad: int = 1) -> None:
+        """Suma al contador de impacto del viajero («reportes», «confirmaciones», «gracias», «vistas»)."""
+        ...
+
     def add_invisible(self, *, huella: str, creado_en: datetime) -> Usuario:
         """Crea la cuenta invisible de un teléfono, identificada por la huella de su secreto."""
         ...
@@ -42,7 +46,7 @@ class UserRepository(Protocol):
 class IncidentRepository(Protocol):
     def add(self, *, reportado_por: str, tipo: TipoReporte, detalles: dict[str, str], latitud: float,
             longitud: float, lugar: str | None, creado_en: datetime, expira_en: datetime,
-            sin_cuenta: bool = False) -> Incidente: ...
+            sin_cuenta: bool = False, nivel_autor: int = 1) -> Incidente: ...
 
     def get_active(self, incidente_id: str, ahora: datetime) -> Incidente | None: ...
 
@@ -73,6 +77,20 @@ class IncidentRepository(Protocol):
 
     def retire(self, incidente_id: str, ahora: datetime) -> None:
         """Lo da por vencido ya: deja de verse y el índice TTL lo elimina."""
+        ...
+
+    def reward_voters(self, incidente_id: str, sigue: bool, excepto: str | None = None) -> list[str]:
+        """Quienes votaron [sigue] y aún no recibieron su punto (salvo [excepto]); quedan marcados como premiados."""
+        ...
+
+    def register_thanks(self, incidente_id: str, usuario_id: str, ahora: datetime) -> Incidente:
+        """Un «Gracias» por viajero y reporte. Lanza GraciasRepetidas si ya lo dio."""
+        ...
+
+    def thanks_of(self, incidente_id: str, usuario_id: str) -> bool: ...
+
+    def register_view(self, incidente_id: str, usuario_id: str, ahora: datetime) -> bool:
+        """Anota que el viajero abrió el reporte. True si es la primera vez."""
         ...
 
     def vote_of(self, incidente_id: str, usuario_id: str) -> bool | None:

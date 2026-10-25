@@ -11,11 +11,11 @@ from pymongo.errors import DuplicateKeyError
 
 from src.domain.direcciones import Cruce, Via
 from src.domain.models import (
-    ALIAS_SIN_CUENTA, REPUTACION_INICIAL, EmailYaRegistrado, Estacion, IconoLugar, Incidente, LimiteLugaresGuardados,
+    ALIAS_SIN_CUENTA, REPUTACION_INICIAL, EmailYaRegistrado, Impacto, Estacion, IconoLugar, Incidente, LimiteLugaresGuardados,
     Lugar, LugarGuardado, LugarGuardadoNoEncontrado, RutaTransporte, TipoViajero, Usuario,
 )
 from src.domain.horarios import HorarioRuta
-from src.domain.reportes import TipoReporte, VotoRepetido, alias_publico
+from src.domain.reportes import GraciasRepetidas, TipoReporte, VotoRepetido, alias_publico
 from src.domain.tiempo_real import Observacion, Ocupacion
 
 
@@ -54,6 +54,10 @@ class MongoUserRepository:
     def ajustar_reputacion(self, user_id: str, delta: int) -> None:
         if ObjectId.is_valid(user_id):
             self._users.update_one({"_id": ObjectId(user_id)}, {"$inc": {"reputacion": delta}})
+
+    def sumar_impacto(self, user_id: str, campo: str, cantidad: int = 1) -> None:
+        if ObjectId.is_valid(user_id) and campo in Impacto.__dataclass_fields__:
+            self._users.update_one({"_id": ObjectId(user_id)}, {"$inc": {f"impacto.{campo}": cantidad}})
 
     def add_invisible(self, *, huella: str, creado_en: datetime) -> Usuario:
         doc = {
@@ -104,10 +108,44 @@ class MongoIncidentRepository:
     def __init__(self, db: Database):
         self._incidents = db.incidents
         self._votes = db.incident_votes
+        self._thanks = db.incident_thanks
+        self._views = db.incident_views
+
+    def reward_voters(self, incidente_id: str, sigue: bool, excepto: str | None = None) -> list[str]:
+        filtro: dict = {"incidente": ObjectId(incidente_id), "sigue": sigue, "premiado": {"$ne": True}}
+        if excepto and ObjectId.is_valid(excepto):
+            filtro["usuario"] = {"$ne": ObjectId(excepto)}
+        votantes = [str(v["usuario"]) for v in self._votes.find(filtro, {"usuario": 1})]
+        self._votes.update_many(filtro, {"$set": {"premiado": True}})
+        return votantes
+
+    def register_thanks(self, incidente_id: str, usuario_id: str, ahora: datetime) -> Incidente:
+        try:
+            self._thanks.insert_one({"incidente": ObjectId(incidente_id), "usuario": ObjectId(usuario_id),
+                                     "en": ahora, "expira_en": ahora + self.VIDA_DE_LOS_VOTOS})
+        except DuplicateKeyError:
+            raise GraciasRepetidas()
+        doc = self._incidents.find_one_and_update({"_id": ObjectId(incidente_id)}, {"$inc": {"gracias": 1}},
+                                                  return_document=ReturnDocument.AFTER)
+        return _to_incidente(doc)
+
+    def thanks_of(self, incidente_id: str, usuario_id: str) -> bool:
+        if not (ObjectId.is_valid(incidente_id) and ObjectId.is_valid(usuario_id)):
+            return False
+        return self._thanks.count_documents(
+            {"incidente": ObjectId(incidente_id), "usuario": ObjectId(usuario_id)}, limit=1) > 0
+
+    def register_view(self, incidente_id: str, usuario_id: str, ahora: datetime) -> bool:
+        try:
+            self._views.insert_one({"incidente": ObjectId(incidente_id), "usuario": ObjectId(usuario_id),
+                                    "en": ahora, "expira_en": ahora + self.VIDA_DE_LOS_VOTOS})
+            return True
+        except DuplicateKeyError:
+            return False
 
     def add(self, *, reportado_por: str, tipo: TipoReporte, detalles: dict[str, str], latitud: float,
             longitud: float, lugar: str | None, creado_en: datetime, expira_en: datetime,
-            sin_cuenta: bool = False) -> Incidente:
+            sin_cuenta: bool = False, nivel_autor: int = 1) -> Incidente:
         doc = {
             "reportado_por": ObjectId(reportado_por),
             "grupo": tipo.grupo.value,
@@ -120,6 +158,8 @@ class MongoIncidentRepository:
             "votos_no": 0,
             "no_seguidos": 0,
             "sin_cuenta": sin_cuenta,
+            "nivel_autor": nivel_autor,
+            "gracias": 0,
             "creado_en": creado_en,
             "expira_en": expira_en,
         }
@@ -364,6 +404,7 @@ def _to_usuario(doc: dict) -> Usuario:
         creado_en=doc["creado_en"],
         # Usuarios creados antes de que existiera el alias lo derivan de su nombre.
         alias=doc.get("alias") or (alias_publico(doc["nombre"]) if doc.get("nombre") else ALIAS_SIN_CUENTA),
+        impacto=Impacto(**{k: v for k, v in doc.get("impacto", {}).items() if k in Impacto.__dataclass_fields__}),
     )
 
 
@@ -383,6 +424,8 @@ def _to_incidente(doc: dict) -> Incidente:
         creado_en=doc["creado_en"],
         expira_en=doc["expira_en"],
         por_confirmar=doc.get("sin_cuenta", False) and doc.get("votos_si", 0) == 0,
+        nivel_autor=doc.get("nivel_autor", 1),
+        gracias=doc.get("gracias", 0),
     )
 
 

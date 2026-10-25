@@ -38,6 +38,7 @@ class IncidentResponse(BaseModel):
     creado_en: datetime
     expira_en: datetime
     por_confirmar: bool = Field(False, description="De alguien sin cuenta y sin confirmar: no pesa en el riesgo")
+    gracias: int = Field(0, description="«Gracias» de quienes usaron el reporte")
 
 
 class IncidentDetailResponse(IncidentResponse):
@@ -45,6 +46,7 @@ class IncidentDetailResponse(IncidentResponse):
     reportado_por_alias: str
     es_mio: bool
     mi_voto: bool | None = Field(None, description="true = «sigue ahí», false = «ya no está», null = no ha votado")
+    mis_gracias: bool = Field(False, description="Si el viajero de la sesión ya le dio las gracias")
 
 
 class VoteRequest(BaseModel):

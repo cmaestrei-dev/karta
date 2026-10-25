@@ -1,5 +1,28 @@
 import 'package:equatable/equatable.dart';
 
+/// «Tu impacto»: lo que el viajero le ha aportado a la comunidad.
+class Impacto extends Equatable {
+  final int reportes;
+  final int confirmaciones;
+  final int gracias;
+  final int vistas;
+
+  const Impacto({this.reportes = 0, this.confirmaciones = 0, this.gracias = 0, this.vistas = 0});
+
+  factory Impacto.fromJson(Map<String, dynamic>? json) => Impacto(
+        reportes: json?['reportes'] as int? ?? 0,
+        confirmaciones: json?['confirmaciones'] as int? ?? 0,
+        gracias: json?['gracias'] as int? ?? 0,
+        vistas: json?['vistas'] as int? ?? 0,
+      );
+
+  Map<String, dynamic> toJson() =>
+      {'reportes': reportes, 'confirmaciones': confirmaciones, 'gracias': gracias, 'vistas': vistas};
+
+  @override
+  List<Object> get props => [reportes, confirmaciones, gracias, vistas];
+}
+
 /// Un viajero. [sinCuenta]: la cuenta invisible del teléfono, sin nombre ni correo; registrarse le pone correo
 /// a esa misma cuenta.
 class Usuario extends Equatable {
@@ -9,6 +32,7 @@ class Usuario extends Equatable {
   final String? tipoViajero;
   final int reputacion;
   final bool sinCuenta;
+  final Impacto impacto;
 
   /// Nombre corto que ven los demás viajeros en los reportes («Ana P.»).
   final String alias;
@@ -25,6 +49,7 @@ class Usuario extends Equatable {
     required this.alias,
     required this.nivel,
     this.sinCuenta = false,
+    this.impacto = const Impacto(),
   });
 
   /// Las iniciales del avatar: «Camilo Maestre» → «CM». Vacías sin cuenta (el avatar muestra un ícono).
@@ -53,6 +78,7 @@ class Usuario extends Equatable {
       alias: json['alias'] as String? ?? (nombre != null ? aliasPublico(nombre) : 'Viajero sin cuenta'),
       nivel: json['nivel'] as int? ?? nivelPorReputacion(reputacion),
       sinCuenta: json['sin_cuenta'] as bool? ?? json['email'] == null,
+      impacto: Impacto.fromJson(json['impacto'] as Map<String, dynamic>?),
     );
   }
 
@@ -65,10 +91,11 @@ class Usuario extends Equatable {
         'alias': alias,
         'nivel': nivel,
         'sin_cuenta': sinCuenta,
+        'impacto': impacto.toJson(),
       };
 
   @override
-  List<Object?> get props => [id, email, nombre, tipoViajero, reputacion, alias, nivel, sinCuenta];
+  List<Object?> get props => [id, email, nombre, tipoViajero, reputacion, alias, nivel, sinCuenta, impacto];
 }
 
 /// Reputación con la que empieza cada nivel, del 2 al 5 (todos arrancan en 100, nivel 1).
