@@ -21,7 +21,9 @@ def test_la_siguiente_insignia_es_la_que_esta_mas_cerca():
     # 3 de 10 confirmaciones (30 %) frente a 8 de 10 gracias (80 %): la más cercana es «Gracias a ti».
     avance = siguiente_insignia(Impacto(confirmaciones=3, gracias=8))
     assert (avance.insignia.clave, avance.llevas, avance.meta) == ("gracias_a_ti", 8, 10)
-    assert siguiente_insignia(Impacto(confirmaciones=10, gracias=10, vistas=100)) is None
+    assert siguiente_insignia(Impacto(confirmaciones=10, gracias=10, vistas=100, paraderos=10)) is None
+    # Ubicar un paradero da la insignia de Kartógrafo.
+    assert "kartografo" in [i.clave for i in insignias(Impacto(paraderos=1))]
 
 
 def test_el_perfil_y_el_detalle_muestran_marco_e_insignias(api, registrar):

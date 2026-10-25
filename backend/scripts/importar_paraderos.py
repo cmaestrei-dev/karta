@@ -199,17 +199,23 @@ def ubicar_paraderos() -> tuple[list[dict], dict]:
                     "_punto": punto if precision == "estacion" else (linea.interpolate(avance) if avance is not None else None)}
         resultado.append(registro)
 
-    salida = []
+    # Todos van al archivo, en orden; los que no se pudieron ubicar, sin `ubicacion`: los ubica la comunidad
+    # («Marca este paradero») y eso se guarda aparte, para que recargar este archivo no lo borre.
+    salida, vistos = [], set()
     for r in resultado:
-        if r["_punto"] is None:
-            continue
-        lon, lat = a_grados(r["_punto"]).coords[0]
-        salida.append({
-            "_id": f"{r['ruta']}-{r['sentido']}-{r['orden']:02d}",
+        ident = f"{r['ruta']}-{r['sentido']}-{r['orden']:02d}"
+        while ident in vistos:  # el archivo repite algún código (A117 de vuelta tiene dos P18)
+            ident += "b"
+        vistos.add(ident)
+        paradero = {
+            "_id": ident,
             "ruta": r["ruta"], "sentido": r["sentido"], "orden": r["orden"], "nombre": r["nombre"],
             "estacion": r["estacion"], "modulo": r["modulo"], "precision": r["precision"],
-            "ubicacion": {"type": "Point", "coordinates": [round(lon, 6), round(lat, 6)]},
-        })
+        }
+        if r["_punto"] is not None:
+            lon, lat = a_grados(r["_punto"]).coords[0]
+            paradero["ubicacion"] = {"type": "Point", "coordinates": [round(lon, 6), round(lat, 6)]}
+        salida.append(paradero)
     conteo = defaultdict(int)
     for r in resultado:
         conteo[r["precision"] if r["_punto"] is not None else "sin ubicar"] += 1
@@ -246,7 +252,7 @@ def main():
         "atribucion": "Paraderos: Transcaribe S.A., Portal de Datos Abiertos de Cartagena (CC BY), 2025. Ubicados "
                       "por Karta con calles y estaciones © colaboradores de OpenStreetMap (ODbL).",
         "paraderos": salida}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-    print(f"✅ {len(salida)} paraderos ubicados de {conteo['total']}: "
+    print(f"✅ {sum('ubicacion' in p for p in salida)} paraderos ubicados de {conteo['total']}: "
           + ", ".join(f"{k} {v}" for k, v in conteo.items() if k != "total"))
     if "--validar" in sys.argv:
         validar(salida, Path(sys.argv[sys.argv.index("--validar") + 1]))

@@ -32,7 +32,13 @@ def ensure_indexes(db: Database) -> None:
     db.intersections.create_index([("ubicacion", GEOSPHERE)])
     db.address_crossings.create_index([("vias", ASCENDING)])
     db.route_stops.create_index([("ruta", ASCENDING), ("sentido", ASCENDING), ("orden", ASCENDING)])
-    db.route_stops.create_index([("ubicacion", GEOSPHERE)])  # «calle:9»: los cruces de una vía numerada
+    db.route_stops.create_index([("ubicacion", GEOSPHERE)])
+    # «Marca este paradero»: una sola marca por confirmar por paradero; las subidas anónimas vencen solas.
+    db.stop_marks.create_index([("paradero", ASCENDING)], unique=True,
+                               partialFilterExpression={"estado": "por_confirmar"})
+    db.stop_marks.create_index([("ruta", ASCENDING), ("estado", ASCENDING)])
+    db.boardings.create_index([("ruta", ASCENDING)])
+    db.boardings.create_index([("expira_en", ASCENDING)], expireAfterSeconds=0)  # «calle:9»: los cruces de una vía numerada
     # Un voto por viajero y reporte; los votos y las ventanas de límite de peticiones vencen solos.
     db.incident_votes.create_index([("incidente", ASCENDING), ("usuario", ASCENDING)], unique=True)
     db.incident_votes.create_index([("expira_en", ASCENDING)], expireAfterSeconds=0)

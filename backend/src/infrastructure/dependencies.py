@@ -5,6 +5,7 @@ from pymongo.database import Database
 
 from src.application.auth_service import AuthService
 from src.application.incident_service import IncidentService
+from src.application.mapping_service import MappingService
 from src.application.place_service import PlaceService
 from src.application.realtime_service import RealtimeService
 from src.application.trip_service import TripService
@@ -12,7 +13,7 @@ from src.domain.models import Usuario
 from src.infrastructure.database import get_database
 from src.infrastructure.repositories import (
     MongoIncidentRepository, MongoPlaceRepository, MongoRealtimeRepository, MongoSavedPlaceRepository,
-    MongoTransitRepository, MongoUserRepository,
+    MongoStopMappingRepository, MongoTransitRepository, MongoUserRepository,
 )
 from src.infrastructure.security import password_hasher, token_issuer
 
@@ -42,6 +43,10 @@ def get_place_service(db: Database = Depends(get_db)) -> PlaceService:
 
 def get_trip_service(db: Database = Depends(get_db)) -> TripService:
     return TripService(MongoTransitRepository(db), MongoPlaceRepository(db), MongoIncidentRepository(db))
+
+
+def get_mapping_service(db: Database = Depends(get_db)) -> MappingService:
+    return MappingService(MongoStopMappingRepository(db), MongoTransitRepository(db), MongoUserRepository(db))
 
 
 def get_realtime_service(db: Database = Depends(get_db)) -> RealtimeService:
