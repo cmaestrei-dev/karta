@@ -359,8 +359,10 @@ class _ColeccionDeMarcos extends StatelessWidget {
                           bloqueado: nivel > usuario.nivel,
                           child: nivel > usuario.nivel
                               ? Icon(Icons.lock_outline, size: 18, color: b.textoSuave)
-                              : Text(usuario.sinCuenta ? '' : usuario.iniciales,
-                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: b.texto)),
+                              : usuario.sinCuenta
+                                  ? Icon(Icons.person_outline, size: 20, color: b.texto)
+                                  : Text(usuario.iniciales,
+                                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: b.texto)),
                         ),
                         const SizedBox(height: 14),
                         Text(marco, style: texto.labelMedium?.copyWith(fontWeight: FontWeight.w700)),
