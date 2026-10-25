@@ -36,7 +36,7 @@ class _Avisos extends Avisos {
   @override
   Future<bool> pedirPermiso() async => true;
   @override
-  Future<void> mostrar(String titulo, String texto) async {}
+  Future<void> mostrar(String titulo, String texto, {bool urgente = false}) async {}
   @override
   Future<void> limpiar() async {}
 }

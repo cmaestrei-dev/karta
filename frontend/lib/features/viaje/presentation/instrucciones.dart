@@ -31,8 +31,12 @@ Instruccion instruccionDe(SeguidorDeViaje seguidor, String destino) {
       ),
     Fase.aBordo => (
         icono: Icons.south,
-        titulo: _tituloABordo(estado),
-        detalle: '${actual.hasta} · te avisamos una antes',
+        titulo: _tituloABordo(estado, actual),
+        detalle: switch (comoPedirLaParada(actual)) {
+          ComoPedirLaParada.paraSolo => '${actual.hasta} · te avisamos una antes',
+          ComoPedirLaParada.timbre => '${actual.hasta} · te avisamos cuándo tocar el timbre',
+          ComoPedirLaParada.gritar => '${actual.hasta} · te avisamos cuándo pedir la parada',
+        },
         luego: _despuesDeBajarse(seguidor, destino),
       ),
     Fase.transbordo => (
@@ -51,13 +55,25 @@ Instruccion instruccionDe(SeguidorDeViaje seguidor, String destino) {
   };
 }
 
-String _tituloABordo(EstadoDelViaje estado) {
+String _tituloABordo(EstadoDelViaje estado, Leg tramo) {
   final falta = estado.faltaDelTramoM;
+  final pedir = comoPedirLaParada(tramo);
+  if (pedir != ComoPedirLaParada.paraSolo) {
+    if (falta <= SeguidorDeViaje.bajateAquiEnParaderoM) return 'Bájate aquí';
+    if (falta <= SeguidorDeViaje.pideLaParadaM) return textoDePedirLaParada(pedir);
+    return falta <= SeguidorDeViaje.avisoSinParadasM ? 'Bájate en el próximo paradero' : 'Bájate en ${metros(falta)}';
+  }
   final paradas = estado.paradasQueFaltan;
   if (falta <= SeguidorDeViaje.bajateAquiM) return 'Bájate aquí';
   if (paradas == null) return falta <= SeguidorDeViaje.avisoSinParadasM ? 'Bájate en la próxima' : 'Bájate en ${metros(falta)}';
   return paradas <= 1 ? 'Bájate en la próxima' : 'Bájate en $paradas paradas';
 }
+
+/// «¡Toca el timbre!» en Transcaribe; «¡Grita «parada»!» en las busetas, que paran donde les pidan.
+String textoDePedirLaParada(ComoPedirLaParada como) => switch (como) {
+      ComoPedirLaParada.gritar => '¡Grita «parada»!',
+      _ => '¡Toca el timbre!',
+    };
 
 /// «bájate en Estación La Bodeguita · 4 paradas».
 String _bajarse(Leg bus) {

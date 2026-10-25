@@ -36,12 +36,16 @@ RouteOption _viaje() => RouteOption(
 
 class _AvisosDePrueba extends Avisos {
   final mostrados = <String>[];
+  final urgentes = <String>[];
 
   @override
   Future<bool> pedirPermiso() async => true;
 
   @override
-  Future<void> mostrar(String titulo, String texto) async => mostrados.add(titulo);
+  Future<void> mostrar(String titulo, String texto, {bool urgente = false}) async {
+    mostrados.add(titulo);
+    if (urgente) urgentes.add(titulo);
+  }
 
   @override
   Future<void> limpiar() async {}
@@ -116,5 +120,76 @@ void main() {
     expect(cubit.state.estado.fase, Fase.llegaste);
     await cubit.close();
     await posiciones.close();
+  });
+
+  group('pedir la parada', () {
+    /// El mismo viaje, pero el T103 deja al viajero en un paradero de Bocagrande, no en una estación.
+    RouteOption hastaUnParadero({String ruta = 'T103'}) {
+      final base = _viaje();
+      return RouteOption(
+        resumen: ruta,
+        tiempoTotalMin: base.tiempoTotalMin,
+        distanciaCaminataM: base.distanciaCaminataM,
+        tramos: [
+          base.tramos[0],
+          Leg(
+            modo: 'bus', desde: 'Estación Bazurto', hasta: 'Paradero Cra. 2 con Calle 5', distanciaM: 3000,
+            duracionMin: 10, esperaMin: 5, ruta: ruta, tipoRuta: 'troncal', puntos: [_p(0, 200), _p(3000, 200)],
+            paradas: [(nombre: 'Bazurto', punto: _p(0, 200)), (nombre: 'La Popa', punto: _p(1000, 200))],
+          ),
+          Leg(modo: 'caminata', desde: 'Paradero Cra. 2 con Calle 5', hasta: 'Bocagrande', distanciaM: 150,
+              duracionMin: 2, esperaMin: 0, puntos: [_p(3000, 200), _p(3000, 50)]),
+        ],
+        riesgo: base.riesgo,
+      );
+    }
+
+    test('en una estación el bus para solo; en un paradero, timbre en Transcaribe y grito en las busetas', () {
+      expect(comoPedirLaParada(_viaje().tramos[1]), ComoPedirLaParada.paraSolo);
+      expect(comoPedirLaParada(hastaUnParadero().tramos[1]), ComoPedirLaParada.timbre);
+      expect(comoPedirLaParada(hastaUnParadero(ruta: 'B12').tramos[1]), ComoPedirLaParada.gritar);
+    });
+
+    test('en un paradero avisa a 500 m, pide el timbre a 200 m y dice «bájate aquí» a 60 m', () {
+      final s = SeguidorDeViaje(hastaUnParadero())
+        ..actualizar(_p(0, 195))
+        ..actualizar(_p(300, 200));
+      expect(s.actualizar(_p(2600, 200)), [EventoDelViaje.bajateEnLaProxima]);
+      expect(instruccionDe(s, 'Bocagrande').titulo, 'Bájate en el próximo paradero');
+      expect(instruccionDe(s, 'Bocagrande').detalle, 'Paradero Cra. 2 con Calle 5 · te avisamos cuándo tocar el timbre');
+      expect(s.actualizar(_p(2820, 200)), [EventoDelViaje.pideLaParada]);
+      expect(instruccionDe(s, 'Bocagrande').titulo, '¡Toca el timbre!');
+      expect(s.actualizar(_p(2900, 200)), isEmpty); // a 100 m no repite nada
+      expect(s.actualizar(_p(2950, 200)), [EventoDelViaje.bajateAqui]);
+      expect(s.actualizar(_p(2990, 200)), [EventoDelViaje.bajaste]);
+    });
+
+    test('si el GPS brinca hasta muy cerca, igual pide la parada', () {
+      final s = SeguidorDeViaje(hastaUnParadero())
+        ..actualizar(_p(0, 195))
+        ..actualizar(_p(300, 200));
+      expect(s.actualizar(_p(2950, 200)), [EventoDelViaje.pideLaParada, EventoDelViaje.bajateAqui]);
+    });
+
+    test('la pantalla de pedir la parada sale con aviso urgente y se quita al decir que ya se pidió', () async {
+      final avisos = _AvisosDePrueba();
+      final posiciones = StreamController<LatLng>();
+      final cubit = ViajeCubit(opcion: hastaUnParadero(), avisos: avisos, fuente: (_) => posiciones.stream);
+      await cubit.iniciar();
+      for (final p in [_p(0, 195), _p(300, 200), _p(2820, 200)]) {
+        posiciones.add(p);
+        await Future<void>.delayed(Duration.zero);
+      }
+      expect(cubit.state.pedirLaParada, ComoPedirLaParada.timbre);
+      expect(avisos.urgentes, ['¡Toca el timbre!']);
+      cubit.yaPediLaParada();
+      expect(cubit.state.pedirLaParada, isNull);
+
+      posiciones.add(_p(2990, 200)); // se bajó sin decir nada: también se quita
+      await Future<void>.delayed(Duration.zero);
+      expect(cubit.state.pedirLaParada, isNull);
+      await cubit.close();
+      await posiciones.close();
+    });
   });
 }

@@ -13,6 +13,18 @@ class Avisos {
     category: AndroidNotificationCategory.navigation,
   );
 
+  /// Pedir la parada no puede pasar desapercibido: su propio canal, con prioridad máxima y vibración larga.
+  static final _canalUrgente = AndroidNotificationDetails(
+    'parada',
+    'Pedir la parada',
+    channelDescription: 'El momento de tocar el timbre para bajarte en un paradero',
+    importance: Importance.max,
+    priority: Priority.max,
+    icon: 'ic_notificacion',
+    category: AndroidNotificationCategory.navigation,
+    vibrationPattern: Int64List.fromList([0, 700, 250, 700, 250, 700]),
+  );
+
   final _plugin = FlutterLocalNotificationsPlugin();
   bool _listo = false;
 
@@ -32,11 +44,16 @@ class Avisos {
     return await android?.requestNotificationsPermission() ?? true;
   }
 
-  Future<void> mostrar(String titulo, String texto) async {
+  Future<void> mostrar(String titulo, String texto, {bool urgente = false}) async {
     if (kIsWeb) return;
     await _iniciar();
     // Un solo aviso a la vez: el nuevo reemplaza al anterior.
-    await _plugin.show(id: 7, title: titulo, body: texto, notificationDetails: const NotificationDetails(android: _canal));
+    await _plugin.show(
+      id: 7,
+      title: titulo,
+      body: texto,
+      notificationDetails: NotificationDetails(android: urgente ? _canalUrgente : _canal),
+    );
   }
 
   Future<void> limpiar() async {

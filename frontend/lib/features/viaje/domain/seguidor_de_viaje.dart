@@ -10,7 +10,36 @@ import '../../trip/domain/trip_models.dart';
 enum Fase { caminandoALaParada, esperando, aBordo, transbordo, caminandoAlDestino, llegaste }
 
 /// Lo que acaba de pasar, para avisar una sola vez (vibración, notificación, voz).
-enum EventoDelViaje { llegasteALaParada, subiste, bajateEnLaProxima, bajateAqui, bajaste, llegaste, teDesviaste }
+enum EventoDelViaje {
+  llegasteALaParada,
+  subiste,
+  bajateEnLaProxima,
+  pideLaParada,
+  bajateAqui,
+  bajaste,
+  llegaste,
+  teDesviaste,
+}
+
+/// Cómo se pide bajarse, según dónde. Manual de Operaciones de Transcaribe (Resolución 030 de 2016): en las
+/// estaciones del corredor el bus para solo; en los paraderos de las vías mixtas (cada ~250 m) hay que pedirlo.
+enum ComoPedirLaParada {
+  /// Estación: el bus para en todas las de su servicio.
+  paraSolo,
+
+  /// Paradero de Transcaribe: se toca el timbre.
+  timbre,
+
+  /// Buseta o colectivo, que para donde le pidan: se grita «¡parada!».
+  gritar,
+}
+
+final _rutaDeTranscaribe = RegExp(r'^[ATXC]\d{3}E?$');
+
+ComoPedirLaParada comoPedirLaParada(Leg tramo) {
+  if (tramo.bajaEnEstacion) return ComoPedirLaParada.paraSolo;
+  return _rutaDeTranscaribe.hasMatch(tramo.ruta ?? '') ? ComoPedirLaParada.timbre : ComoPedirLaParada.gritar;
+}
 
 class EstadoDelViaje extends Equatable {
   final Fase fase;
@@ -58,8 +87,15 @@ class SeguidorDeViaje {
   /// Sin estaciones (vía mixta), «bájate en la próxima» suena a esta distancia de la bajada.
   static const avisoSinParadasM = 500.0;
 
-  /// «Bájate aquí» suena a esta distancia de la bajada.
+  /// «Bájate aquí» suena a esta distancia de la bajada en una estación…
   static const bajateAquiM = 150.0;
+
+  /// …y a esta en un paradero, después de haber pedido la parada.
+  static const bajateAquiEnParaderoM = 60.0;
+
+  /// «¡Toca el timbre!» suena a esta distancia de un paradero. Los paraderos están cada ~250 m: pedirla antes
+  /// haría parar el bus en el anterior.
+  static const pideLaParadaM = 200.0;
 
   /// Más lejos que esto del recorrido, el viajero se desvió.
   static const desvioM = 250.0;
@@ -71,6 +107,7 @@ class SeguidorDeViaje {
   /// Metros avanzados en el bus actual: solo crece, para que el GPS no lo haga retroceder.
   double _avanceEnBus = 0;
   bool _avisoProxima = false;
+  bool _avisoParada = false;
   bool _avisoAqui = false;
   bool _desviadoAvisado = false;
 
@@ -136,12 +173,20 @@ class SeguidorDeViaje {
         if (p.distanciaM <= anchoDeLaRutaM * 2) _avanceEnBus = math.max(_avanceEnBus, p.avanceM);
         final falta = math.max(0.0, _largos[k] - _avanceEnBus);
         final paradas = _paradasQueFaltan(k);
+        final enParadero = comoPedirLaParada(tramo) != ComoPedirLaParada.paraSolo;
+        final aquiM = enParadero ? bajateAquiEnParaderoM : bajateAquiM;
         final proxima = paradas != null ? paradas <= 1 : falta <= avisoSinParadasM;
-        if (proxima && !_avisoProxima && falta > bajateAquiM) {
+        // «Prepárate» solo si aún falta para el siguiente aviso (el timbre en un paradero, «bájate aquí» en una estación).
+        if (proxima && !_avisoProxima && falta > (enParadero ? pideLaParadaM : bajateAquiM)) {
           _avisoProxima = true;
           eventos.add(EventoDelViaje.bajateEnLaProxima);
         }
-        if (falta <= bajateAquiM && !_avisoAqui) {
+        // Pedir la parada no se puede saltar: si el GPS brincó hasta muy cerca, se avisa igual.
+        if (enParadero && falta <= pideLaParadaM && !_avisoParada) {
+          _avisoParada = true;
+          eventos.add(EventoDelViaje.pideLaParada);
+        }
+        if (falta <= aquiM && !_avisoAqui) {
           _avisoAqui = true;
           eventos.add(EventoDelViaje.bajateAqui);
         }
@@ -171,6 +216,7 @@ class SeguidorDeViaje {
   void _iniciarBus(int k) {
     _avanceEnBus = 0;
     _avisoProxima = false;
+    _avisoParada = false;
     _avisoAqui = false;
     _estado = _nuevo(Fase.esperando, k, _largos[k]);
   }

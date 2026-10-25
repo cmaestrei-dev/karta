@@ -10,6 +10,7 @@ import '../data/avisos.dart';
 import '../data/preferencia_de_compartir.dart';
 import '../data/tiempo_real_repository.dart';
 import '../domain/seguidor_de_viaje.dart';
+import 'instrucciones.dart';
 
 class ViajeState extends Equatable {
   final EstadoDelViaje estado;
@@ -31,6 +32,9 @@ class ViajeState extends Equatable {
   /// Lo que contó de este bus («De pie»), para marcarlo en pantalla.
   final Ocupacion? ocupacion;
 
+  /// Es momento de pedir la parada (pantalla completa) hasta que diga que ya lo hizo o se baje.
+  final ComoPedirLaParada? pedirLaParada;
+
   const ViajeState({
     required this.estado,
     this.posicion,
@@ -39,6 +43,7 @@ class ViajeState extends Equatable {
     this.llegada,
     this.compartiendo = false,
     this.ocupacion,
+    this.pedirLaParada,
   });
 
   /// Los campos que pueden volver a null se pasan como función: `llegada: () => null`.
@@ -50,6 +55,7 @@ class ViajeState extends Equatable {
     Llegada? Function()? llegada,
     bool? compartiendo,
     Ocupacion? Function()? ocupacion,
+    ComoPedirLaParada? Function()? pedirLaParada,
   }) =>
       ViajeState(
         estado: estado ?? this.estado,
@@ -59,10 +65,11 @@ class ViajeState extends Equatable {
         llegada: llegada != null ? llegada() : this.llegada,
         compartiendo: compartiendo ?? this.compartiendo,
         ocupacion: ocupacion != null ? ocupacion() : this.ocupacion,
+        pedirLaParada: pedirLaParada != null ? pedirLaParada() : this.pedirLaParada,
       );
 
   @override
-  List<Object?> get props => [estado, posicion, ultimoEvento, error, llegada, compartiendo, ocupacion];
+  List<Object?> get props => [estado, posicion, ultimoEvento, error, llegada, compartiendo, ocupacion, pedirLaParada];
 }
 
 /// El viaje activo: escucha el GPS, se lo pasa al [SeguidorDeViaje] y convierte sus eventos en avisos.
@@ -152,6 +159,9 @@ class ViajeCubit extends Cubit<ViajeState> {
     for (final evento in eventos) {
       if (evento == EventoDelViaje.bajaste) _alBajar();
       if (evento == EventoDelViaje.subiste) _alSubir();
+      if (evento == EventoDelViaje.pideLaParada) {
+        emit(state.copyWith(pedirLaParada: () => comoPedirLaParada(seguidor.tramoActual)));
+      }
     }
     _seguirLlegada();
     _enviarPosicion(punto);
@@ -214,7 +224,13 @@ class ViajeCubit extends Cubit<ViajeState> {
     if (_quiereCompartir) _empezarACompartir();
   }
 
+  /// Ya tocó el timbre (o gritó): se quita la pantalla completa.
+  void yaPediLaParada() {
+    if (!isClosed && state.pedirLaParada != null) emit(state.copyWith(pedirLaParada: () => null));
+  }
+
   void _alBajar() {
+    yaPediLaParada();
     _dejarDeCompartir();
     if (state.ocupacion != null) emit(state.copyWith(ocupacion: () => null));
   }
@@ -260,7 +276,7 @@ class ViajeCubit extends Cubit<ViajeState> {
     final aviso = textoDelAviso(evento, seguidor, destino);
     if (aviso == null) return;
     HapticFeedback.heavyImpact();
-    avisos.mostrar(aviso.titulo, aviso.texto);
+    avisos.mostrar(aviso.titulo, aviso.texto, urgente: evento == EventoDelViaje.pideLaParada);
   }
 
   Future<void> terminar() async {
@@ -287,8 +303,16 @@ class ViajeCubit extends Cubit<ViajeState> {
     EventoDelViaje.llegasteALaParada =>
       (titulo: 'Llegaste a ${actual.desde}', texto: 'Espera el ${actual.ruta}. Te avisamos antes de bajarte.'),
     EventoDelViaje.subiste => null,
-    EventoDelViaje.bajateEnLaProxima =>
-      (titulo: 'Bájate en la próxima', texto: '${actual.hasta}. Ve acercándote a la puerta.'),
+    EventoDelViaje.bajateEnLaProxima => (
+        titulo: comoPedirLaParada(actual) == ComoPedirLaParada.paraSolo
+            ? 'Bájate en la próxima'
+            : 'Bájate en el próximo paradero',
+        texto: '${actual.hasta}. Ve acercándote a la puerta.',
+      ),
+    EventoDelViaje.pideLaParada => (
+        titulo: textoDePedirLaParada(comoPedirLaParada(actual)),
+        texto: 'Te bajas en el próximo paradero: ${actual.hasta}.',
+      ),
     EventoDelViaje.bajateAqui => (titulo: 'Bájate aquí', texto: actual.hasta),
     EventoDelViaje.bajaste => switch (seguidor.estado.fase) {
         Fase.transbordo => (

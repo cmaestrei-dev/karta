@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -283,6 +285,15 @@ class _ViajeViewState extends State<_ViajeView> {
                     ],
                   ),
                 ),
+                if (state.pedirLaParada != null && state.estado.fase == Fase.aBordo)
+                  Positioned.fill(
+                    child: _PideLaParada(
+                      como: state.pedirLaParada!,
+                      paradero: seguidor.tramoActual.hasta,
+                      yaCasi: state.estado.faltaDelTramoM <= SeguidorDeViaje.bajateAquiEnParaderoM,
+                      onListo: cubit.yaPediLaParada,
+                    ),
+                  ),
               ],
             );
           },
@@ -707,6 +718,120 @@ class _Llegaste extends StatelessWidget {
               const SizedBox(height: 16),
               FilledButton(onPressed: onTerminar, child: const Text('Terminar')),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Pantalla completa para pedir la parada en un paradero: el aviso que no se puede pasar por alto. En el amarillo
+/// de «reportar», con una campana que suena un momento (quieta con «reducir movimiento») y un botón grande.
+class _PideLaParada extends StatefulWidget {
+  final ComoPedirLaParada como;
+  final String paradero;
+
+  /// A pocos metros: ya es «bájate aquí».
+  final bool yaCasi;
+  final VoidCallback onListo;
+
+  const _PideLaParada({required this.como, required this.paradero, required this.yaCasi, required this.onListo});
+
+  @override
+  State<_PideLaParada> createState() => _PideLaParadaState();
+}
+
+class _PideLaParadaState extends State<_PideLaParada> with SingleTickerProviderStateMixin {
+  // Un solo vaivén que se apaga en 2,4 s: llama la atención sin gastar batería mientras sigue en pantalla.
+  late final _vaiven = AnimationController(vsync: this, duration: const Duration(milliseconds: 2400));
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!Movimiento.reducido(context) && _vaiven.status == AnimationStatus.dismissed) _vaiven.forward();
+  }
+
+  @override
+  void dispose() {
+    _vaiven.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final b = Bahia.de(context);
+    final texto = Theme.of(context).textTheme;
+    final tinta = b.sobreReportar;
+    final titulo = widget.yaCasi ? 'Bájate aquí' : textoDePedirLaParada(widget.como);
+    final detalle = widget.yaCasi ? 'El bus está llegando a tu paradero' : 'Te bajas en el próximo paradero';
+    return Material(
+      color: b.reportar,
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+          child: Semantics(
+            liveRegion: true,
+            label: '$titulo. $detalle: ${widget.paradero}',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Spacer(),
+                Center(
+                  child: Container(
+                    width: 156,
+                    height: 156,
+                    decoration: BoxDecoration(color: tinta.withValues(alpha: 0.1), shape: BoxShape.circle),
+                    child: AnimatedBuilder(
+                      animation: _vaiven,
+                      builder: (context, campana) {
+                        final v = _vaiven.value;
+                        return Transform.rotate(
+                          angle: math.sin(v * math.pi * 12) * 0.45 * (1 - v),
+                          alignment: const Alignment(0, -0.7), // se mece desde arriba, como una campana colgada
+                          child: campana,
+                        );
+                      },
+                      child: Icon(
+                        widget.como == ComoPedirLaParada.gritar ? Icons.campaign : Icons.notifications_active,
+                        size: 92,
+                        color: tinta,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 32),
+                ExcludeSemantics(
+                  child: Text(
+                    titulo,
+                    textAlign: TextAlign.center,
+                    style: texto.displaySmall?.copyWith(color: tinta, fontWeight: FontWeight.w800, height: 1.05),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                ExcludeSemantics(
+                  child: Text(detalle, textAlign: TextAlign.center, style: texto.titleMedium?.copyWith(color: tinta)),
+                ),
+                const SizedBox(height: 4),
+                ExcludeSemantics(
+                  child: Text(
+                    widget.paradero,
+                    textAlign: TextAlign.center,
+                    style: texto.titleMedium?.copyWith(color: tinta, fontWeight: FontWeight.w700),
+                  ),
+                ),
+                const Spacer(),
+                FilledButton(
+                  onPressed: widget.onListo,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: tinta,
+                    foregroundColor: b.reportar,
+                    minimumSize: const Size.fromHeight(60),
+                    textStyle: texto.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  child: Text(widget.como == ComoPedirLaParada.gritar ? 'Listo, ya la pedí' : 'Listo, ya lo toqué'),
+                ),
+              ],
+            ),
           ),
         ),
       ),
