@@ -43,11 +43,12 @@ class TripPlanCubit extends Cubit<TripPlanState> {
   TripPlanCubit({required this.repository}) : super(const TripPlanLoading());
 
   Future<void> plan(TripPoint origen, TripPoint destino,
-      {CriterioDeRuta criterio = CriterioDeRuta.rapida, DateTime? salida}) async {
+      {CriterioDeRuta criterio = CriterioDeRuta.rapida, DateTime? salida, int? caminataMaximaM}) async {
     final peticion = ++_ultimaPeticion;
     emit(const TripPlanLoading());
     try {
-      final sugerencias = await repository.suggest(origen, destino, criterio: criterio, salida: salida);
+      final sugerencias = await repository.suggest(origen, destino,
+          criterio: criterio, salida: salida, caminataMaximaM: caminataMaximaM);
       if (peticion == _ultimaPeticion && !isClosed) emit(TripPlanLoaded(sugerencias));
     } catch (e) {
       if (peticion == _ultimaPeticion && !isClosed) emit(TripPlanFailed(e.toString()));

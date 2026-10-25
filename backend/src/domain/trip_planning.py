@@ -236,12 +236,12 @@ class _Sentido:
     extremo: np.ndarray   # por posición en `orden`: índice de la ruta donde se sube (llegada) o se baja (salida)
 
 
-def _llegadas(m: RutaMuestreada, a_origen: np.ndarray) -> list[_Sentido]:
+def _llegadas(m: RutaMuestreada, a_origen: np.ndarray, limite: float = CAMINATA_MAXIMA_DE_ACCESO_M) -> list[_Sentido]:
     """En cada sentido, lo antes que se llega en bus a cada punto saliendo del origen (caminata, espera y
     viaje), y dónde conviene subirse para eso. Solo cuenta en los puntos donde se puede bajar."""
     sentidos = []
     for orden, avance in m.sentidos():
-        puede_subir = m.abordable[orden] & (a_origen[orden] <= CAMINATA_MAXIMA_DE_ACCESO_M)
+        puede_subir = m.abordable[orden] & (a_origen[orden] <= limite)
         costo = np.where(puede_subir, minutos_caminando(a_origen[orden]) - avance / m.velocidad, np.inf)
         # Subirse estrictamente antes del punto: el mínimo acumulado hasta k − 1.
         previo = np.concatenate(([np.inf], np.minimum.accumulate(costo)[:-1]))
@@ -251,12 +251,12 @@ def _llegadas(m: RutaMuestreada, a_origen: np.ndarray) -> list[_Sentido]:
     return sentidos
 
 
-def _salidas(m: RutaMuestreada, a_destino: np.ndarray) -> list[_Sentido]:
+def _salidas(m: RutaMuestreada, a_destino: np.ndarray, limite: float = CAMINATA_MAXIMA_DE_ACCESO_M) -> list[_Sentido]:
     """En cada sentido, lo que falta para llegar al destino subiéndose en cada punto (espera aparte),
     y dónde conviene bajarse."""
     sentidos = []
     for orden, avance in m.sentidos():
-        puede_bajar = m.abordable[orden] & (a_destino[orden] <= CAMINATA_MAXIMA_DE_ACCESO_M)
+        puede_bajar = m.abordable[orden] & (a_destino[orden] <= limite)
         costo = np.where(puede_bajar, avance / m.velocidad + minutos_caminando(a_destino[orden]), np.inf)
         # Bajarse estrictamente después del punto: el mínimo de k + 1 en adelante.
         al_reves = costo[::-1]
@@ -280,11 +280,12 @@ def _en_indices_de_ruta(sentido: _Sentido) -> tuple[np.ndarray, np.ndarray]:
 # ---------------------------------------------------------------- opciones
 
 
-def _directa(m: RutaMuestreada, origen, destino, a_origen, a_destino) -> OpcionViaje | None:
+def _directa(m: RutaMuestreada, origen, destino, a_origen, a_destino,
+             limite: float = CAMINATA_MAXIMA_DE_ACCESO_M) -> OpcionViaje | None:
     mejor = None
-    for llegada in _llegadas(m, a_origen):
+    for llegada in _llegadas(m, a_origen, limite):
         # Llegar en bus a j y caminar desde ahí al destino.
-        total = llegada.minutos + np.where(a_destino[llegada.orden] <= CAMINATA_MAXIMA_DE_ACCESO_M,
+        total = llegada.minutos + np.where(a_destino[llegada.orden] <= limite,
                                            minutos_caminando(a_destino[llegada.orden]), np.inf)
         k = int(np.argmin(total))
         if np.isfinite(total[k]) and (mejor is None or total[k] < mejor[0]):
@@ -335,7 +336,7 @@ def mejor_opcion_en_ruta(ruta: RutaTransporte, estaciones: list[Estacion],
 
 
 def _con_transbordo(a: RutaMuestreada, b: RutaMuestreada, origen, destino,
-                    a_origen, b_destino) -> OpcionViaje | None:
+                    a_origen, b_destino, limite: float = CAMINATA_MAXIMA_DE_ACCESO_M) -> OpcionViaje | None:
     """La mejor combinación: subir a `a` cerca del origen, bajar donde `b` pasa a menos de 300 m, caminar,
     subir a `b` y bajar cerca del destino."""
     arbol = shapely.STRtree(shapely.points(b.puntos))
@@ -347,9 +348,9 @@ def _con_transbordo(a: RutaMuestreada, b: RutaMuestreada, origen, destino,
     cambio = caminar + b.espera + np.where(integrado, PENALIZACION_TRANSBORDO_INTEGRADO_MIN, PENALIZACION_TRANSBORDO_MIN)
 
     mejor = None
-    for llegada in _llegadas(a, a_origen):
+    for llegada in _llegadas(a, a_origen, limite):
         llega_a, sube_a = _en_indices_de_ruta(llegada)
-        for salida in _salidas(b, b_destino):
+        for salida in _salidas(b, b_destino, limite):
             falta_b, baja_b = _en_indices_de_ruta(salida)
             total = llega_a[ia] + cambio + falta_b[ib]
             k = int(np.argmin(total))
@@ -407,31 +408,35 @@ def _cambio(desde: tuple[float, float], hasta: tuple[float, float], entre_m: flo
 
 def planificar(rutas: list[RutaTransporte], estaciones: list[Estacion],
                origen: tuple[float, float], destino: tuple[float, float],
-               con_transbordos: bool = True, muestras: list[RutaMuestreada] | None = None) -> list[OpcionViaje]:
+               con_transbordos: bool = True, muestras: list[RutaMuestreada] | None = None,
+               caminata_maxima_m: float | None = None) -> list[OpcionViaje]:
     """
     Opciones posibles: a pie (si es cerca), una por cada ruta que sirve sola y, con `con_transbordos`, la mejor
     combinación de cada par de rutas (una que pasa cerca del origen y otra que pasa cerca del destino).
-    Se descartan las que tardan más que caminar.
+    Se descartan las que tardan más que caminar. Con `caminata_maxima_m`, nadie camina más que eso (a pie de verdad,
+    con el rodeo de las calles) hasta la ruta o desde ella.
     """
+    limite = caminata_maxima_m / FACTOR_RODEO if caminata_maxima_m else CAMINATA_MAXIMA_DE_ACCESO_M
     caminando = opcion_caminando(origen, destino)
     if muestras is None:  # quien planifica muchos viajes seguidos (scripts/analizar_transbordos.py) las reutiliza
         muestras = [m for r in rutas if r.cortes_en_osm <= MAX_CORTES_CONFIABLES
                     if (m := muestrear(r, estaciones)) is not None]
     a_origen = {m.ruta.id: _distancias(m, origen) for m in muestras}
     a_destino = {m.ruta.id: _distancias(m, destino) for m in muestras}
-    cerca_del_origen = [m for m in muestras if a_origen[m.ruta.id].min() <= CAMINATA_MAXIMA_DE_ACCESO_M]
-    cerca_del_destino = [m for m in muestras if a_destino[m.ruta.id].min() <= CAMINATA_MAXIMA_DE_ACCESO_M]
+    cerca_del_origen = [m for m in muestras if a_origen[m.ruta.id].min() <= limite]
+    cerca_del_destino = [m for m in muestras if a_destino[m.ruta.id].min() <= limite]
 
     sirven_al_destino = {m.ruta.id for m in cerca_del_destino}
     opciones = []
     for m in cerca_del_origen:
         if m.ruta.id in sirven_al_destino:
-            opciones.append(_directa(m, origen, destino, a_origen[m.ruta.id], a_destino[m.ruta.id]))
+            opciones.append(_directa(m, origen, destino, a_origen[m.ruta.id], a_destino[m.ruta.id], limite))
     if con_transbordos:
         for a in cerca_del_origen:
             for b in cerca_del_destino:
                 if a.ruta.id != b.ruta.id:
-                    opciones.append(_con_transbordo(a, b, origen, destino, a_origen[a.ruta.id], a_destino[b.ruta.id]))
+                    opciones.append(_con_transbordo(a, b, origen, destino, a_origen[a.ruta.id], a_destino[b.ruta.id],
+                                                    limite))
     utiles = _depurar([o for o in opciones
                        if o and (caminando is None or o.tiempo_total_min < caminando.tiempo_total_min)])
     if caminando:

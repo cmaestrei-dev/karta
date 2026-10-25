@@ -44,6 +44,9 @@ class RouteSuggestRequest(BaseModel):
         "rapida", description="Cómo ordenar: la más rápida, la más segura (el riesgo pesa el triple) o sin transbordo")
     salida: datetime | None = Field(
         None, description="Hora de salida (ISO 8601 con zona); por defecto, ahora. Define qué rutas operan")
+    caminata_maxima_m: int | None = Field(
+        None, ge=200, le=2000, description="Lo máximo que se quiere caminar hasta la ruta o desde ella, a pie de verdad "
+                                           "(por defecto, unos 1.000 m)")
 
 class LineaGeoJSON(BaseModel):
     type: Literal["LineString"] = "LineString"

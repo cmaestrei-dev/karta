@@ -52,7 +52,8 @@ class TripService:
 
     def suggest(self, origen: tuple[float, float], destino: tuple[float, float],
                 nombre_origen: str | None = None, nombre_destino: str | None = None,
-                criterio: Criterio = "rapida", salida: datetime | None = None) -> Sugerencias:
+                criterio: Criterio = "rapida", salida: datetime | None = None,
+                caminata_maxima_m: int | None = None) -> Sugerencias:
         """
         Caso de Uso: Consultar rutas sugeridas.
         1. MongoDB devuelve las rutas que pasan cerca del origen o del destino ($geoIntersects).
@@ -64,14 +65,15 @@ class TripService:
            triple si se pide la más segura.
         """
         salida = salida or datetime.now(timezone.utc)
-        areas = [circulo(*origen, CAMINATA_MAXIMA_DE_ACCESO_M), circulo(*destino, CAMINATA_MAXIMA_DE_ACCESO_M)]
+        radio = max(CAMINATA_MAXIMA_DE_ACCESO_M, caminata_maxima_m or 0)
+        areas = [circulo(*origen, radio), circulo(*destino, radio)]
         cercanas = self.transit.routes_intersecting_any(areas)
         horarios = self.transit.schedules()
         en_servicio = [r for r in cercanas if opera(horarios.get(r.id), salida)]
         estaciones = self.transit.list_stations()
 
         opciones = sorted(planificar(en_servicio, estaciones, origen, destino,
-                                     con_transbordos=criterio != "sin_transbordo"),
+                                     con_transbordos=criterio != "sin_transbordo", caminata_maxima_m=caminata_maxima_m),
                           key=costo_percibido)
         ahora = datetime.now(timezone.utc)
         evaluadas = []
@@ -85,6 +87,11 @@ class TripService:
         if not any(opcion.rutas for opcion, _ in evaluadas):
             aviso = self._aviso_de_horario(cercanas, en_servicio, horarios, estaciones, origen, destino,
                                            criterio, salida)
+            if aviso is None and caminata_maxima_m and any(
+                    o.rutas for o in planificar(en_servicio, estaciones, origen, destino,
+                                                con_transbordos=criterio != "sin_transbordo")):
+                aviso = (f"Caminando hasta {caminata_maxima_m} m no hay rutas que te sirvan. "
+                         "Si puedes caminar un poco más, sí las hay.")
 
         return Sugerencias(
             opciones=[(self._etiquetar(opcion, estaciones, nombre_origen, nombre_destino), riesgo)

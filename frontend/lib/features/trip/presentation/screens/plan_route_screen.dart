@@ -17,6 +17,7 @@ import '../../../incidents/presentation/widgets/pin_de_reporte.dart';
 import '../../../places/domain/place_models.dart';
 import '../../../places/presentation/screens/place_search_screen.dart';
 import '../../../viaje/presentation/viaje_screen.dart';
+import '../../data/preferencia_de_caminata.dart';
 import '../../data/trip_repository.dart';
 import '../../domain/trip_models.dart';
 import '../cubit/trip_cubits.dart';
@@ -83,12 +84,21 @@ class _PlanRouteViewState extends State<_PlanRouteView> {
   String? _errorOrigen;
   CriterioDeRuta _criterio = CriterioDeRuta.rapida;
   DateTime? _salida; // null: ahora
+  int? _caminataMaxima; // null: lo normal, hasta 1 km
+  final _preferenciaDeCaminata = PreferenciaDeCaminata();
   int _elegida = 0;
   double? _hoja; // fracción de pantalla que ocupa la hoja; null hasta que se mueve
 
   @override
   void initState() {
     super.initState();
+    _empezar();
+  }
+
+  Future<void> _empezar() async {
+    final caminata = await _preferenciaDeCaminata.leer();
+    if (!mounted) return;
+    _caminataMaxima = caminata;
     if (_origen == null) {
       _ubicarOrigen();
     } else {
@@ -112,7 +122,8 @@ class _PlanRouteViewState extends State<_PlanRouteView> {
     final origen = _origen;
     if (origen == null) return;
     setState(() => _elegida = 0);
-    context.read<TripPlanCubit>().plan(origen, _destino, criterio: _criterio, salida: _salida);
+    context.read<TripPlanCubit>()
+        .plan(origen, _destino, criterio: _criterio, salida: _salida, caminataMaximaM: _caminataMaxima);
   }
 
   Future<void> _cambiarOrigen() async {
@@ -150,6 +161,40 @@ class _PlanRouteViewState extends State<_PlanRouteView> {
   void _elegirCriterio(CriterioDeRuta criterio) {
     if (criterio == _criterio) return;
     setState(() => _criterio = criterio);
+    _planear();
+  }
+
+  /// Cuánto quiere caminar hasta la ruta y desde ella; se recuerda para la próxima vez.
+  Future<void> _elegirCaminata() async {
+    final eleccion = await showModalBottomSheet<int>(
+      context: context,
+      builder: (hoja) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const ListTile(title: Text('¿Cuánto quieres caminar?'), subtitle: Text('Hasta la ruta y desde ella')),
+            for (final metros in PreferenciaDeCaminata.opciones)
+              ListTile(
+                leading: const Icon(Icons.directions_walk),
+                title: Text('Hasta $metros m'),
+                selected: _caminataMaxima == metros,
+                onTap: () => Navigator.of(hoja).pop(metros),
+              ),
+            ListTile(
+              leading: const Icon(Icons.directions_walk),
+              title: const Text('Lo normal, hasta 1 km'),
+              selected: _caminataMaxima == null,
+              onTap: () => Navigator.of(hoja).pop(0),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || eleccion == null) return;
+    final metros = eleccion == 0 ? null : eleccion;
+    if (metros == _caminataMaxima) return;
+    setState(() => _caminataMaxima = metros);
+    _preferenciaDeCaminata.guardar(metros);
     _planear();
   }
 
@@ -320,6 +365,8 @@ class _PlanRouteViewState extends State<_PlanRouteView> {
       destino: _destino,
       criterio: _criterio,
       salida: _salida,
+      caminataMaxima: _caminataMaxima,
+      onCaminata: _elegirCaminata,
       onVolver: () => Navigator.of(context).pop(),
       onOrigen: _cambiarOrigen,
       onDestino: _cambiarDestino,
@@ -481,6 +528,8 @@ class _Cabecera extends StatelessWidget {
   final TripPoint destino;
   final CriterioDeRuta criterio;
   final DateTime? salida;
+  final int? caminataMaxima;
+  final VoidCallback onCaminata;
   final VoidCallback onVolver;
   final VoidCallback onOrigen;
   final VoidCallback onDestino;
@@ -495,6 +544,8 @@ class _Cabecera extends StatelessWidget {
     required this.destino,
     required this.criterio,
     required this.salida,
+    required this.caminataMaxima,
+    required this.onCaminata,
     required this.onVolver,
     required this.onOrigen,
     required this.onDestino,
@@ -547,6 +598,15 @@ class _Cabecera extends StatelessWidget {
                     elegida: false,
                     onTap: onSalida,
                     semantica: salida == null ? 'Salida: ahora. Toca para elegir otra hora' : null,
+                  ),
+                  const SizedBox(width: 6),
+                  _Ficha(
+                    icono: Icons.directions_walk,
+                    etiqueta: caminataMaxima == null ? 'Hasta 1 km' : 'Hasta $caminataMaxima m',
+                    elegida: caminataMaxima != null,
+                    onTap: onCaminata,
+                    semantica: 'Caminar ${caminataMaxima == null ? 'hasta 1 km, lo normal' : 'hasta $caminataMaxima m'}. '
+                        'Toca para cambiarlo',
                   ),
                   const SizedBox(width: 6),
                   for (final c in CriterioDeRuta.values) ...[

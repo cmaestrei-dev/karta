@@ -143,7 +143,7 @@ def suggest_routes(request: RouteSuggestRequest, service: TripService = Depends(
     sugerencias = service.suggest(
         (request.origen.lon, request.origen.lat), (request.destino.lon, request.destino.lat),
         request.origen.nombre, request.destino.nombre,
-        criterio=request.criterio, salida=request.salida,
+        criterio=request.criterio, salida=request.salida, caminata_maxima_m=request.caminata_maxima_m,
     )
     if sugerencias.opciones:
         nota = NOTA_ESTIMACION

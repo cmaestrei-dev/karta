@@ -189,3 +189,14 @@ def test_de_la_a107_al_centro_se_cambia_en_santa_lucia_y_se_cruza_a_madre_bernar
             assert cambio.integrado and cambio.distancia_m == 40
             assert "cruza por la cebra hasta Madre Bernarda" in cambio.indicacion
     assert por_la_a107 > 0
+
+
+def test_con_un_limite_de_caminata_nadie_camina_mas_que_eso_hasta_la_ruta():
+    # La ruta pasa a 400 m en línea recta del origen: unos 520 m a pie con el rodeo.
+    from src.domain.trip_planning import FACTOR_RODEO
+    ruta = _ruta()
+    origen, destino = _al_norte(-75.545, 400), _al_norte(-75.505, 0)
+    con_ruta = [o for o in planificar([ruta], [], origen, destino) if o.rutas]
+    assert con_ruta and con_ruta[0].tramos[0].distancia_m == pytest.approx(400 * FACTOR_RODEO, rel=0.05)
+    assert not [o for o in planificar([ruta], [], origen, destino, caminata_maxima_m=500) if o.rutas]
+    assert [o for o in planificar([ruta], [], origen, destino, caminata_maxima_m=600) if o.rutas]
