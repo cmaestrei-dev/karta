@@ -99,3 +99,56 @@ def test_las_subidas_son_anonimas_y_dan_pistas(api, registrar):
     pistas_ = api.get("/api/v1/routes/A107/stops").json()["pistas"]
     assert pistas_ and pistas_[0]["subidas"] >= 3
     assert all(set(d) <= {"_id", "ruta", "ubicacion", "en", "expira_en"} for d in get_database().boardings.find())
+
+
+def test_viaje_de_mapeo_marca_confirma_y_contradice(api, registrar):
+    from shapely.geometry import LineString, Point
+    from src.domain.geo import a_grados, a_metros
+
+    from src.domain.mapeo import respuesta_del_viaje
+    assert respuesta_del_viaje(10) is True and respuesta_del_viaje(200) is False and respuesta_del_viaje(80) is None
+
+    sentidos = {s["sentido"]: s["paraderos"] for s in api.get("/api/v1/routes/A107/stops").json()["sentidos"]}
+    sin_ubicar = next(p for p in sentidos["ida"] if p["estado"] == "sin_ubicar")
+    ubicado = next(p for p in sentidos["ida"] if p["estado"] == "estacion")
+    de_vuelta = next(p for p in sentidos["vuelta"] if p["estado"] == "sin_ubicar")
+    # Puntos sobre el recorrido de la A107: donde paró el bus, a 10 m, a 80 m y a 200 m de ahí.
+    linea = a_metros(LineString(api.get("/api/v1/routes/A107").json()["geometria"]["coordinates"]))
+    base = linea.project(a_metros(Point(-75.4850, 10.3925)))
+    def sobre_la_ruta(metros):
+        p = a_grados(linea.interpolate(base + metros))
+        return {"longitud": p.x, "latitud": p.y}
+    auth = lambda t: {"Authorization": f"Bearer {t}"}
+    viaje = lambda t, paradas: api.post("/api/v1/routes/A107/mapping-rides", headers=auth(t),
+                                        json={"sentido": "ida", "paradas": paradas})
+
+    token_ana, _ = registrar()
+    r = viaje(token_ana, [{"paradero": sin_ubicar["id"], **sobre_la_ruta(0)},
+                          {"paradero": ubicado["id"], **sobre_la_ruta(0)},
+                          {"paradero": de_vuelta["id"], **sobre_la_ruta(0)}])
+    assert r.status_code == 200, r.text
+    assert r.json()["marcados"] == 1
+    assert [p["resultado"] for p in r.json()["paradas"]] == ["marcado", "ya_ubicado", "otra_ruta"]
+    # Otro viaje de Ana no cuenta dos veces.
+    assert viaje(token_ana, [{"paradero": sin_ubicar["id"], **sobre_la_ruta(0)}]).json()["paradas"][0]["resultado"] \
+        == "ya_respondido"
+
+    # Beto paró a 10 m: la confirma. Caro, a 80 m: no dice nada. Dani, a 200 m: dice que no está ahí.
+    resultado = lambda t, m: viaje(t, [{"paradero": sin_ubicar["id"], **sobre_la_ruta(m)}]).json()["paradas"][0]
+    assert resultado(registrar()[0], 10)["resultado"] == "confirmado"
+    assert resultado(registrar()[0], 80)["resultado"] == "dudoso"
+    assert resultado(registrar()[0], 200)["resultado"] == "contradicho"
+    marca = next(p for s in api.get("/api/v1/routes/A107/stops").json()["sentidos"] for p in s["paraderos"]
+                 if p["id"] == sin_ubicar["id"])["marca"]
+    assert marca["apoyo"] == 1 and marca["estado"] == "por_confirmar"
+    # Con otros dos que paran ahí, queda en el mapa.
+    assert resultado(registrar()[0], 5)["resultado"] == "confirmado"
+    assert resultado(registrar()[0], 0)["resultado"] == "confirmado"
+    assert next(p for s in api.get("/api/v1/routes/A107/stops").json()["sentidos"] for p in s["paraderos"]
+                if p["id"] == sin_ubicar["id"])["estado"] == "comunidad"
+
+    # Sin sesión no se puede, y la ruta tiene que existir.
+    assert api.post("/api/v1/routes/A107/mapping-rides", json={"sentido": "ida", "paradas": []}).status_code in (401, 422)
+    assert viaje(token_ana, [{"paradero": "x", **sobre_la_ruta(0)}]).json()["paradas"][0]["resultado"] == "otra_ruta"
+    assert api.post("/api/v1/routes/A999/mapping-rides", headers=auth(token_ana),
+                    json={"sentido": "ida", "paradas": [{"paradero": "x", **sobre_la_ruta(0)}]}).status_code == 404

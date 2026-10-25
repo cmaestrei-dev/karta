@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:karta/features/mapeo/domain/mapeo_models.dart';
+import 'package:karta/features/mapeo/domain/viaje_de_mapeo.dart';
 import 'package:karta/features/mapeo/presentation/marcar_paradero_screen.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -48,5 +49,43 @@ void main() {
     expect(MarcarParaderoScreen.inicio(vecinos, recorrido), const LatLng(10.40, -75.47));
     expect(MarcarParaderoScreen.inicio((antes: null, despues: null), const [LatLng(1, 1), LatLng(2, 2), LatLng(3, 3)]),
         const LatLng(2, 2));
+  });
+
+  test('en un viaje de mapeo, la lista sigue al bus y solo anota los que faltan', () {
+    final ida = ParaderosDeRuta.fromJson(json).sentidos.single.paraderos;
+    // Se subió en Santa Lucía (el ya ubicado más cercano): sigue Chinatown.
+    final subio = ViajeDeMapeo.dondeSubio(ida, const LatLng(10.3953, -75.4781));
+    expect(subio, 0);
+    var viaje = ViajeDeMapeo.desde(ida, subio);
+    expect(viaje.proximo!.nombre, 'Chinatown');
+    expect(viaje.faltan, 2);
+
+    const aqui = LatLng(10.3931, -75.4802);
+    viaje = viaje.paroAqui(aqui);
+    expect(viaje.paradas, [const ParadaDelViaje(paradero: 'A107-ida-02', punto: aqui)]);
+    // La Clínica no paró: no se anota. Y deshacer vuelve a ella.
+    viaje = viaje.noParo();
+    expect(viaje.proximo!.id, 'A107-ida-04');
+    viaje = viaje.deshacer();
+    expect(viaje.proximo!.id, 'A107-ida-03');
+    viaje = viaje.noParo();
+    // El que sigue ya está en el mapa: lejos no pasa nada; al llegar a él, se pasa solo.
+    expect(viaje.pasoPor(const LatLng(10.40, -75.47)), viaje);
+    viaje = viaje.pasoPor(const LatLng(10.3881, -75.4901));
+    expect(viaje.termino, isTrue);
+    expect(viaje.paradas.single.toJson(), {'paradero': 'A107-ida-02', 'latitud': 10.3931, 'longitud': -75.4802});
+    // Deshacer el «paró aquí» quita lo anotado.
+    expect(ViajeDeMapeo.desde(ida, 0).paroAqui(aqui).deshacer().paradas, isEmpty);
+  });
+
+  test('el bus está detenido si casi no se movió en los últimos segundos', () {
+    final t0 = DateTime(2026, 10, 26, 8);
+    const p = LatLng(10.39, -75.48);
+    final quieto = [for (var s = 0; s <= 8; s += 2) (t0.add(Duration(seconds: s)), p)];
+    expect(estaDetenido(quieto, t0.add(const Duration(seconds: 8))), isTrue);
+    final andando = [for (var s = 0; s <= 8; s += 2) (t0.add(Duration(seconds: s)), LatLng(10.39 + s * 0.0001, -75.48))];
+    expect(estaDetenido(andando, t0.add(const Duration(seconds: 8))), isFalse);
+    // Recién empieza: no hay con qué saberlo.
+    expect(estaDetenido(quieto.sublist(3), t0.add(const Duration(seconds: 8))), isFalse);
   });
 }

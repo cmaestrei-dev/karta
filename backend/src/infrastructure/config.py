@@ -35,4 +35,5 @@ LIMITE_AVISTAMIENTOS = (int(os.getenv("LIMITE_AVISTAMIENTOS_POR_10_MIN", "20")),
 # Un viaje compartido envía una posición cada ~30 s: 40 en 10 min dejan margen sin permitir abuso.
 LIMITE_RESPUESTAS_PARADA = (int(os.getenv("LIMITE_RESPUESTAS_PARADA_POR_10_MIN", "5")), 600)  # por viajero
 LIMITE_MARCAS = (int(os.getenv("LIMITE_MARCAS_POR_10_MIN", "10")), 600)  # por viajero
+LIMITE_VIAJES_DE_MAPEO = (int(os.getenv("LIMITE_VIAJES_DE_MAPEO_POR_HORA", "6")), 3600)  # por viajero
 LIMITE_POSICIONES = (int(os.getenv("LIMITE_POSICIONES_POR_10_MIN", "40")), 600)  # por viajero

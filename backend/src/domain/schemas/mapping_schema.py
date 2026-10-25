@@ -2,6 +2,7 @@ from typing import List, Literal
 
 from pydantic import BaseModel, Field
 
+from src.domain.mapeo import PARADAS_POR_VIAJE
 from src.domain.schemas.realtime_schema import PATRON_RUTA, _EnCartagena
 
 EstadoDeParadero = Literal["estacion", "direccion", "estimado", "comunidad", "por_confirmar", "sin_ubicar"]
@@ -57,6 +58,29 @@ class MarcarRequest(_EnCartagena):
 class VotoDeMarcaRequest(_EnCartagena):
     """Desde dónde se responde: hay que estar a menos de 300 m de la marca."""
     esta_aqui: bool
+
+
+class ParadaDelViajeRequest(_EnCartagena):
+    """«El bus paró aquí», en ese paradero de la lista oficial."""
+    paradero: str = Field(..., max_length=40, examples=["A107-ida-03"])
+
+
+class ViajeDeMapeoRequest(BaseModel):
+    sentido: Literal["ida", "vuelta", "circular"]
+    paradas: List[ParadaDelViajeRequest] = Field(..., min_length=1, max_length=PARADAS_POR_VIAJE)
+
+
+class ResultadoDeParadaResponse(BaseModel):
+    paradero: str
+    resultado: Literal["marcado", "confirmado", "contradicho", "ya_ubicado", "ya_respondido", "dudoso",
+                       "lejos_del_recorrido", "otra_ruta"]
+
+
+class ViajeDeMapeoResponse(BaseModel):
+    marcados: int = Field(..., description="Paraderos que no tenían marca y ahora la tienen")
+    confirmados: int = Field(..., description="Marcas que había y coincidieron con donde paró el bus")
+    contradichos: int = Field(..., description="Marcas que había, lejos de donde paró el bus")
+    paradas: List[ResultadoDeParadaResponse]
 
 
 class SubidaRequest(_EnCartagena):

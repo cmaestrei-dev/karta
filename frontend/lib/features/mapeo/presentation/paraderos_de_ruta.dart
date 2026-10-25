@@ -8,6 +8,7 @@ import '../../../core/location_service.dart';
 import '../data/mapeo_repository.dart';
 import '../domain/mapeo_models.dart';
 import 'marcar_paradero_screen.dart';
+import 'viaje_de_mapeo_screen.dart';
 
 /// Los paraderos oficiales de la ruta, por sentido y en orden: los que ya están en el mapa, los que alguien marcó
 /// y esperan confirmación, y los que faltan, que cualquiera puede marcar (Kartógrafos).
@@ -45,6 +46,23 @@ class _ParaderosDeLaRutaState extends State<ParaderosDeLaRuta> {
     );
     if (!mounted || marcado != true) return;
     _mensaje('Gracias, Kartógrafo: cuando otros viajeros que pasen por ahí lo confirmen, quedará en el mapa.');
+    _recargar();
+  }
+
+  Future<void> _mapear(SentidoDeRuta sentido) async {
+    final resultado = await ViajeDeMapeoScreen.open(context,
+        ruta: widget.ruta, tipoRuta: widget.tipoRuta, recorrido: widget.recorrido, sentido: sentido);
+    if (!mounted || resultado == null) return;
+    final partes = [
+      if (resultado.marcados > 0) 'marcaste ${resultado.marcados} ${resultado.marcados == 1 ? 'paradero' : 'paraderos'}',
+      if (resultado.confirmados > 0)
+        'confirmaste ${resultado.confirmados} ${resultado.confirmados == 1 ? 'marca' : 'marcas'} de otros',
+      if (resultado.contradichos > 0)
+        '${resultado.contradichos} ${resultado.contradichos == 1 ? 'marca no coincidió' : 'marcas no coincidieron'} con donde paró el bus',
+    ];
+    _mensaje(partes.isEmpty
+        ? 'Gracias: esta vez no quedó nada nuevo por anotar.'
+        : 'Gracias, Kartógrafo: ${partes.join(', ')}.');
     _recargar();
   }
 
@@ -118,6 +136,17 @@ class _ParaderosDeLaRutaState extends State<ParaderosDeLaRuta> {
                   ],
                 ]),
               ),
+            ],
+            if (sentido.paraderos.any((p) => !p.estado.ubicado)) ...[
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: () => _mapear(sentido),
+                icon: const Icon(Icons.directions_bus_outlined),
+                label: const Text('Mapear desde el bus'),
+              ),
+              const SizedBox(height: 4),
+              Text('Si vas en esta ruta, tocas «paró aquí» en cada paradero y quedan todos marcados de una vez.',
+                  style: texto.bodySmall?.copyWith(color: b.textoSuave)),
             ],
             const SizedBox(height: 8),
             for (final paradero in sentido.paraderos)

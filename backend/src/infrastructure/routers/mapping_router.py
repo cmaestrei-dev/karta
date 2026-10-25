@@ -3,13 +3,14 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Response, status
 
 from src.application.mapping_service import MappingService
 from src.domain.mapeo import (
-    LejosDelRecorrido, LejosParaConfirmar, Marca, MarcaNoEncontrada, MarcaPendiente, ParaderoNoEncontrado,
-    ParaderoYaUbicado, VotoPropio, VotoRepetido,
+    LejosDelRecorrido, LejosParaConfirmar, Marca, MarcaNoEncontrada, MarcaPendiente, ParadaDelViaje,
+    ParaderoNoEncontrado, ParaderoYaUbicado, Resultado, VotoPropio, VotoRepetido,
 )
 from src.domain.models import Usuario
 from src.domain.schemas.mapping_schema import (
-    MarcaResponse, MarcarRequest, ParaderoResponse, ParaderosDeRutaResponse, PistaResponse, SentidoResponse,
-    SubidaRequest, VotoDeMarcaRequest,
+    MarcaResponse, MarcarRequest, ParaderoResponse, ParaderosDeRutaResponse, PistaResponse,
+    ResultadoDeParadaResponse, SentidoResponse, SubidaRequest, ViajeDeMapeoRequest, ViajeDeMapeoResponse,
+    VotoDeMarcaRequest,
 )
 from src.infrastructure.dependencies import get_mapping_service, get_optional_user
 from src.infrastructure.limites import por_viajero
@@ -95,6 +96,28 @@ def vote_mark(request: VotoDeMarcaRequest, marca_id: str = Path(..., max_length=
         raise HTTPException(status_code=409, detail="Ya respondiste por esta marca.")
     except LejosParaConfirmar:
         raise HTTPException(status_code=422, detail="Confírmala cuando estés cerca del paradero (a menos de 300 m).")
+
+
+@router.post("/routes/{codigo}/mapping-rides", response_model=ViajeDeMapeoResponse, summary="Viaje de mapeo",
+             responses={**SIN_SESION, **FUERA_DE_COBERTURA, **DEMASIADOS, 404: error("No existe esa ruta.")})
+def mapping_ride(request: ViajeDeMapeoRequest, codigo: str = Path(..., pattern=r"^[ATXC]\d{3}E?$"),
+                 usuario: Usuario = Depends(por_viajero("viaje_de_mapeo", "LIMITE_VIAJES_DE_MAPEO")),
+                 service: MappingService = Depends(get_mapping_service)):
+    """
+    Desde el bus, el viajero dijo «paró aquí» en cada paradero de la lista oficial, en orden. Cada uno sin ubicar
+    queda marcado; si ya tenía una marca, este punto la confirma (el bus paró a menos de 40 m) o dice que no está
+    ahí (a más de 150 m). Los que ya están en el mapa no cambian.
+    """
+    try:
+        resultados = service.ride(codigo, request.sentido, usuario,
+                                  [ParadaDelViaje(p.paradero, p.longitud, p.latitud) for p in request.paradas])
+    except ParaderoNoEncontrado:
+        raise HTTPException(status_code=404, detail=f"No existe la ruta {codigo}.")
+    cuantos = {r: sum(1 for _, x in resultados if x == r) for r in Resultado}
+    return ViajeDeMapeoResponse(
+        marcados=cuantos[Resultado.MARCADO], confirmados=cuantos[Resultado.CONFIRMADO],
+        contradichos=cuantos[Resultado.CONTRADICHO],
+        paradas=[ResultadoDeParadaResponse(paradero=p, resultado=r.value) for p, r in resultados])
 
 
 @router.post("/stops/boardings", status_code=status.HTTP_204_NO_CONTENT, summary="Me subí aquí",
