@@ -46,11 +46,28 @@ class MarcarParaderoScreen extends StatefulWidget {
             ruta: ruta, tipoRuta: tipoRuta, recorrido: recorrido, paradero: paradero, vecinos: vecinos, pistas: pistas),
       ));
 
-  /// Dónde empezar: entre los vecinos ya ubicados, o junto al que haya, o en la mitad del recorrido.
+  /// Dónde empezar: sobre el recorrido, a mitad de camino entre los vecinos ya ubicados (la línea recta entre ellos
+  /// puede caer lejos de la calle), o junto al que haya, o en la mitad del recorrido.
   static LatLng inicio(({ParaderoDeRuta? antes, ParaderoDeRuta? despues}) vecinos, List<LatLng> recorrido) {
     final a = vecinos.antes?.punto, d = vecinos.despues?.punto;
-    if (a != null && d != null) return LatLng((a.latitude + d.latitude) / 2, (a.longitude + d.longitude) / 2);
-    return a ?? d ?? (recorrido.isEmpty ? const LatLng(10.4, -75.5) : recorrido[recorrido.length ~/ 2]);
+    if (recorrido.isEmpty) {
+      if (a != null && d != null) return LatLng((a.latitude + d.latitude) / 2, (a.longitude + d.longitude) / 2);
+      return a ?? d ?? const LatLng(10.4, -75.5);
+    }
+    int masCercano(LatLng p) {
+      var mejor = 0;
+      var distancia = double.infinity;
+      for (var i = 0; i < recorrido.length; i++) {
+        final dLat = recorrido[i].latitude - p.latitude, dLon = recorrido[i].longitude - p.longitude;
+        final d2 = dLat * dLat + dLon * dLon;
+        if (d2 < distancia) (mejor, distancia) = (i, d2);
+      }
+      return mejor;
+    }
+
+    if (a != null && d != null) return recorrido[(masCercano(a) + masCercano(d)) ~/ 2];
+    final uno = a ?? d;
+    return uno != null ? recorrido[masCercano(uno)] : recorrido[recorrido.length ~/ 2];
   }
 
   @override
@@ -93,6 +110,21 @@ class _MarcarParaderoScreenState extends State<MarcarParaderoScreen> {
             options: MapOptions(
               initialCenter: _centro,
               initialZoom: 17,
+              // Con los vecinos a la vista y el centro (donde se marca) sobre el recorrido entre ellos: el encuadre
+              // incluye también su reflejo respecto al centro, para que quede en la mitad sin dejar fuera a ninguno.
+              initialCameraFit: antes?.punto != null || despues?.punto != null
+                  ? CameraFit.coordinates(
+                      coordinates: [
+                        for (final p in [?antes?.punto, ?despues?.punto]) ...[
+                          p,
+                          LatLng(2 * _centro.latitude - p.latitude, 2 * _centro.longitude - p.longitude),
+                        ],
+                      ],
+                      padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 250),
+                      maxZoom: 18,
+                    )
+                  : null,
+              onMapReady: () => _mapa.move(_centro, _mapa.camera.zoom),
               backgroundColor: fondoDelMapa(Theme.of(context).brightness),
               interactionOptions: const InteractionOptions(flags: InteractiveFlag.all & ~InteractiveFlag.rotate),
               onPositionChanged: (camara, _) => _centro = camara.center,

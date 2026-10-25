@@ -43,6 +43,9 @@ void main() {
     expect(vecinos.despues!.nombre, 'Kr 68 entre Cl 25 y 24'); // el por confirmar aún no cuenta
     final inicio = MarcarParaderoScreen.inicio(vecinos, const []);
     expect(inicio.latitude, closeTo((10.3952 + 10.388) / 2, 1e-9));
+    // Con el recorrido, a mitad de camino sobre él: entre el punto más cercano a cada vecino.
+    const recorrido = [LatLng(10.3952, -75.478), LatLng(10.40, -75.47), LatLng(10.41, -75.47), LatLng(10.388, -75.49)];
+    expect(MarcarParaderoScreen.inicio(vecinos, recorrido), const LatLng(10.40, -75.47));
     expect(MarcarParaderoScreen.inicio((antes: null, despues: null), const [LatLng(1, 1), LatLng(2, 2), LatLng(3, 3)]),
         const LatLng(2, 2));
   });
