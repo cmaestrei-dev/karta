@@ -219,3 +219,18 @@ def test_el_que_pase_primero_junta_las_rutas_iguales_y_deja_aparte_el_expreso():
     assert {juntada.ruta.id, *(r.id for r in juntada.alternativas)} == {"T101", "T103"}
     assert juntada.espera_min == pytest.approx(ESPERA_ESTIMADA_MIN["troncal"] / 2)
     assert "T100E" in por_ruta and not por_ruta["T100E"].alternativas
+
+
+def test_en_un_transbordo_el_segundo_bus_tambien_puede_ser_el_que_pase_primero():
+    from scripts.analizar_transbordos import cargar
+    from src.domain.trip_planning import con_alternativas, muestrear
+    rutas, estaciones = cargar()
+    bazurto = next(e for e in estaciones if e.id == "bazurto")
+    bodeguita = next(e for e in estaciones if e.id == "la-bodeguita")
+    t103 = next(r for r in rutas if r.id == "T103")
+    tramo = next(o for o in planificar([t103], estaciones, (bazurto.longitud, bazurto.latitud),
+                                       (bodeguita.longitud, bodeguita.latitud)) if o.rutas)
+    muestras = [m for r in rutas if r.cortes_en_osm <= 2 if (m := muestrear(r, estaciones))]
+    bus = next(t for t in con_alternativas(tramo, muestras, estaciones).tramos if t.modo == "bus")
+    assert [r.id for r in bus.alternativas] == ["T101"]
+    assert bus.espera_min == pytest.approx(ESPERA_ESTIMADA_MIN["troncal"] / 2)

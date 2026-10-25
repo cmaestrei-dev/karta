@@ -10,7 +10,8 @@ from src.domain.ports import IncidentRepository, PlaceRepository, TransitReposit
 from src.domain.route_risk import PENALIZACION_RIESGO_MIN, RADIO_BUSQUEDA_M, ResultadoRiesgo, evaluar_riesgo
 from src.domain.trip_planning import (
     CAMINATA_MAXIMA_DE_ACCESO_M, MAX_CORTES_CONFIABLES, OpcionViaje, PasoCercano, caminata_entre, costo_percibido,
-    donde_pasa_cerca, el_que_pase_primero, estaciones_en_orden, paradas_del_tramo, planificar,
+    con_alternativas, donde_pasa_cerca, el_que_pase_primero, estaciones_en_orden, muestrear, paradas_del_tramo,
+    planificar,
 )
 
 Criterio = Literal["rapida", "segura", "sin_transbordo"]
@@ -72,10 +73,13 @@ class TripService:
         en_servicio = [r for r in cercanas if opera(horarios.get(r.id), salida)]
         estaciones = self.transit.list_stations()
 
-        opciones = sorted(el_que_pase_primero(planificar(en_servicio, estaciones, origen, destino,
-                                                         con_transbordos=criterio != "sin_transbordo",
-                                                         caminata_maxima_m=caminata_maxima_m), estaciones),
-                          key=costo_percibido)
+        muestras = [m for r in en_servicio if r.cortes_en_osm <= MAX_CORTES_CONFIABLES
+                    if (m := muestrear(r, estaciones)) is not None]
+        opciones = el_que_pase_primero(planificar(en_servicio, estaciones, origen, destino,
+                                                  con_transbordos=criterio != "sin_transbordo",
+                                                  caminata_maxima_m=caminata_maxima_m, muestras=muestras), estaciones)
+        # Además, en cada bus de un transbordo, las otras rutas que sirven igual en ese tramo.
+        opciones = sorted((con_alternativas(o, muestras, estaciones) for o in opciones), key=costo_percibido)
         ahora = datetime.now(timezone.utc)
         evaluadas = []
         for opcion in opciones[:self.CANDIDATAS_A_EVALUAR]:

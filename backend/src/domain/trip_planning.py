@@ -542,6 +542,44 @@ def el_que_pase_primero(opciones: list[OpcionViaje], estaciones: list[Estacion])
     return resultado
 
 
+def con_alternativas(opcion: OpcionViaje, muestras: list[RutaMuestreada], estaciones: list[Estacion]) -> OpcionViaje:
+    """
+    En cada tramo en bus de estación a estación (también el segundo bus de un transbordo), las otras rutas que
+    paran en esas dos estaciones, en ese orden, y tardan casi lo mismo a bordo: «T103 o T101, el que pase primero».
+    """
+    tramos = list(opcion.tramos)
+    for k, tramo in enumerate(tramos):
+        if tramo.modo != "bus" or tramo.alternativas:
+            continue
+        sube = _estacion_de(tramo.coordenadas[0], tramo.ruta, estaciones)
+        baja = _estacion_de(tramo.coordenadas[-1], tramo.ruta, estaciones)
+        if not sube or not baja:
+            continue
+        otras = []
+        for m in muestras:
+            if m.ruta.id == tramo.ruta.id or m.ruta.tipo != tramo.ruta.tipo or not len(m.estacion):
+                continue
+            en_sube, en_baja = np.flatnonzero(m.estacion == sube), np.flatnonzero(m.estacion == baja)
+            if not len(en_sube) or not len(en_baja):
+                continue
+            for orden, a_bordo in m.sentidos():
+                posicion = np.empty(len(orden), dtype=int)
+                posicion[orden] = np.arange(len(orden))
+                # La primera vez que llega a la bajada después de pasar por la subida (las rutas van y vuelven).
+                despues = posicion[en_baja][posicion[en_baja] > posicion[en_sube].min()]
+                if not len(despues):
+                    continue
+                j = despues.min()
+                i = posicion[en_sube][posicion[en_sube] < j].max()
+                if abs((a_bordo[j] - a_bordo[i]) - tramo.duracion_min) <= SALTO_PARA_SEPARAR_MIN:
+                    otras.append(m.ruta)
+                    break
+        if otras:
+            frecuencia = sum(1 / (2 * ESPERA_ESTIMADA_MIN[r.tipo]) for r in [tramo.ruta, *otras])
+            tramos[k] = replace(tramo, alternativas=tuple(otras), espera_min=1 / frecuencia / 2)
+    return OpcionViaje(tramos=tuple(tramos))
+
+
 def estaciones_en_orden(ruta: RutaTransporte, estaciones: list[Estacion]) -> list[Estacion]:
     """
     Las estaciones de la ruta en el orden en que las recorre. Muchas relaciones de OSM son de ida y vuelta
