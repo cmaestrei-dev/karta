@@ -22,10 +22,26 @@ class UserRepository(Protocol):
         """Suma (o resta) puntos de reputación de forma atómica."""
         ...
 
+    def add_invisible(self, *, huella: str, creado_en: datetime) -> Usuario:
+        """Crea la cuenta invisible de un teléfono, identificada por la huella de su secreto."""
+        ...
+
+    def get_by_secret(self, huella: str) -> Usuario | None: ...
+
+    def touch(self, user_id: str, ahora: datetime) -> None:
+        """Marca que la cuenta invisible sigue en uso (las abandonadas se borran solas)."""
+        ...
+
+    def upgrade(self, user_id: str, *, email: str, password_hash: str, nombre: str, alias: str,
+                tipo_viajero: TipoViajero, terminos_aceptados_en: datetime) -> Usuario:
+        """Le pone correo a una cuenta invisible: deja de ser anónima y se desliga del teléfono."""
+        ...
+
 
 class IncidentRepository(Protocol):
     def add(self, *, reportado_por: str, tipo: TipoReporte, detalles: dict[str, str], latitud: float,
-            longitud: float, lugar: str | None, creado_en: datetime, expira_en: datetime) -> Incidente: ...
+            longitud: float, lugar: str | None, creado_en: datetime, expira_en: datetime,
+            sin_cuenta: bool = False) -> Incidente: ...
 
     def get_active(self, incidente_id: str, ahora: datetime) -> Incidente | None: ...
 

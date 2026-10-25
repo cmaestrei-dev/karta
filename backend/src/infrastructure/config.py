@@ -27,6 +27,8 @@ CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
 # así las pruebas pueden cambiarlos sin reiniciar la app.
 LIMITE_REGISTRO = (int(os.getenv("LIMITE_REGISTRO_POR_HORA", "10")), 3600)  # por IP
 LIMITE_LOGIN = (int(os.getenv("LIMITE_LOGIN_POR_MINUTO", "10")), 60)  # por IP
+# Cuentas invisibles: una red con muchos teléfonos (la universidad) las crea seguido la primera vez.
+LIMITE_CUENTAS_INVISIBLES = (int(os.getenv("LIMITE_CUENTAS_INVISIBLES_POR_HORA", "60")), 3600)  # por IP
 LIMITE_REPORTES = (int(os.getenv("LIMITE_REPORTES_POR_10_MIN", "6")), 600)  # por viajero
 LIMITE_VOTOS = (int(os.getenv("LIMITE_VOTOS_POR_10_MIN", "30")), 600)  # por viajero
 LIMITE_AVISTAMIENTOS = (int(os.getenv("LIMITE_AVISTAMIENTOS_POR_10_MIN", "20")), 600)  # por viajero

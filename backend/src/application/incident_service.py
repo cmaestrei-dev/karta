@@ -54,6 +54,7 @@ class IncidentService:
         return self.incidents.add(
             reportado_por=usuario.id, tipo=tipo_reporte, detalles=limpios, latitud=latitud, longitud=longitud,
             lugar=self._nombrar(latitud, longitud), creado_en=ahora, expira_en=ahora + tipo_reporte.vigencia,
+            sin_cuenta=usuario.sin_cuenta,
         )
 
     def list_active(self, caja: tuple[float, float, float, float] | None = None) -> list[Incidente]:

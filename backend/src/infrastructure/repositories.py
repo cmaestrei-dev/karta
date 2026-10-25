@@ -10,7 +10,7 @@ from pymongo.database import Database
 from pymongo.errors import DuplicateKeyError
 
 from src.domain.models import (
-    REPUTACION_INICIAL, EmailYaRegistrado, Estacion, IconoLugar, Incidente, LimiteLugaresGuardados,
+    ALIAS_SIN_CUENTA, REPUTACION_INICIAL, EmailYaRegistrado, Estacion, IconoLugar, Incidente, LimiteLugaresGuardados,
     Lugar, LugarGuardado, LugarGuardadoNoEncontrado, RutaTransporte, TipoViajero, Usuario,
 )
 from src.domain.horarios import HorarioRuta
@@ -54,6 +54,45 @@ class MongoUserRepository:
         if ObjectId.is_valid(user_id):
             self._users.update_one({"_id": ObjectId(user_id)}, {"$inc": {"reputacion": delta}})
 
+    def add_invisible(self, *, huella: str, creado_en: datetime) -> Usuario:
+        doc = {
+            "secreto": huella,
+            "anonimo": True,
+            "alias": ALIAS_SIN_CUENTA,
+            "reputacion": REPUTACION_INICIAL,
+            "creado_en": creado_en,
+            "visto_en": creado_en,
+        }
+        try:
+            self._users.insert_one(doc)
+        except DuplicateKeyError:  # dos peticiones a la vez con el mismo secreto: gana la primera
+            return self.get_by_secret(huella)
+        return _to_usuario(doc)
+
+    def get_by_secret(self, huella: str) -> Usuario | None:
+        doc = self._users.find_one({"secreto": huella})
+        return _to_usuario(doc) if doc else None
+
+    def touch(self, user_id: str, ahora: datetime) -> None:
+        if ObjectId.is_valid(user_id):
+            self._users.update_one({"_id": ObjectId(user_id), "anonimo": True}, {"$set": {"visto_en": ahora}})
+
+    def upgrade(self, user_id: str, *, email: str, password_hash: str, nombre: str, alias: str,
+                tipo_viajero: TipoViajero, terminos_aceptados_en: datetime) -> Usuario:
+        try:
+            doc = self._users.find_one_and_update(
+                {"_id": ObjectId(user_id), "anonimo": True},
+                {"$set": {"email": email, "password_hash": password_hash, "nombre": nombre, "alias": alias,
+                          "tipo_viajero": tipo_viajero.value, "terminos_aceptados_en": terminos_aceptados_en},
+                 "$unset": {"secreto": "", "anonimo": "", "visto_en": ""}},
+                return_document=ReturnDocument.AFTER,
+            )
+        except DuplicateKeyError:
+            raise EmailYaRegistrado(email)
+        if doc is None:
+            raise ValueError("Esa cuenta ya tiene correo.")
+        return _to_usuario(doc)
+
 
 class MongoIncidentRepository:
     """Reportes en `incidents` (con TTL sobre `expira_en`) y sus votos en `incident_votes`."""
@@ -66,7 +105,8 @@ class MongoIncidentRepository:
         self._votes = db.incident_votes
 
     def add(self, *, reportado_por: str, tipo: TipoReporte, detalles: dict[str, str], latitud: float,
-            longitud: float, lugar: str | None, creado_en: datetime, expira_en: datetime) -> Incidente:
+            longitud: float, lugar: str | None, creado_en: datetime, expira_en: datetime,
+            sin_cuenta: bool = False) -> Incidente:
         doc = {
             "reportado_por": ObjectId(reportado_por),
             "grupo": tipo.grupo.value,
@@ -78,6 +118,7 @@ class MongoIncidentRepository:
             "votos_si": 0,
             "votos_no": 0,
             "no_seguidos": 0,
+            "sin_cuenta": sin_cuenta,
             "creado_en": creado_en,
             "expira_en": expira_en,
         }
@@ -303,14 +344,14 @@ def _to_ruta(doc: dict) -> RutaTransporte:
 def _to_usuario(doc: dict) -> Usuario:
     return Usuario(
         id=str(doc["_id"]),
-        email=doc["email"],
-        nombre=doc["nombre"],
-        tipo_viajero=TipoViajero(doc["tipo_viajero"]),
+        email=doc.get("email"),
+        nombre=doc.get("nombre"),
+        tipo_viajero=TipoViajero(doc["tipo_viajero"]) if doc.get("tipo_viajero") else None,
         reputacion=doc["reputacion"],
-        password_hash=doc["password_hash"],
+        password_hash=doc.get("password_hash"),
         creado_en=doc["creado_en"],
         # Usuarios creados antes de que existiera el alias lo derivan de su nombre.
-        alias=doc.get("alias") or alias_publico(doc["nombre"]),
+        alias=doc.get("alias") or (alias_publico(doc["nombre"]) if doc.get("nombre") else ALIAS_SIN_CUENTA),
     )
 
 
@@ -329,6 +370,7 @@ def _to_incidente(doc: dict) -> Incidente:
         votos_no=doc.get("votos_no", 0),
         creado_en=doc["creado_en"],
         expira_en=doc["expira_en"],
+        por_confirmar=doc.get("sin_cuenta", False) and doc.get("votos_si", 0) == 0,
     )
 
 
