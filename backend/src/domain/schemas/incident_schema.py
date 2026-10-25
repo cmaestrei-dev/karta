@@ -37,6 +37,7 @@ class IncidentResponse(BaseModel):
     votos_no: int
     creado_en: datetime
     expira_en: datetime
+    por_confirmar: bool = Field(False, description="De alguien sin cuenta y sin confirmar: no pesa en el riesgo")
 
 
 class IncidentDetailResponse(IncidentResponse):

@@ -1,6 +1,7 @@
 """Adaptadores de MongoDB para los puertos del dominio."""
 import math
 import re
+import secrets
 from datetime import datetime, timedelta, timezone
 
 from bson import ObjectId
@@ -9,11 +10,12 @@ from pymongo.database import Database
 from pymongo.errors import DuplicateKeyError
 
 from src.domain.models import (
-    REPUTACION_INICIAL, EmailYaRegistrado, Estacion, IconoLugar, Incidente, LimiteLugaresGuardados,
+    ALIAS_SIN_CUENTA, REPUTACION_INICIAL, EmailYaRegistrado, Estacion, IconoLugar, Incidente, LimiteLugaresGuardados,
     Lugar, LugarGuardado, LugarGuardadoNoEncontrado, RutaTransporte, TipoViajero, Usuario,
 )
 from src.domain.horarios import HorarioRuta
 from src.domain.reportes import TipoReporte, VotoRepetido, alias_publico
+from src.domain.tiempo_real import Observacion, Ocupacion
 
 
 class MongoUserRepository:
@@ -52,6 +54,45 @@ class MongoUserRepository:
         if ObjectId.is_valid(user_id):
             self._users.update_one({"_id": ObjectId(user_id)}, {"$inc": {"reputacion": delta}})
 
+    def add_invisible(self, *, huella: str, creado_en: datetime) -> Usuario:
+        doc = {
+            "secreto": huella,
+            "anonimo": True,
+            "alias": ALIAS_SIN_CUENTA,
+            "reputacion": REPUTACION_INICIAL,
+            "creado_en": creado_en,
+            "visto_en": creado_en,
+        }
+        try:
+            self._users.insert_one(doc)
+        except DuplicateKeyError:  # dos peticiones a la vez con el mismo secreto: gana la primera
+            return self.get_by_secret(huella)
+        return _to_usuario(doc)
+
+    def get_by_secret(self, huella: str) -> Usuario | None:
+        doc = self._users.find_one({"secreto": huella})
+        return _to_usuario(doc) if doc else None
+
+    def touch(self, user_id: str, ahora: datetime) -> None:
+        if ObjectId.is_valid(user_id):
+            self._users.update_one({"_id": ObjectId(user_id), "anonimo": True}, {"$set": {"visto_en": ahora}})
+
+    def upgrade(self, user_id: str, *, email: str, password_hash: str, nombre: str, alias: str,
+                tipo_viajero: TipoViajero, terminos_aceptados_en: datetime) -> Usuario:
+        try:
+            doc = self._users.find_one_and_update(
+                {"_id": ObjectId(user_id), "anonimo": True},
+                {"$set": {"email": email, "password_hash": password_hash, "nombre": nombre, "alias": alias,
+                          "tipo_viajero": tipo_viajero.value, "terminos_aceptados_en": terminos_aceptados_en},
+                 "$unset": {"secreto": "", "anonimo": "", "visto_en": ""}},
+                return_document=ReturnDocument.AFTER,
+            )
+        except DuplicateKeyError:
+            raise EmailYaRegistrado(email)
+        if doc is None:
+            raise ValueError("Esa cuenta ya tiene correo.")
+        return _to_usuario(doc)
+
 
 class MongoIncidentRepository:
     """Reportes en `incidents` (con TTL sobre `expira_en`) y sus votos en `incident_votes`."""
@@ -64,7 +105,8 @@ class MongoIncidentRepository:
         self._votes = db.incident_votes
 
     def add(self, *, reportado_por: str, tipo: TipoReporte, detalles: dict[str, str], latitud: float,
-            longitud: float, lugar: str | None, creado_en: datetime, expira_en: datetime) -> Incidente:
+            longitud: float, lugar: str | None, creado_en: datetime, expira_en: datetime,
+            sin_cuenta: bool = False) -> Incidente:
         doc = {
             "reportado_por": ObjectId(reportado_por),
             "grupo": tipo.grupo.value,
@@ -76,6 +118,7 @@ class MongoIncidentRepository:
             "votos_si": 0,
             "votos_no": 0,
             "no_seguidos": 0,
+            "sin_cuenta": sin_cuenta,
             "creado_en": creado_en,
             "expira_en": expira_en,
         }
@@ -301,14 +344,14 @@ def _to_ruta(doc: dict) -> RutaTransporte:
 def _to_usuario(doc: dict) -> Usuario:
     return Usuario(
         id=str(doc["_id"]),
-        email=doc["email"],
-        nombre=doc["nombre"],
-        tipo_viajero=TipoViajero(doc["tipo_viajero"]),
+        email=doc.get("email"),
+        nombre=doc.get("nombre"),
+        tipo_viajero=TipoViajero(doc["tipo_viajero"]) if doc.get("tipo_viajero") else None,
         reputacion=doc["reputacion"],
-        password_hash=doc["password_hash"],
+        password_hash=doc.get("password_hash"),
         creado_en=doc["creado_en"],
         # Usuarios creados antes de que existiera el alias lo derivan de su nombre.
-        alias=doc.get("alias") or alias_publico(doc["nombre"]),
+        alias=doc.get("alias") or (alias_publico(doc["nombre"]) if doc.get("nombre") else ALIAS_SIN_CUENTA),
     )
 
 
@@ -327,6 +370,7 @@ def _to_incidente(doc: dict) -> Incidente:
         votos_no=doc.get("votos_no", 0),
         creado_en=doc["creado_en"],
         expira_en=doc["expira_en"],
+        por_confirmar=doc.get("sin_cuenta", False) and doc.get("votos_si", 0) == 0,
     )
 
 
@@ -351,3 +395,55 @@ class MongoRateLimiter:
         if doc["conteo"] <= limite:
             return None
         return max(1, math.ceil(inicio + segundos - ahora.timestamp()))
+
+
+class MongoRealtimeRepository:
+    """
+    Avistamientos (`sightings`, vencen a los 30 min) y viajes compartidos (`live_trips`, un documento por viaje que
+    se sobrescribe y vence 5 min después de la última posición). Ningún documento guarda al viajero: no hay
+    historial de ubicaciones de nadie (Ley 1581).
+    """
+    VIGENCIA_AVISTAMIENTO = timedelta(minutes=30)
+    VIGENCIA_VIAJE = timedelta(minutes=5)
+
+    def __init__(self, db: Database):
+        self._sightings = db.sightings
+        self._trips = db.live_trips
+
+    def add_sighting(self, ruta: str, longitud: float, latitud: float, ocupacion: Ocupacion | None,
+                     en: datetime) -> None:
+        self._sightings.insert_one({
+            "ruta": ruta, "ubicacion": {"type": "Point", "coordinates": [longitud, latitud]},
+            "ocupacion": ocupacion.value if ocupacion else None,
+            "en": en, "expira_en": en + self.VIGENCIA_AVISTAMIENTO,
+        })
+
+    def start_trip(self, ruta: str, longitud: float, latitud: float, en: datetime) -> str:
+        viaje = secrets.token_urlsafe(16)
+        self._trips.insert_one({
+            "_id": viaje, "ruta": ruta, "ubicacion": {"type": "Point", "coordinates": [longitud, latitud]},
+            "ocupacion": None, "en": en, "expira_en": en + self.VIGENCIA_VIAJE,
+        })
+        return viaje
+
+    def update_trip(self, viaje: str, longitud: float, latitud: float, ocupacion: Ocupacion | None,
+                    en: datetime) -> bool:
+        cambios = {"ubicacion": {"type": "Point", "coordinates": [longitud, latitud]}, "en": en,
+                   "expira_en": en + self.VIGENCIA_VIAJE}
+        if ocupacion:
+            cambios["ocupacion"] = ocupacion.value
+        # El TTL de MongoDB barre cada minuto: un viaje vencido puede seguir ahí unos segundos.
+        resultado = self._trips.update_one({"_id": viaje, "expira_en": {"$gt": en}}, {"$set": cambios})
+        return resultado.matched_count == 1
+
+    def end_trip(self, viaje: str) -> None:
+        self._trips.delete_one({"_id": viaje})
+
+    def observations(self, ruta: str, desde: datetime) -> list[Observacion]:
+        def observacion(doc: dict, en_vivo: bool) -> Observacion:
+            lon, lat = doc["ubicacion"]["coordinates"]
+            return Observacion(longitud=lon, latitud=lat, en=doc["en"], en_vivo=en_vivo,
+                               ocupacion=Ocupacion(doc["ocupacion"]) if doc.get("ocupacion") else None)
+        filtro = {"ruta": ruta, "en": {"$gte": desde}}
+        return ([observacion(d, True) for d in self._trips.find({**filtro, "expira_en": {"$gt": desde}})]
+                + [observacion(d, False) for d in self._sightings.find(filtro)])

@@ -12,22 +12,31 @@ class TipoViajero(str, enum.Enum):
 
 
 REPUTACION_INICIAL = 100  # Sube o baja según la comunidad confirme o desmienta sus reportes
+ALIAS_SIN_CUENTA = "Viajero sin cuenta"
 
 
 @dataclass(frozen=True)
 class Usuario:
+    """
+    Un viajero. Sin correo es la cuenta invisible del teléfono: se crea sola al abrir Karta, sin nombre ni
+    correo, y registrarse le pone correo a esa misma cuenta (conserva la reputación y los lugares).
+    """
     id: str
-    email: str
-    nombre: str
-    tipo_viajero: TipoViajero
+    email: str | None
+    nombre: str | None
+    tipo_viajero: TipoViajero | None
     reputacion: int
-    password_hash: str
+    password_hash: str | None
     creado_en: datetime
     alias: str  # nombre corto que ven los demás viajeros
 
     @property
     def nivel(self) -> int:
         return nivel_por_reputacion(self.reputacion)
+
+    @property
+    def sin_cuenta(self) -> bool:
+        return self.email is None
 
 
 @dataclass(frozen=True)
@@ -45,6 +54,8 @@ class Incidente:
     votos_no: int
     creado_en: datetime
     expira_en: datetime
+    # Lo reportó alguien sin cuenta y nadie lo ha confirmado: se ve en el mapa, pero no pesa en el riesgo.
+    por_confirmar: bool = False
 
 
 class IconoLugar(str, enum.Enum):

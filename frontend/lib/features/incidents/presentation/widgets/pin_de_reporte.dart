@@ -107,7 +107,8 @@ class _Caida extends StatelessWidget {
 }
 
 /// Marcador del mapa para un reporte: la punta del pin marca el lugar y al tocarlo se abre su detalle.
-/// [atenuado] lo deja en segundo plano (no cuenta en el riesgo de la ruta que se está viendo).
+/// [atenuado] lo deja en segundo plano (no cuenta en el riesgo de la ruta que se está viendo); uno por confirmar
+/// también se ve más suave.
 Marker marcadorDeReporte(BuildContext context, Incident incidente,
     {bool atenuado = false, Alignment alineacion = Alignment.topCenter}) {
   final nombre = incidente.ilustracion?.nombre ?? 'Reporte';
@@ -118,11 +119,13 @@ Marker marcadorDeReporte(BuildContext context, Incident incidente,
       : lugar.startsWith('Cerca de ')
           ? ' cerca de ${lugar.substring(9)}'
           : ' en $lugar';
-  final confirmado = incidente.votosSi == 1
-      ? ', lo confirmó 1 viajero'
-      : incidente.votosSi > 1
-          ? ', lo confirmaron ${incidente.votosSi} viajeros'
-          : '';
+  final confirmado = incidente.porConfirmar
+      ? ', por confirmar'
+      : incidente.votosSi == 1
+          ? ', lo confirmó 1 viajero'
+          : incidente.votosSi > 1
+              ? ', lo confirmaron ${incidente.votosSi} viajeros'
+              : '';
   return Marker(
     key: ValueKey(incidente.id),
     point: incidente.punto,
@@ -135,7 +138,10 @@ Marker marcadorDeReporte(BuildContext context, Incident incidente,
       excludeSemantics: true,
       child: GestureDetector(
         onTap: () => mostrarDetalleDeReporte(context, incidente),
-        child: Opacity(opacity: atenuado ? 0.45 : 1, child: _Caida(child: PinDeReporte(incidente: incidente))),
+        child: Opacity(
+          opacity: atenuado ? 0.45 : (incidente.porConfirmar ? 0.7 : 1),
+          child: _Caida(child: PinDeReporte(incidente: incidente)),
+        ),
       ),
     ),
   );

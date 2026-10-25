@@ -173,6 +173,9 @@ class Incident extends Equatable {
   final DateTime? creadoEn;
   final DateTime? expiraEn;
 
+  /// Lo reportó alguien sin cuenta y nadie lo ha confirmado: se ve, pero no cuenta en el riesgo de las rutas.
+  final bool porConfirmar;
+
   const Incident({
     required this.id,
     required this.grupo,
@@ -185,6 +188,7 @@ class Incident extends Equatable {
     this.votosNo = 0,
     this.creadoEn,
     this.expiraEn,
+    this.porConfirmar = false,
   });
 
   LatLng get punto => LatLng(latitud, longitud);
@@ -202,10 +206,12 @@ class Incident extends Equatable {
         votosNo: json['votos_no'] as int? ?? 0,
         creadoEn: DateTime.tryParse(json['creado_en'] as String? ?? '')?.toLocal(),
         expiraEn: DateTime.tryParse(json['expira_en'] as String? ?? '')?.toLocal(),
+        porConfirmar: json['por_confirmar'] as bool? ?? false,
       );
 
   @override
-  List<Object?> get props => [id, grupo, tipo, detalles, latitud, longitud, lugar, votosSi, votosNo, creadoEn, expiraEn];
+  List<Object?> get props =>
+      [id, grupo, tipo, detalles, latitud, longitud, lugar, votosSi, votosNo, creadoEn, expiraEn, porConfirmar];
 }
 
 /// Lo que se ve al tocar un reporte: quién lo hizo y si el viajero ya lo validó.

@@ -16,6 +16,7 @@ import '../../../incidents/presentation/bloc/incident_bloc.dart';
 import '../../../incidents/presentation/widgets/pin_de_reporte.dart';
 import '../../../places/domain/place_models.dart';
 import '../../domain/trip_models.dart';
+import '../../../viaje/presentation/viaje_screen.dart';
 import 'route_page_screen.dart';
 
 /// Detalle de una forma de llegar: el recorrido dibujado en el mapa y los tramos en secuencia
@@ -231,6 +232,12 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> with SingleTicker
                       esTransbordo: tramo.esCaminata && k > 0 && k + 1 < widget.opcion.tramos.length,
                     ),
                   _Llegada(destino: widget.destino),
+                  const SizedBox(height: 20),
+                  FilledButton.icon(
+                    onPressed: () => ViajeScreen.open(context, widget.opcion),
+                    icon: const Icon(Icons.navigation_outlined),
+                    label: const Text('Iniciar viaje'),
+                  ),
                   const SizedBox(height: 16),
                   Text(
                     'Tiempos estimados con velocidades promedio y esperas típicas; las caminatas se dibujan en línea '

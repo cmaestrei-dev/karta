@@ -16,6 +16,7 @@ import '../../../incidents/presentation/bloc/incident_bloc.dart';
 import '../../../incidents/presentation/widgets/pin_de_reporte.dart';
 import '../../../places/domain/place_models.dart';
 import '../../../places/presentation/screens/place_search_screen.dart';
+import '../../../viaje/presentation/viaje_screen.dart';
 import '../../data/trip_repository.dart';
 import '../../domain/trip_models.dart';
 import '../cubit/trip_cubits.dart';
@@ -986,13 +987,18 @@ class _Opciones extends StatelessWidget {
         ),
         Padding(
           padding: EdgeInsets.fromLTRB(16, 8, 16, 12 + MediaQuery.paddingOf(context).bottom),
-          child: SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: () => onVerRecorrido(opciones[elegida]),
-              icon: const Icon(Icons.route_outlined),
-              label: const Text('Ver el recorrido'),
-            ),
+          child: Row(
+            children: [
+              OutlinedButton(onPressed: () => onVerRecorrido(opciones[elegida]), child: const Text('Detalle')),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: () => ViajeScreen.open(context, opciones[elegida]),
+                  icon: const Icon(Icons.navigation_outlined),
+                  label: const Text('Iniciar viaje'),
+                ),
+              ),
+            ],
           ),
         ),
       ],

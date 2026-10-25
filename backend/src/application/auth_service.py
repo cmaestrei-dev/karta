@@ -1,3 +1,4 @@
+import hashlib
 from datetime import datetime, timezone
 
 from src.domain.models import CredencialesInvalidas, TipoViajero, Usuario
@@ -11,10 +12,34 @@ class AuthService:
         self.hasher = hasher
         self.tokens = tokens
 
-    def register(self, *, email: str, password: str, nombre: str,
-                 tipo_viajero: TipoViajero) -> tuple[Usuario, str]:
-        """Caso de Uso: Registrarse. Lanza EmailYaRegistrado si el correo ya existe."""
+    def invisible(self, *, secreto: str) -> tuple[Usuario, str]:
+        """
+        La cuenta invisible del teléfono: la misma cada vez que muestra su secreto, o una nueva la primera vez.
+        Solo se guarda la huella del secreto (es aleatorio y largo: no hace falta un hash lento).
+        """
+        huella = hashlib.sha256(secreto.encode()).hexdigest()
         ahora = datetime.now(timezone.utc)
+        usuario = self.users.get_by_secret(huella)
+        if usuario is None:
+            usuario = self.users.add_invisible(huella=huella, creado_en=ahora)
+        else:
+            self.users.touch(usuario.id, ahora)
+        return usuario, self.tokens.issue(usuario.id)
+
+    def register(self, *, email: str, password: str, nombre: str, tipo_viajero: TipoViajero,
+                 actual: Usuario | None = None) -> tuple[Usuario, str]:
+        """
+        Caso de Uso: Registrarse. Desde la cuenta invisible, le pone correo a esa misma cuenta (conserva la
+        reputación y los lugares). Lanza EmailYaRegistrado si el correo ya existe.
+        """
+        ahora = datetime.now(timezone.utc)
+        if actual is not None and actual.sin_cuenta:
+            usuario = self.users.upgrade(
+                actual.id, email=email.strip().lower(), password_hash=self.hasher.hash(password),
+                nombre=nombre.strip(), alias=alias_publico(nombre), tipo_viajero=tipo_viajero,
+                terminos_aceptados_en=ahora,
+            )
+            return usuario, self.tokens.issue(usuario.id)
         usuario = self.users.add(
             email=email.strip().lower(),
             password_hash=self.hasher.hash(password),
@@ -34,6 +59,6 @@ class AuthService:
             # así no se puede averiguar qué correos están registrados.
             self.hasher.verify(password, self.hasher.dummy_hash)
             raise CredencialesInvalidas()
-        if not self.hasher.verify(password, usuario.password_hash):
+        if usuario.password_hash is None or not self.hasher.verify(password, usuario.password_hash):
             raise CredencialesInvalidas()
         return usuario, self.tokens.issue(usuario.id)

@@ -8,7 +8,11 @@ import 'config.dart';
 /// Error que se le puede mostrar al viajero tal cual.
 class ApiException implements Exception {
   final String message;
-  const ApiException(this.message);
+
+  /// Código HTTP de la respuesta, si hubo respuesta (sin conexión es null).
+  final int? codigo;
+
+  const ApiException(this.message, {this.codigo});
 
   @override
   String toString() => message;
@@ -21,8 +25,12 @@ class ApiClient {
   final String? Function() _token;
   final http.Client _http;
 
-  ApiClient({required String? Function() token, http.Client? client})
+  /// Ante un 401, renueva la sesión si se puede (la cuenta invisible) y reintenta una vez.
+  final Future<bool> Function()? _renovarSesion;
+
+  ApiClient({required String? Function() token, Future<bool> Function()? renovarSesion, http.Client? client})
       : _token = token,
+        _renovarSesion = renovarSesion,
         _http = client ?? http.Client();
 
   /// [sesionSiHay]: manda el token si existe, sin exigirlo (la API responde distinto con sesión).
@@ -35,10 +43,12 @@ class ApiClient {
   Future<dynamic> patch(String path, Object body, {bool auth = false}) =>
       _send('PATCH', path, body: body, auth: auth);
 
+  Future<dynamic> put(String path, Object body, {bool auth = false}) => _send('PUT', path, body: body, auth: auth);
+
   Future<void> delete(String path, {bool auth = false}) => _send('DELETE', path, auth: auth);
 
   Future<dynamic> _send(String metodo, String path,
-      {Map<String, String>? query, Object? body, bool auth = false, bool sesionSiHay = false}) async {
+      {Map<String, String>? query, Object? body, bool auth = false, bool sesionSiHay = false, bool reintento = false}) async {
     final headers = <String, String>{'Accept': 'application/json'};
     if (body != null) headers['Content-Type'] = 'application/json';
     if (auth) {
@@ -63,9 +73,15 @@ class ApiClient {
       throw const ApiException('No hay conexión con Karta. Revisa tus datos o tu Wi-Fi.');
     }
 
-    if (response.statusCode == 401 && auth) throw SessionExpiredException();
+    if (response.statusCode == 401 && auth) {
+      final renovar = _renovarSesion;
+      if (!reintento && renovar != null && await renovar()) {
+        return _send(metodo, path, query: query, body: body, auth: auth, sesionSiHay: sesionSiHay, reintento: true);
+      }
+      throw SessionExpiredException();
+    }
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw ApiException(apiErrorMessage(response));
+      throw ApiException(apiErrorMessage(response), codigo: response.statusCode);
     }
     if (response.bodyBytes.isEmpty) return null;
     return json.decode(utf8.decode(response.bodyBytes));

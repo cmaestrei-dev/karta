@@ -11,8 +11,9 @@ Cartagena de Indias.
 
 | Funcionalidad | Estado |
 |---|---|
-| Registro e inicio de sesión (JWT, sesión guardada en almacenamiento seguro) | ✅ |
-| Reportar en dos pasos: 9 tipos ilustrados en 3 grupos y sus detalles («el T103 no pasa · 20 min») | ✅ requiere sesión |
+| Usar Karta sin registrarse: cuenta invisible del teléfono, sin nombre ni correo | ✅ registrarse le pone correo a la misma cuenta |
+| Registro e inicio de sesión (JWT, sesión guardada en almacenamiento seguro) | ✅ desde el perfil |
+| Reportar en dos pasos: 9 tipos ilustrados en 3 grupos y sus detalles («el T103 no pasa · 20 min») | ✅ sin cuenta salen «por confirmar» |
 | Ver los reportes vigentes en el mapa | ✅ cada tipo vive de 30 min a 12 h; cada confirmación lo renueva |
 | «¿Sigue ahí?»: confirmar o desmentir reportes ajenos, reputación y niveles | ✅ un voto por viajero; dos «ya no está» seguidos lo retiran |
 | Buscar un lugar de Cartagena o elegir el punto en el mapa | ✅ 453 lugares de OpenStreetMap |
@@ -23,7 +24,11 @@ Cartagena de Indias.
 | Estaciones cercanas con sus rutas | ✅ |
 | Lugares guardados (Casa, Trabajo…) | ✅ CRUD, máximo 10 por viajero |
 | Límite de frecuencia de peticiones (registro, inicio de sesión, reportes y votos) | ✅ responde 429 con `Retry-After` |
-| Viaje activo, avisos y posición de los buses según los viajeros | ⏳ fases 2 y 3 del [plan](docs/plan-reconstruccion.md) |
+| Viaje activo paso a paso, que avanza solo con el GPS (también con la pantalla apagada) | ✅ «Sube al T103», «Bájate en 3 paradas» |
+| Avisos para bajarse: en una estación el bus para solo; en un paradero, «¡Toca el timbre!» a 200 m | ✅ notificación y pantalla completa |
+| «¿El T103 se desvió?» cuando el bus sale de su recorrido | ✅ |
+| Llegada estimada «según N viajeros» y qué tan lleno va el bus | ✅ avistamientos y viajes compartidos |
+| Compartir dónde va el bus (anónimo, solo a bordo, vence a los 5 min) | ✅ activado por defecto, se apaga en Perfil › Privacidad |
 
 ## Arquitectura
 
@@ -144,7 +149,8 @@ firewall del computador permita conexiones entrantes al puerto 8000.
 | Método | Ruta | Sesión | Descripción |
 |---|---|---|---|
 | GET | `/api/v1/health` | — | Estado del servicio y de la base de datos |
-| POST | `/api/v1/auth/register` | — | Registrar un viajero (exige `acepta_terminos: true`); devuelve el token. Máx. 10 por hora por IP |
+| POST | `/api/v1/auth/anonymous` | — | Cuenta invisible del teléfono: manda su `secreto` aleatorio y recibe la sesión (siempre la misma cuenta). Máx. 60 por hora por IP |
+| POST | `/api/v1/auth/register` | opcional | Registrar un viajero (exige `acepta_terminos: true`); con la sesión de la cuenta invisible, le pone correo a esa misma cuenta. Máx. 10 por hora por IP |
 | POST | `/api/v1/auth/login` | — | Iniciar sesión; devuelve un token Bearer (JWT). Máx. 10 por minuto por IP |
 | GET | `/api/v1/users/me` | ✅ | Perfil del viajero autenticado, con su alias, reputación y nivel (1 a 5) |
 | GET | `/api/v1/incidents/types` | — | Catálogo de reportes: grupos, tipos, preguntas y vigencia |
@@ -154,6 +160,11 @@ firewall del computador permita conexiones entrantes al puerto 8000.
 | POST | `/api/v1/incidents/{id}/votes` | ✅ | «¿Sigue ahí?» (`sigue: true/false`). 403 si es tuyo, 409 si ya votaste. Máx. 30 cada 10 min |
 | GET | `/api/v1/routes/?tipo=` | — | Rutas de Transcaribe con su trazado GeoJSON (para dibujarlas en el mapa) |
 | GET | `/api/v1/routes/{codigo}` | — | Página de una ruta: trazado, estaciones en el orden del recorrido, horario por tipo de día y si opera ahora |
+| GET | `/api/v1/routes/{codigo}/live?desde_lat=&desde_lon=&hasta_lat=&hasta_lon=` | — | Cuándo llega el próximo bus a la subida, en el sentido de la bajada, según los viajeros; sin observaciones, `minutos` es null |
+| POST | `/api/v1/sightings` | ✅ | «Vi pasar el T103» o qué tan lleno va (`ocupacion`). Anónimo: no guarda quién; vence a los 30 min. Máx. 20 cada 10 min |
+| POST | `/api/v1/trips` | ✅ | Empezar a compartir dónde va el bus; devuelve un identificador aleatorio de viaje, sin relación con el viajero |
+| PUT | `/api/v1/trips/{viaje}` | ✅ | Nueva posición del bus (y ocupación); 404 si el viaje venció (5 min sin posiciones). Máx. 40 cada 10 min |
+| DELETE | `/api/v1/trips/{viaje}` | ✅ | Dejar de compartir; el viaje se borra en el acto |
 | POST | `/api/v1/routes/risk` | — | Calcular el riesgo de una ruta a partir de sus puntos (lat/lon) |
 | POST | `/api/v1/routes/suggest` | — | Formas de llegar entre dos puntos, con tramos GeoJSON, transbordo y riesgo. `criterio`: `rapida`, `segura` o `sin_transbordo`; `salida`: hora de salida (por defecto, ahora). Si a esa hora no opera ninguna ruta útil, `aviso` dice cuándo sale la primera |
 | GET | `/api/v1/places/search?q=` | — | Buscar lugares de Cartagena (sin tildes, por prefijo de palabra) |
@@ -166,6 +177,11 @@ firewall del computador permita conexiones entrantes al puerto 8000.
 
 Documentación interactiva (Swagger): <http://127.0.0.1:8000/api/v1/docs>. Para probar los endpoints
 con sesión, inicia sesión, copia el `access_token` y pégalo en el botón **Authorize**.
+
+**Privacidad (Ley 1581 de 2012):**
+- **Lo que no se guarda:** ningún documento del tiempo real guarda quién lo envió. Los avistamientos vencen a los 30 minutos y los viajes compartidos a los 5 minutos sin posiciones, con índices TTL.
+- **Historial:** no existe historial de ubicaciones de nadie.
+- **Cuenta invisible:** solo se guarda la huella SHA-256 de su secreto. Las que no se usan en 180 días se borran solas.
 
 ## Pruebas
 
@@ -195,6 +211,22 @@ con mapa vectorial de estilo propio e ilustraciones para cada tipo de reporte:
 [`docs/auditoria-diseno.md`](docs/auditoria-diseno.md) la auditoría de usabilidad que motivó el rediseño.
 Los datos de rutas, estaciones, lugares y el mapa de fondo son © colaboradores de OpenStreetMap (ODbL);
 las teselas vectoriales las sirve OpenFreeMap.
+
+## Planes de producto
+
+Más allá del curso:
+- [Datos de trancones y tráfico](docs/plan-datos-de-trafico.md): por qué no Waze, y cómo combinar datos propios con un proveedor externo.
+- [Cómo se sostiene Karta sin anuncios](docs/plan-sostenibilidad.md): costos, analítica agregada y lo que nunca se hará.
+- [Karta como código abierto](docs/plan-codigo-abierto.md): licencias, titularidad, secretos y tiendas.
+
+## Licencias
+
+Código abierto, © 2026 Camilo Andres Maestre Iglesias:
+- el servidor (`backend/`) bajo la **GNU AGPL 3.0 o posterior**;
+- la app (`frontend/`) bajo la **Apache 2.0**;
+- la documentación bajo **CC BY 4.0**.
+
+Los datos de OpenStreetMap (ODbL) y de Datos Abiertos de Cartagena (CC BY 4.0) conservan su licencia. Detalles en [LICENSE.md](LICENSE.md); para aportar, [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Convenciones
 

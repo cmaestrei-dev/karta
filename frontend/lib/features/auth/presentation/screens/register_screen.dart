@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../bloc/auth_bloc.dart';
 import '../widgets/auth_layout.dart';
+import 'login_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -45,13 +46,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return BlocListener<AuthBloc, AuthState>(
       // Al registrarse la sesión queda iniciada: se vuelve a la raíz, donde ya está el mapa.
       listener: (context, state) {
-        if (state is AuthAuthenticated) {
+        if (state is AuthAuthenticated && state.conCuentaLista) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Listo: tu cuenta quedó creada y conservas tu reputación.')));
           Navigator.of(context).popUntil((route) => route.isFirst);
         }
       },
       child: AuthLayout(
         title: 'Crear cuenta',
-        subtitle: 'Reporta incidentes y ayuda a otros viajeros de Cartagena.',
+        subtitle: 'Tus reportes salen al instante y tu reputación se queda contigo aunque cambies de teléfono.',
         children: [
           Form(
             key: _formKey,
@@ -104,8 +107,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        if (_enviado && state is AuthUnauthenticated && state.message != null)
-                          AuthErrorText(state.message!),
+                        if (_enviado && state is AuthFailure) AuthErrorText(state.message),
                         AuthSubmitButton(
                           label: 'Crear cuenta',
                           loading: state is AuthInProgress,
@@ -120,7 +122,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
           const SizedBox(height: 16),
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () =>
+                Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen())),
             child: const Text('Ya tengo cuenta'),
           ),
         ],
