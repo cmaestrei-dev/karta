@@ -196,6 +196,21 @@ con mapa vectorial de estilo propio e ilustraciones para cada tipo de reporte:
 Los datos de rutas, estaciones, lugares y el mapa de fondo son © colaboradores de OpenStreetMap (ODbL);
 las teselas vectoriales las sirve OpenFreeMap.
 
+## Planes de producto
+
+Más allá del curso:
+- [Datos de trancones y tráfico](docs/plan-datos-de-trafico.md): por qué no Waze, y cómo combinar datos propios con un proveedor externo.
+- [Cómo se sostiene Karta sin anuncios](docs/plan-sostenibilidad.md): costos, analítica agregada y lo que nunca se hará.
+- [Karta como código abierto](docs/plan-codigo-abierto.md): licencias, titularidad, secretos y tiendas.
+
+## Licencias
+
+Código abierto, © 2026 Camilo Maestre:
+- el servidor (`backend/`) bajo la **GNU AGPL 3.0 o posterior**;
+- la app (`frontend/`) bajo la **Apache 2.0**.
+
+Los datos de OpenStreetMap (ODbL) y de Datos Abiertos de Cartagena (CC BY 4.0) conservan su licencia. Detalles en [LICENSE.md](LICENSE.md); para aportar, [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Convenciones
 
 - Commits con [Conventional Commits](https://www.conventionalcommits.org/es/): `feat(incidents): ...`, `fix(routing): ...`.

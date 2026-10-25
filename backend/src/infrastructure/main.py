@@ -28,9 +28,12 @@ app = FastAPI(
     description=(
         "API de Karta: buscador de lugares de Cartagena, rutas sugeridas de Transcaribe con su riesgo, "
         "estaciones cercanas, lugares guardados e incidentes reportados por la comunidad. "
-        "Las rutas protegidas piden un token Bearer (JWT) que entregan /auth/login y /auth/register."
+        "Las rutas protegidas piden un token Bearer (JWT) que entregan /auth/anonymous (la cuenta invisible del "
+        "teléfono), /auth/login y /auth/register.\n\n"
+        "Código fuente (AGPL 3.0 o posterior): https://github.com/cmaestrei-dev/karta"
     ),
     version="2.0.0",
+    license_info={"name": "AGPL-3.0-or-later", "url": "https://www.gnu.org/licenses/agpl-3.0.html"},
     openapi_url="/api/v1/openapi.json",
     docs_url="/api/v1/docs",
     redoc_url="/api/v1/redoc",

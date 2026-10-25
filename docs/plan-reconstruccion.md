@@ -237,7 +237,9 @@ Cada fase termina con una demostración en el teléfono y un PR fusionado.
 - Marcar los paraderos reales: los niveles 4 y 5 los proponen sobre el mapa (D10, D12).
 - iOS y web.
 - Saldo de la tarjeta: depende de los sistemas de Transcaribe.
-- Monetización (diferida).
+- Monetización: [plan de sostenibilidad sin anuncios](plan-sostenibilidad.md).
+- Datos de tráfico externos: [plan de datos de tráfico](plan-datos-de-trafico.md).
+- Licencias y publicación: [plan de código abierto](plan-codigo-abierto.md) (AGPL en el servidor, Apache en la app).
 - Transporte privado: excluido.
 
 ## 12. Preguntas abiertas

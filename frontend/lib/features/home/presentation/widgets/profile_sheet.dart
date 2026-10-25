@@ -110,6 +110,11 @@ void showProfileSheet(BuildContext context) {
                   Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SavedPlacesScreen()));
                 },
               ),
+              ListTile(
+                leading: const Icon(Icons.info_outline),
+                title: const Text('Acerca de Karta'),
+                onTap: () => _acercaDeKarta(hoja),
+              ),
               BlocBuilder<AuthBloc, AuthState>(
                 builder: (_, state) => state is AuthAuthenticated && !state.usuario.sinCuenta
                     ? _CerrarSesion(hoja: hoja, raiz: context, auth: auth)
@@ -122,6 +127,24 @@ void showProfileSheet(BuildContext context) {
     ),
   );
 }
+
+/// Licencias y código fuente. El servidor es AGPL: quien lo usa a través de la app debe poder llegar a su código.
+void _acercaDeKarta(BuildContext context) => showAboutDialog(
+      context: context,
+      applicationName: 'Karta',
+      applicationLegalese: '© 2026 Camilo Maestre',
+      children: const [
+        SizedBox(height: 16),
+        Text('El tiempo real de Transcaribe, hecho por sus pasajeros. Sin anuncios.'),
+        SizedBox(height: 12),
+        Text('La app es código abierto bajo la licencia Apache 2.0 y el servidor bajo la GNU AGPL 3.0.'),
+        SizedBox(height: 12),
+        SelectableText('Código fuente: github.com/cmaestrei-dev/karta'),
+        SizedBox(height: 12),
+        Text('Datos de rutas, estaciones, lugares y mapa © colaboradores de OpenStreetMap (ODbL); horarios del '
+            'Portal de Datos Abiertos de Cartagena (Transcaribe S.A., CC BY 4.0).'),
+      ],
+    );
 
 /// Cerrar la sesión con correo: se sigue sin cuenta en el teléfono. [raiz] es el contexto del inicio, que sigue
 /// vivo cuando la hoja ya se cerró.

@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -20,6 +22,10 @@ import 'features/places/presentation/cubit/saved_places_cubit.dart';
 import 'features/trip/data/trip_repository.dart';
 
 void main() {
+  // La letra va empaquetada: su licencia (OFL) aparece junto a las de los paquetes en «Acerca de Karta».
+  LicenseRegistry.addLicense(() async* {
+    yield LicenseEntryWithLineBreaks(['Manrope'], await rootBundle.loadString('assets/fonts/OFL-Manrope.txt'));
+  });
   runApp(const KartaApp());
 }
 
