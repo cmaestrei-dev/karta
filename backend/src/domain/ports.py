@@ -51,6 +51,10 @@ class IncidentRepository(Protocol):
         """Vigentes, los más recientes primero; `caja` = (lon_min, lat_min, lon_max, lat_max)."""
         ...
 
+    def active_for_route(self, tipo: str, ruta: str, ahora: datetime) -> list[Incidente]:
+        """Reportes vigentes de un tipo sobre una ruta («bus_varado» del T103)."""
+        ...
+
     def find_active_within(self, area: dict, ahora: datetime) -> list[Incidente]:
         """Incidentes vigentes dentro de un polígono GeoJSON."""
         ...

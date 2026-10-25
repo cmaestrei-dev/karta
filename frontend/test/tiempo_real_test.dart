@@ -90,6 +90,10 @@ class _TiempoReal implements TiempoRealRepository {
 
   @override
   Future<void> terminarViajeCompartido(String viaje) async => llamadas.add('terminar $viaje');
+
+  @override
+  Future<void> reportar(String tipo, Map<String, String> detalles, LatLng punto) async =>
+      llamadas.add('reporte $tipo ${detalles.values.join(',')}');
 }
 
 Future<void> _pasa() => Future<void>.delayed(Duration.zero);
@@ -238,4 +242,92 @@ void main() {
     expect(await preferencia.avisoVisto(), isTrue);
     expect(await preferencia.compartir(), isFalse);
   });
+
+  group('bus varado', () {
+    test('a bordo, cuatro minutos quieto lejos de la bajada pregunta y se puede reportar', () async {
+      final c = cubit(compartir: false);
+      await c.iniciar();
+      await en(_p(0, 195));
+      await en(_p(300, 200)); // subió
+      await en(_p(1500, 200), despues: const Duration(minutes: 1));
+      ahora = ahora.add(const Duration(minutes: 3));
+      c.revisarSiSeVaro();
+      expect(c.state.preguntarVarado, isFalse); // tres minutos: todavía no
+      ahora = ahora.add(const Duration(minutes: 1, seconds: 10));
+      c.revisarSiSeVaro();
+      expect(c.state.preguntarVarado, isTrue);
+
+      await c.seVaro();
+      expect((c.state.preguntarVarado, c.state.varadoReportado), (false, true));
+      expect(servidor.llamadas.last, 'reporte bus_varado T103');
+      await c.close();
+    });
+
+    test('si el bus vuelve a andar, la pregunta se quita; y no se pregunta dos veces en el mismo bus', () async {
+      final c = cubit(compartir: false);
+      await c.iniciar();
+      await en(_p(0, 195));
+      await en(_p(300, 200));
+      await en(_p(1500, 200));
+      ahora = ahora.add(const Duration(minutes: 5));
+      c.revisarSiSeVaro();
+      expect(c.state.preguntarVarado, isTrue);
+      await en(_p(1600, 200)); // arrancó
+      expect(c.state.preguntarVarado, isFalse);
+      ahora = ahora.add(const Duration(minutes: 6));
+      c.revisarSiSeVaro();
+      expect(c.state.preguntarVarado, isFalse);
+      await c.close();
+    });
+
+    test('quieto en una estación o llegando a la bajada no es un bus varado', () async {
+      final c = ViajeCubit(
+        opcion: _viajeConEstacion(),
+        avisos: _Avisos(),
+        fuente: (_) => gps.stream,
+        tiempoReal: servidor,
+        preferencia: _Preferencia(si: false, vioElAviso: true),
+        haySesion: () => true,
+        reloj: () => ahora,
+      );
+      await c.iniciar();
+      await en(_p(0, 195));
+      await en(_p(300, 200));
+      await en(_p(1000, 205)); // en la estación de la mitad
+      ahora = ahora.add(const Duration(minutes: 8));
+      c.revisarSiSeVaro();
+      expect(c.state.preguntarVarado, isFalse);
+      await en(_p(2850, 200)); // a 150 m de bajarse
+      ahora = ahora.add(const Duration(minutes: 8));
+      c.revisarSiSeVaro();
+      expect(c.state.preguntarVarado, isFalse);
+      await c.close();
+    });
+
+    test('quien espera ve que un bus se varó antes de su parada', () {
+      const llegada = Llegada(varado: Varado(lugar: 'Cerca de Bazurto', metrosAntes: 900, haceMin: 6));
+      expect(textoDeLlegada('T103', llegada),
+          (titulo: 'Un T103 se varó antes de tu parada', detalle: 'Cerca de Bazurto · hace 6 min · espera el siguiente'));
+    });
+  });
+}
+
+/// El mismo viaje, con una estación a mitad del tramo en bus.
+RouteOption _viajeConEstacion() {
+  final base = _viaje();
+  final bus = base.tramos[1];
+  return RouteOption(
+    resumen: base.resumen,
+    tiempoTotalMin: base.tiempoTotalMin,
+    distanciaCaminataM: base.distanciaCaminataM,
+    tramos: [
+      base.tramos[0],
+      Leg(modo: 'bus', desde: bus.desde, hasta: bus.hasta, distanciaM: bus.distanciaM, duracionMin: bus.duracionMin,
+          esperaMin: bus.esperaMin, ruta: bus.ruta, tipoRuta: bus.tipoRuta, puntos: bus.puntos,
+          paradas: [(nombre: 'Bazurto', punto: _p(0, 200)), (nombre: 'La Popa', punto: _p(1000, 200)),
+            (nombre: 'La Bodeguita', punto: _p(3000, 200))]),
+      base.tramos[2],
+    ],
+    riesgo: base.riesgo,
+  );
 }

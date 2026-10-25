@@ -38,9 +38,18 @@ class PosicionRequest(_EnCartagena):
     ocupacion: OcupacionApi | None = None
 
 
+class VaradoResponse(BaseModel):
+    """Un bus de la ruta varado antes de la subida: no cuenta como uno que viene."""
+    lugar: str | None = Field(None, description="Dónde se varó («Cerca de Bazurto»)")
+    metros_antes: int = Field(..., description="A cuántos metros antes de la subida, sobre la ruta")
+    hace_min: int = Field(..., description="Hace cuánto lo reportaron")
+    confirmaciones: int = Field(..., description="Cuántos viajeros más lo confirmaron")
+
+
 class LlegadaResponse(BaseModel):
     """Cuánto le falta al próximo bus, según los viajeros. Sin observaciones, `minutos` es null."""
     minutos: int | None = None
     fuentes: int = Field(0, description="Cuántos viajeros lo respaldan")
     ocupacion: OcupacionApi | None = None
     visto_hace_min: int | None = None
+    varado: VaradoResponse | None = None

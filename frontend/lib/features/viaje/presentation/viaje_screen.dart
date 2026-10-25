@@ -7,6 +7,7 @@ import 'package:latlong2/latlong.dart';
 
 import '../../../core/api_client.dart';
 import '../../../core/design/bahia.dart';
+import '../../../core/design/ilustracion.dart';
 import '../../../core/design/movimiento.dart';
 import '../../../core/format.dart';
 import '../../../core/map/capa_bahia.dart';
@@ -118,6 +119,14 @@ class _ViajeViewState extends State<_ViajeView> {
     try {
       await context.read<ViajeCubit>().pasoLleno();
       if (mounted) _mensaje('Gracias: quienes esperan el $ruta más adelante sabrán que viene lleno.');
+    } catch (e) {
+      if (mounted) _mensaje(e);
+    }
+  }
+
+  Future<void> _accionDeVarado(Future<void> Function() accion) async {
+    try {
+      await accion();
     } catch (e) {
       if (mounted) _mensaje(e);
     }
@@ -274,7 +283,23 @@ class _ViajeViewState extends State<_ViajeView> {
                             ),
                           ),
                         ),
-                      if (state.estado.desviado)
+                      if (state.preguntarVarado || state.varadoReportado)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                          child: state.preguntarVarado
+                              ? _VaradoDelBus(
+                                  ruta: seguidor.tramoActual.ruta ?? 'bus',
+                                  onSeVaro: () => _accionDeVarado(cubit.seVaro),
+                                  onTrancon: () => _accionDeVarado(cubit.esTrancon),
+                                  onMeBaje: _recalcular,
+                                )
+                              : _VaradoReportado(
+                                  ruta: seguidor.tramoActual.ruta ?? 'bus',
+                                  onOtraRuta: _recalcular,
+                                  onCerrar: cubit.cerrarVarado,
+                                ),
+                        )
+                      else if (state.estado.desviado)
                         Padding(
                           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                           child: state.estado.fase != Fase.aBordo
@@ -507,6 +532,95 @@ class _DesvioDelBus extends StatelessWidget {
                 Expanded(child: OutlinedButton(onPressed: onMeBaje, child: const Text('Me bajé'))),
               ],
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A bordo, el bus lleva varios minutos quieto: ¿se varó (se avisa a quienes lo esperan), es un trancón o ya se
+/// bajó?
+class _VaradoDelBus extends StatelessWidget {
+  final String ruta;
+  final VoidCallback onSeVaro;
+  final VoidCallback onTrancon;
+  final VoidCallback onMeBaje;
+
+  const _VaradoDelBus({required this.ruta, required this.onSeVaro, required this.onTrancon, required this.onMeBaje});
+
+  @override
+  Widget build(BuildContext context) {
+    final b = Bahia.de(context);
+    final texto = Theme.of(context).textTheme;
+    return Material(
+      color: b.hoja,
+      elevation: 8,
+      shadowColor: Colors.black.withValues(alpha: 0.35),
+      borderRadius: BorderRadius.circular(22),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Ilustracion(TipoIlustrado.busVarado, tamano: 40),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('¿El $ruta se varó?', style: texto.titleSmall),
+                      Text('Lleva varios minutos sin moverse.', style: texto.bodySmall?.copyWith(color: b.textoSuave)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(child: FilledButton(onPressed: onSeVaro, child: const Text('Sí, se varó'))),
+                const SizedBox(width: 8),
+                Expanded(child: OutlinedButton(onPressed: onTrancon, child: const Text('Es un trancón'))),
+              ],
+            ),
+            TextButton(onPressed: onMeBaje, child: const Text('Ya me bajé: buscar otra ruta')),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _VaradoReportado extends StatelessWidget {
+  final String ruta;
+  final VoidCallback onOtraRuta;
+  final VoidCallback onCerrar;
+
+  const _VaradoReportado({required this.ruta, required this.onOtraRuta, required this.onCerrar});
+
+  @override
+  Widget build(BuildContext context) {
+    final b = Bahia.de(context);
+    final texto = Theme.of(context).textTheme;
+    return Material(
+      color: b.hoja,
+      elevation: 8,
+      shadowColor: Colors.black.withValues(alpha: 0.35),
+      borderRadius: BorderRadius.circular(22),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+        child: Row(
+          children: [
+            Icon(Icons.check_circle_outline, color: b.enVivo),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text('Gracias: quienes esperan el $ruta ya saben que este no llega.', style: texto.bodyMedium),
+            ),
+            TextButton(onPressed: onOtraRuta, child: const Text('Otra ruta')),
+            IconButton(tooltip: 'Cerrar', onPressed: onCerrar, icon: const Icon(Icons.close)),
           ],
         ),
       ),

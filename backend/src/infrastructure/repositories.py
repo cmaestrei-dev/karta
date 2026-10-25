@@ -142,6 +142,10 @@ class MongoIncidentRepository:
         cursor = self._incidents.find(filtro).sort("creado_en", DESCENDING).limit(limite)
         return [_to_incidente(doc) for doc in cursor]
 
+    def active_for_route(self, tipo: str, ruta: str, ahora: datetime) -> list[Incidente]:
+        cursor = self._incidents.find({"tipo": tipo, "detalles.ruta": ruta, "expira_en": {"$gt": ahora}})
+        return [_to_incidente(doc) for doc in cursor]
+
     def find_active_within(self, area: dict, ahora: datetime) -> list[Incidente]:
         cursor = self._incidents.find({
             "ubicacion": {"$geoWithin": {"$geometry": area}},

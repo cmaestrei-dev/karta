@@ -109,6 +109,13 @@ String? _despuesDeBajarse(SeguidorDeViaje seguidor, String destino) {
 /// Sin observaciones lo dice, en vez de inventar.
 ({String titulo, String detalle}) textoDeLlegada(String ruta, Llegada llegada) {
   final m = llegada.minutos;
+  final varado = llegada.varado;
+  if (m == null && varado != null) {
+    return (
+      titulo: 'Un $ruta se varó antes de tu parada',
+      detalle: '${varado.lugar ?? 'En el camino'} · hace ${varado.haceMin} min · espera el siguiente',
+    );
+  }
   if (m == null) return (titulo: 'Nadie ha visto pasar el $ruta', detalle: 'en la última media hora');
   return (
     titulo: m <= 1 ? 'El $ruta está llegando' : 'El $ruta llega en unos $m min',
@@ -116,6 +123,7 @@ String? _despuesDeBajarse(SeguidorDeViaje seguidor, String destino) {
       llegada.fuentes == 1 ? 'según 1 viajero' : 'según ${llegada.fuentes} viajeros',
       if ((llegada.vistoHaceMin ?? 0) >= 2) 'visto hace ${llegada.vistoHaceMin} min',
       if (llegada.ocupacion != null) llegada.ocupacion!.etiqueta.toLowerCase(),
+      if (varado != null) 'otro se varó en el camino',
     ].join(' · '),
   );
 }

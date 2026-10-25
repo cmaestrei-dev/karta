@@ -7,6 +7,7 @@ import 'bahia.dart';
 enum TipoIlustrado {
   busNoPasa('bus_no_pasa', 'El bus no pasa', 'servicio'),
   busLleno('bus_lleno', 'Bus lleno, no paró', 'servicio'),
+  busVarado('bus_varado', 'Bus varado', 'servicio'),
   estacionCerrada('estacion_cerrada', 'Estación cerrada', 'servicio'),
   trancon('trancon', 'Trancón', 'via'),
   accidente('accidente', 'Accidente', 'via'),

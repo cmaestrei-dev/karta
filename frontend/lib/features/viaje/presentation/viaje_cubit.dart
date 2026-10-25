@@ -39,6 +39,12 @@ class ViajeState extends Equatable {
   /// proponerle otra ruta, hasta que el bus vuelva a su recorrido.
   final bool desvioDelBus;
 
+  /// A bordo, el bus lleva varios minutos quieto lejos de una estación: «¿El T103 se varó?».
+  final bool preguntarVarado;
+
+  /// El viajero reportó que el bus se varó: se le agradece y se le ofrece otra ruta.
+  final bool varadoReportado;
+
   const ViajeState({
     required this.estado,
     this.posicion,
@@ -49,6 +55,8 @@ class ViajeState extends Equatable {
     this.ocupacion,
     this.pedirLaParada,
     this.desvioDelBus = false,
+    this.preguntarVarado = false,
+    this.varadoReportado = false,
   });
 
   /// Los campos que pueden volver a null se pasan como función: `llegada: () => null`.
@@ -62,6 +70,8 @@ class ViajeState extends Equatable {
     Ocupacion? Function()? ocupacion,
     ComoPedirLaParada? Function()? pedirLaParada,
     bool? desvioDelBus,
+    bool? preguntarVarado,
+    bool? varadoReportado,
   }) =>
       ViajeState(
         estado: estado ?? this.estado,
@@ -73,11 +83,15 @@ class ViajeState extends Equatable {
         ocupacion: ocupacion != null ? ocupacion() : this.ocupacion,
         pedirLaParada: pedirLaParada != null ? pedirLaParada() : this.pedirLaParada,
         desvioDelBus: desvioDelBus ?? this.desvioDelBus,
+        preguntarVarado: preguntarVarado ?? this.preguntarVarado,
+        varadoReportado: varadoReportado ?? this.varadoReportado,
       );
 
   @override
-  List<Object?> get props =>
-      [estado, posicion, ultimoEvento, error, llegada, compartiendo, ocupacion, pedirLaParada, desvioDelBus];
+  List<Object?> get props => [
+        estado, posicion, ultimoEvento, error, llegada, compartiendo, ocupacion, pedirLaParada, desvioDelBus,
+        preguntarVarado, varadoReportado,
+      ];
 }
 
 /// El viaje activo: escucha el GPS, se lo pasa al [SeguidorDeViaje] y convierte sus eventos en avisos.
@@ -97,8 +111,16 @@ class ViajeCubit extends Cubit<ViajeState> {
   final Duration cadaCuanto;
   final DateTime Function() reloj;
 
+  /// Tanto tiempo quieto a bordo, lejos de una estación y de la bajada, hace preguntar si el bus se varó.
+  static const quietoParaPreguntar = Duration(minutes: 4);
+  static const radioQuietoM = 35.0;
+
   StreamSubscription<LatLng>? _suscripcion;
   Timer? _consultas;
+  Timer? _vigiaQuieto;
+  LatLng? _anclaQuieto;
+  DateTime? _quietoDesde;
+  bool _yaPreguntoVarado = false;
   Leg? _busConsultado;
   DateTime? _ultimaLlegada;
   bool _quiereCompartir = false;
@@ -166,6 +188,7 @@ class ViajeCubit extends Cubit<ViajeState> {
       // El desvío confirmado dura mientras el bus siga fuera del recorrido y el viajero a bordo.
       desvioDelBus: state.desvioDelBus && seguidor.estado.desviado && seguidor.estado.fase == Fase.aBordo,
     ));
+    _seMovio(punto);
     for (final evento in eventos) {
       if (evento == EventoDelViaje.bajaste) _alBajar();
       if (evento == EventoDelViaje.subiste) _alSubir();
@@ -232,6 +255,60 @@ class ViajeCubit extends Cubit<ViajeState> {
   void _alSubir() {
     if (state.ocupacion != null) emit(state.copyWith(ocupacion: () => null));
     if (_quiereCompartir) _empezarACompartir();
+    // Con el bus quieto el GPS no manda posiciones (solo cada 10 m): un reloj revisa si lleva mucho quieto.
+    _yaPreguntoVarado = false;
+    _anclaQuieto = state.posicion;
+    _quietoDesde = reloj();
+    _vigiaQuieto?.cancel();
+    _vigiaQuieto = Timer.periodic(cadaCuanto, (_) => revisarSiSeVaro());
+  }
+
+  void _seMovio(LatLng punto) {
+    final ancla = _anclaQuieto;
+    if (ancla != null && const Distance().as(LengthUnit.Meter, ancla, punto) <= radioQuietoM) return;
+    _anclaQuieto = punto;
+    _quietoDesde = reloj();
+    // Si el bus volvió a andar, la pregunta ya no aplica.
+    if (state.preguntarVarado) emit(state.copyWith(preguntarVarado: false));
+  }
+
+  /// Pregunta una vez por bus si lleva [quietoParaPreguntar] quieto lejos de la bajada y de las estaciones
+  /// (pública para las pruebas).
+  void revisarSiSeVaro() {
+    final ancla = _anclaQuieto, desde = _quietoDesde;
+    if (isClosed || _yaPreguntoVarado || ancla == null || desde == null) return;
+    if (seguidor.estado.fase != Fase.aBordo || tiempoReal == null || !haySesion()) return;
+    final quieto = reloj().difference(desde);
+    if (quieto < quietoParaPreguntar || seguidor.estado.faltaDelTramoM < 250) return;
+    final enEstacion = seguidor.tramoActual.paradas
+        .any((p) => const Distance().as(LengthUnit.Meter, p.punto, ancla) <= 80);
+    if (enEstacion) return;
+    _yaPreguntoVarado = true;
+    emit(state.copyWith(preguntarVarado: true));
+    avisos.mostrar('¿El ${seguidor.tramoActual.ruta ?? 'bus'} se varó?',
+        'Lleva ${quieto.inMinutes} minutos quieto. Abre Karta para contarnos.');
+  }
+
+  /// «Sí, se varó»: se reporta donde está el bus, para que quienes lo esperan sepan que no llegará.
+  Future<void> seVaro() async {
+    final punto = state.posicion ?? _anclaQuieto;
+    final ruta = seguidor.tramoActual.ruta;
+    if (tiempoReal == null || punto == null || ruta == null) return;
+    await tiempoReal!.reportar('bus_varado', {'ruta': ruta}, punto);
+    if (!isClosed) emit(state.copyWith(preguntarVarado: false, varadoReportado: true));
+  }
+
+  /// «Es un trancón»: se reporta el trancón detenido y se sigue el viaje.
+  Future<void> esTrancon() async {
+    final punto = state.posicion ?? _anclaQuieto;
+    if (tiempoReal == null || punto == null) return;
+    await tiempoReal!.reportar('trancon', {'estado': 'detenido'}, punto);
+    if (!isClosed) emit(state.copyWith(preguntarVarado: false));
+  }
+
+  /// Cierra la pregunta o el agradecimiento del bus varado.
+  void cerrarVarado() {
+    if (!isClosed) emit(state.copyWith(preguntarVarado: false, varadoReportado: false));
   }
 
   /// «¿El T103 se desvió?» → «Sí»: se le sigue acompañando sin proponerle otra ruta.
@@ -245,6 +322,8 @@ class ViajeCubit extends Cubit<ViajeState> {
   }
 
   void _alBajar() {
+    _vigiaQuieto?.cancel();
+    _vigiaQuieto = null;
     yaPediLaParada();
     _dejarDeCompartir();
     if (state.ocupacion != null) emit(state.copyWith(ocupacion: () => null));
@@ -295,6 +374,8 @@ class ViajeCubit extends Cubit<ViajeState> {
   }
 
   Future<void> terminar() async {
+    _vigiaQuieto?.cancel();
+    _vigiaQuieto = null;
     _consultas?.cancel();
     _consultas = null;
     _busConsultado = null;

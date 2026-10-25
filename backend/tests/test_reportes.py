@@ -12,10 +12,10 @@ RUTAS = {"T101", "T103", "X104", "A101", "C016", "T100E"}
 AHORA = datetime(2026, 10, 28, 18, 0, tzinfo=timezone.utc)
 
 
-def test_el_catalogo_tiene_los_nueve_tipos_ilustrados_de_la_app():
+def test_el_catalogo_tiene_los_diez_tipos_ilustrados_de_la_app():
     # Las claves deben coincidir con frontend/assets/ilustraciones/<clave>.svg.
     assert set(CATALOGO) == {
-        "bus_no_pasa", "bus_lleno", "estacion_cerrada", "trancon", "accidente", "calle_inundada",
+        "bus_no_pasa", "bus_lleno", "bus_varado", "estacion_cerrada", "trancon", "accidente", "calle_inundada",
         "robo", "calle_sola", "acoso",
     }
     assert {t.grupo for t in CATALOGO.values()} == set(Grupo)

@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import List, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
@@ -11,7 +12,7 @@ from src.domain.schemas.route_schema import (
     RouteSuggestRequest, RouteSuggestResponse, TramoResponse,
 )
 from src.domain.trip_planning import OpcionViaje
-from src.domain.schemas.realtime_schema import LlegadaResponse
+from src.domain.schemas.realtime_schema import LlegadaResponse, VaradoResponse
 from src.infrastructure.dependencies import get_incident_service, get_realtime_service, get_trip_service
 
 router = APIRouter(prefix="/api/v1/routes", tags=["Rutas"])
@@ -63,19 +64,24 @@ def next_arrival(codigo: str = Path(..., pattern=r"^[ATXC]\d{3}E?$"),
     """
     Cuánto le falta al próximo bus de la ruta para llegar a la subida (`desde`), en el sentido de la bajada
     (`hasta`), según lo que vieron los viajeros en la última media hora. Sin observaciones no se inventa nada:
-    `minutos` es null.
+    `minutos` es null. Si un bus de la ruta se varó antes de la subida, `varado` lo dice y ese bus no cuenta.
     """
     try:
-        estimacion = service.arrival(codigo, (desde_lon, desde_lat), (hasta_lon, hasta_lat))
+        estimacion, varado = service.arrival(codigo, (desde_lon, desde_lat), (hasta_lon, hasta_lat))
     except RutaDesconocida:
         raise HTTPException(status_code=404, detail=f"No existe la ruta {codigo}.")
-    if estimacion is None:
-        return LlegadaResponse()
-    return LlegadaResponse(
+    respuesta = LlegadaResponse() if estimacion is None else LlegadaResponse(
         minutos=estimacion.minutos, fuentes=estimacion.fuentes,
         ocupacion=estimacion.ocupacion.value if estimacion.ocupacion else None,
         visto_hace_min=estimacion.visto_hace_min,
     )
+    if varado:
+        bus, metros = varado
+        respuesta.varado = VaradoResponse(
+            lugar=bus.lugar, metros_antes=round(metros), confirmaciones=bus.confirmaciones,
+            hace_min=max(0, round((datetime.now(timezone.utc) - bus.en).total_seconds() / 60)),
+        )
+    return respuesta
 
 @router.post("/risk", summary="Riesgo de un recorrido", response_model=RouteRiskResponse)
 def evaluate_route_risk(request: RouteRiskRequest, service: IncidentService = Depends(get_incident_service)):
