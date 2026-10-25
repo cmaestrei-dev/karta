@@ -149,6 +149,40 @@ Con eso el servidor estima «sale en ~6 min, según 3 viajeros». Todo vence sol
 - **«Modo ligero»** en Perfil › Apariencia: sin animaciones decorativas ni latidos, mapa con menos detalle y, si la medición lo justifica, teselas raster.
 - **Sugerencia automática:** se ofrece una vez si la app detecta muchos fotogramas lentos.
 
+**D14 · Buses varados** (propuesto el 25 de octubre). Que un Transcaribe se vare es frecuente, y quien lo espera no tiene cómo saberlo.
+- **Nuevo tipo de reporte, «Bus varado»** (grupo servicio): con la ruta y el sentido, y vigencia de 1 hora.
+- **Detección en el viaje:** a bordo, si el bus lleva más de 4 minutos sin moverse lejos de una estación o un paradero, Karta pregunta «¿El T103 se varó?». Las respuestas posibles: «Sí, se varó», «No, es un trancón» o «Ya me bajé».
+  - Con un sí, el reporte se crea con ese toque y Karta propone qué hacer: «Toma el siguiente T103, llega en unos 9 min según 2 viajeros», o recalcular desde ahí.
+  - Con «trancón», se ofrece reportarlo.
+- **Las llegadas lo tienen en cuenta:** un bus reportado como varado deja de contar como «el próximo que llega». Quien espera más adelante ve «Un T103 se varó en Bazurto, según 2 viajeros: espera el siguiente».
+
+**D15 · Buscar direcciones con la nomenclatura colombiana.** Hoy el buscador solo conoce los 453 lugares con nombre. OpenStreetMap tiene apenas 505 direcciones con número en toda Cartagena, casi todas en el Centro, así que ningún geocodificador gratuito basado en él resuelve «Calle 9 # 3-50».
+- **Lo propio, gratis y sin límites:** entender la dirección y ubicarla en los cruces que ya tenemos (1.678 con vías numeradas).
+  - Formatos: «Calle 9 # 3-50», «Cl 9 3 50», «Cra. 3 #8-129», «Tv 54 # 21-30», «Diagonal…», «Avenida…».
+  - Cálculo: «Calle 9 # 3-50» es la Calle 9 en su cruce con la vía número 3, y 50 m más allá, hacia la 4.
+  - Precisión esperada: 20 a 60 m, suficiente para planificar.
+- **Calles completas:** escribir «Calle 30» muestra la vía en el mapa.
+- **Respaldo externo**, solo si el piloto muestra huecos: evaluar un servicio con plan gratuito que tenga mejores direcciones colombianas, revisando antes sus términos de uso. Nominatim no sirve para autocompletar porque su política de uso lo prohíbe.
+
+**D16 · Lo que está cerca: estaciones, rutas y paraderos.** El inicio solo muestra estaciones. Los paraderos no tienen coordenadas oficiales, y OpenStreetMap tiene apenas 103 en Cartagena (38 con nombre).
+- **«Rutas que pasan cerca»:** para cada ruta a menos de ~150 m, por dónde pasa y a qué distancia. Por ejemplo: «A107 pasa por la Av. Kennedy con Calle 18 · 120 m». Es honesto, porque no inventa un paradero exacto.
+- **Paraderos reales cuando haya datos:**
+  - los de OpenStreetMap etiquetados como Transcaribe;
+  - los que la comunidad confirme (D12: donde el bus se detiene a menudo).
+
+  Se muestran con «según N viajeros» hasta estar confirmados.
+
+**D17 · Aprender de los demás y medirnos.** Google Maps es un competidor directo: muy completo, pero con quejas por su navegación y por las rutas y los tiempos de transporte.
+- **Estudio de las reseñas** de las tiendas (Google Play y App Store) de Google Maps, Moovit, Waze, MiBus y las apps de Transcaribe y TransMilenio: los dolores más frecuentes, lo que se valora y qué adoptar y evitar (en curso).
+- **Pruebas comparativas en el piloto** (fase 4):
+  - **Recorridos:** 10 trayectos típicos, planificados en Karta, Google Maps y Moovit.
+  - **Qué se mide:**
+    - el error de la hora de llegada estimada frente a la real;
+    - la distancia a la que suena cada aviso de bajarse;
+    - cuántos toques hacen falta para empezar un viaje;
+    - batería y datos móviles por hora de viaje.
+- **Trazas para pruebas:** con permiso expreso de quienes hagan el piloto, se graban los recorridos GPS reales. Se usan para reproducir viajes en las pruebas automáticas y para afinar el seguidor. Nunca salen del equipo de desarrollo y se borran al terminar.
+
 ## 5. Modelo de datos v2 (MongoDB)
 
 | Colección | Cambio |
@@ -205,8 +239,8 @@ Cada fase termina con una demostración en el teléfono y un PR fusionado.
 | 1 · Mapa y reportes | mié 28 oct – mar 3 nov | Inicio con mapa propio; reportes v2 (catálogo, dos pasos, detalles); «¿Sigue ahí?», votos y reputación; límite de peticiones | En el teléfono se reporta «el bus no pasa», otro usuario lo confirma y la reputación cambia |
 | 2 · Planificar | mié 4 – mar 10 nov | Búsqueda; puntos de subida nombrados por cruce; opciones comparadas en el mapa; criterios; transbordo; horarios de servicio | De Bazurto a Bocagrande salen opciones con y sin transbordo, ordenadas por criterio |
 | 3 · Viaje activo y tiempo real | mié 11 – mar 17 nov | Máquina de estados; avisos de subir, bajar y transbordar; alertas y re-enrutar; avistamientos, ocupación y posición compartida; estimación «según N viajeros»; cuenta invisible (D9); «¡Toca el timbre!» en paraderos (D11); «¿El bus se desvió?» (D12) | Un viaje real en el T103 avanza solo y avisa antes de bajarse |
-| 3b · Comunidad | — | Reportes «por confirmar» y pesos por reputación (D9); premios visuales y «Tu impacto» (D10); base de conocimiento de la comunidad (D12) | Un reporte sin cuenta queda «por confirmar» hasta que otro lo confirma; al bajarse en un paradero, Karta pregunta cómo se pidió la parada |
-| 4 · Despliegue y piloto | mié 18 – lun 23 nov | API en la nube con HTTPS; APK firmado; piloto con compañeros durante 4–5 días; corrección de errores, rendimiento y accesibilidad; modo ligero y prueba en teléfonos económicos (D13); política de tratamiento de datos escrita (Ley 1581) | Hay datos reales del piloto y no queda ningún error crítico abierto |
+| 3b · Comunidad | — | Reportes «por confirmar» y pesos por reputación (D9); premios visuales y «Tu impacto» (D10); base de conocimiento de la comunidad (D12); buses varados (D14); buscar direcciones (D15); rutas y paraderos cerca (D16) | Un reporte sin cuenta queda «por confirmar» hasta que otro lo confirma; al bajarse en un paradero, Karta pregunta cómo se pidió la parada |
+| 4 · Despliegue y piloto | mié 18 – lun 23 nov | API en la nube con HTTPS; APK firmado; piloto con compañeros durante 4–5 días; corrección de errores, rendimiento y accesibilidad; modo ligero y prueba en teléfonos económicos (D13); pruebas comparativas con Google Maps y Moovit (D17); política de tratamiento de datos escrita (Ley 1581) | Hay datos reales del piloto y no queda ningún error crítico abierto |
 | 5 · Cierre | mar 24 – vie 27 nov | Documentación final (diagramas, modelo de datos, API, DESIGN.md), resultados del piloto, presentación y video demo | Entrega lista con un día de margen |
 
 ## 9. Cómo trabajamos
