@@ -156,6 +156,7 @@ def suggest_routes(request: RouteSuggestRequest, service: TripService = Depends(
         criterio=sugerencias.criterio,
         salida=sugerencias.salida,
         aviso=sugerencias.aviso,
+        motivo_del_aviso=sugerencias.motivo_del_aviso,
         nota=nota,
         fuente=FUENTE_RUTAS,
     )

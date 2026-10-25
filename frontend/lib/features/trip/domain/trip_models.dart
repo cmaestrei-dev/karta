@@ -184,8 +184,12 @@ class RouteSuggestions extends Equatable {
   final CriterioDeRuta criterio;
   final DateTime? salida;
 
-  /// Por qué no hay opciones en bus cuando es por el horario («La primera sale mañana a las 5:30 a. m.»).
+  /// Por qué no hay opciones en bus («La primera sale mañana a las 5:30 a. m.»), o qué tienen de raro las que hay.
   final String? aviso;
+
+  /// `horario`: no opera a esa hora; `caminata`: no hay rutas con el límite de caminata elegido; `caminata_larga`:
+  /// ninguna ruta pasa cerca y las opciones caminan más de lo normal.
+  final String? motivoDelAviso;
   final String nota;
   final String fuente;
 
@@ -194,6 +198,7 @@ class RouteSuggestions extends Equatable {
     this.criterio = CriterioDeRuta.rapida,
     this.salida,
     this.aviso,
+    this.motivoDelAviso,
     required this.nota,
     required this.fuente,
   });
@@ -203,12 +208,13 @@ class RouteSuggestions extends Equatable {
         criterio: CriterioDeRuta.deApi(json['criterio'] as String?),
         salida: DateTime.tryParse(json['salida'] as String? ?? ''),
         aviso: json['aviso'] as String?,
+        motivoDelAviso: json['motivo_del_aviso'] as String?,
         nota: json['nota'] as String,
         fuente: json['fuente'] as String,
       );
 
   @override
-  List<Object?> get props => [opciones, criterio, salida, aviso, nota, fuente];
+  List<Object?> get props => [opciones, criterio, salida, aviso, motivoDelAviso, nota, fuente];
 }
 
 /// Una ruta de Transcaribe con su trazado, para dibujarla sobre el mapa.

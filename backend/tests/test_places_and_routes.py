@@ -117,6 +117,25 @@ def test_de_noche_avisa_cuando_sale_la_primera_ruta(api):
     assert cuerpo["aviso"].startswith("A esta hora no pasa ninguna ruta de Transcaribe")
     assert "mañana a las 5:" in cuerpo["aviso"]
     assert cuerpo["salida"].startswith("2026-10-23T23:30:00")
+    assert cuerpo["motivo_del_aviso"] == "horario"
+
+
+def test_si_ninguna_ruta_pasa_cerca_ofrece_caminar_mas_y_lo_avisa(api):
+    # De la Estación Los Ejecutivos al Parque de Castillogrande, la ruta más cercana al destino queda a más de 1 km.
+    cuerpo = api.post("/api/v1/routes/suggest", json={
+        "origen": {"lat": 10.399489, "lon": -75.493651}, "destino": {"lat": 10.391747, "lon": -75.546954},
+        "salida": MARTES_10_AM,
+    }).json()
+    assert cuerpo["motivo_del_aviso"] == "caminata_larga"
+    assert any(o["transbordos"] == 0 and "T103" in o["resumen"] for o in cuerpo["opciones"])
+    assert all(o["distancia_caminata_m"] > 1000 for o in cuerpo["opciones"])
+    # Si el viajero puso un límite de caminata, se respeta: no se ofrece caminar más.
+    limitado = api.post("/api/v1/routes/suggest", json={
+        "origen": {"lat": 10.399489, "lon": -75.493651}, "destino": {"lat": 10.391747, "lon": -75.546954},
+        "salida": MARTES_10_AM, "caminata_maxima_m": 500,
+    }).json()
+    assert not [o for o in limitado["opciones"] if o["transbordos"] or o["resumen"] != "A pie"]
+    assert limitado["motivo_del_aviso"] in ("caminata", None)
 
 
 def test_rutas_sugeridas_solo_dentro_de_cartagena(api):

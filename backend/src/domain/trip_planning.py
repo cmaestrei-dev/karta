@@ -29,6 +29,7 @@ CAMINATA_DIRECTA_MAXIMA_M = 2500    # distancia en línea recta para ofrecer ir 
 PASO_DE_MUESTREO_M = 25
 RADIO_DE_ESTACION_M = 60            # en el corredor de la troncal solo se sube o baja en estaciones
 ANCHO_CORREDOR_TRONCAL_M = 700      # más lejos de toda estación, la troncal va en vía mixta con paraderos
+EN_EL_CARRIL_M = 25                 # a menos de esto del recorrido de la troncal, una pretroncal va por su carril
 MAX_CORTES_CONFIABLES = 2           # rutas con más huecos en OSM no se usan para planificar
 TRANSBORDO_MAXIMO_M = 300           # lo máximo que se camina entre una ruta y la otra
 PENALIZACION_TRANSBORDO_MIN = 4     # cambiar de bus cuesta más que los minutos que dura
@@ -193,13 +194,20 @@ def _distancia_minima(puntos: np.ndarray, estaciones: list[Estacion]) -> np.ndar
     return np.hypot(puntos[:, None, 0] - en_metros[None, :, 0], puntos[:, None, 1] - en_metros[None, :, 1]).min(axis=1)
 
 
-def muestrear(ruta: RutaTransporte, estaciones: list[Estacion]) -> RutaMuestreada | None:
+def carril_de_la_troncal(rutas: list[RutaTransporte]):
+    """Por dónde va el carril exclusivo: el recorrido de las rutas troncales, en metros."""
+    lineas = [a_metros(LineString(r.coordenadas)) for r in rutas if r.tipo == "troncal"]
+    return shapely.union_all(lineas) if lineas else None
+
+
+def muestrear(ruta: RutaTransporte, estaciones: list[Estacion], carril=None) -> RutaMuestreada | None:
     linea = a_metros(LineString(ruta.coordenadas))
     posiciones = np.append(np.arange(0, linea.length, PASO_DE_MUESTREO_M), linea.length)
     puntos = shapely.get_coordinates(shapely.line_interpolate_point(linea, posiciones))
 
     abordable = np.ones(len(posiciones), dtype=bool)
     fuera_del_corredor = np.zeros(len(posiciones), dtype=bool)
+    en_el_carril = np.zeros(len(posiciones), dtype=bool)
     propias = [e for e in estaciones if ruta.id in e.rutas]
     if ruta.tipo == "troncal" and not propias:
         return None
@@ -209,13 +217,21 @@ def muestrear(ruta: RutaTransporte, estaciones: list[Estacion]) -> RutaMuestread
         cerca_de_propia = _distancia_minima(puntos, propias) <= RADIO_DE_ESTACION_M
         fuera_del_corredor = _distancia_minima(puntos, estaciones) > ANCHO_CORREDOR_TRONCAL_M
         abordable = cerca_de_propia | fuera_del_corredor
+        if carril is not None and ruta.tipo != "troncal":
+            # Las pretroncales salen del carril a calles con paraderos aunque sigan cerca de las estaciones (el X103
+            # por Zaragocilla y Piedra de Bolívar): ahí sí se sube y se baja.
+            en_el_carril = shapely.distance(shapely.points(puntos), carril) <= EN_EL_CARRIL_M
+            abordable |= ~en_el_carril
     velocidad = VELOCIDAD_BUS_KMH[ruta.tipo] * 1000 / 60
     estacion = _estacion_propia(puntos, ruta, estaciones)
     por_metro = np.full(len(posiciones), 1 / velocidad)
     if ruta.tipo == "troncal":
         por_metro[fuera_del_corredor] = 60 / (VELOCIDAD_TRONCAL_EN_VIA_MIXTA_KMH * 1000)
+    else:
+        # Por el carril exclusivo, una pretroncal va como la troncal (el X106 de La Castellana al Centro).
+        por_metro[en_el_carril] = 60 / (VELOCIDAD_BUS_KMH["troncal"] * 1000)
     minutos = np.concatenate(([0.0], np.cumsum(np.diff(posiciones) * por_metro[1:])))
-    if ruta.tipo == "troncal" and len(estacion):
+    if (ruta.tipo == "troncal" or en_el_carril.any()) and len(estacion):
         # Una parada cada vez que el recorrido entra a una estación de su servicio.
         entra = (estacion != "") & (np.concatenate(([""], estacion[:-1])) != estacion)
         minutos = minutos + PARADA_EN_ESTACION_MIN * np.cumsum(entra)

@@ -99,7 +99,8 @@ def main():
     confiables = [r for r in rutas if r.cortes_en_osm <= tp.MAX_CORTES_CONFIABLES]
     with reglas_de_antes():
         muestras_antes = [m for r in confiables if (m := tp.muestrear(r, sin_integraciones)) is not None]
-    muestras_ahora = [m for r in confiables if (m := tp.muestrear(r, estaciones)) is not None]
+    carril = tp.carril_de_la_troncal(rutas)
+    muestras_ahora = [m for r in confiables if (m := tp.muestrear(r, estaciones, carril)) is not None]
     filas = []
     for alimentadora in [r for r in rutas if r.id.startswith("A") and r.cortes_en_osm <= tp.MAX_CORTES_CONFIABLES]:
         for origen in origenes(alimentadora, troncales):

@@ -414,6 +414,7 @@ class _PlanRouteViewState extends State<_PlanRouteView> {
                 onElegir: (k) => setState(() => _elegida = k),
                 onVerRecorrido: _verRecorrido,
                 onOtraHora: _elegirSalida,
+                onCaminata: _elegirCaminata,
               ),
             },
           );
@@ -482,6 +483,16 @@ class _PlanRouteViewState extends State<_PlanRouteView> {
   }
 
   Widget _sinOpciones(ScrollController controlador, RouteSuggestions sugerencias, {bool conAsa = true}) {
+    if (sugerencias.aviso != null && sugerencias.motivoDelAviso == 'caminata') {
+      return _Aviso(
+        controlador: controlador,
+        conAsa: conAsa,
+        icono: Icons.directions_walk,
+        titulo: 'Hay que caminar un poco más',
+        detalle: sugerencias.aviso!,
+        acciones: [FilledButton(onPressed: _elegirCaminata, child: const Text('Cambiar la caminata'))],
+      );
+    }
     if (sugerencias.aviso != null) {
       return _Aviso(
         controlador: controlador,
@@ -994,6 +1005,7 @@ class _Opciones extends StatelessWidget {
   final ValueChanged<int> onElegir;
   final ValueChanged<RouteOption> onVerRecorrido;
   final VoidCallback onOtraHora;
+  final VoidCallback onCaminata;
 
   const _Opciones({
     required this.controlador,
@@ -1003,6 +1015,7 @@ class _Opciones extends StatelessWidget {
     required this.onElegir,
     required this.onVerRecorrido,
     required this.onOtraHora,
+    required this.onCaminata,
   });
 
   @override
@@ -1023,7 +1036,11 @@ class _Opciones extends StatelessWidget {
                 children: [
                   if (conAsa) const _Asa(),
                   if (sugerencias.aviso != null) ...[
-                    _AvisoEnLinea(texto: sugerencias.aviso!, accion: 'Otra hora', onAccion: onOtraHora),
+                    if (sugerencias.motivoDelAviso == 'caminata_larga')
+                      _AvisoEnLinea(
+                          icono: Icons.directions_walk, texto: sugerencias.aviso!, accion: 'Caminata', onAccion: onCaminata)
+                    else
+                      _AvisoEnLinea(texto: sugerencias.aviso!, accion: 'Otra hora', onAccion: onOtraHora),
                     const SizedBox(height: 10),
                   ],
                   for (final (k, opcion) in opciones.indexed) ...[
@@ -1067,11 +1084,13 @@ class _Opciones extends StatelessWidget {
 }
 
 class _AvisoEnLinea extends StatelessWidget {
+  final IconData icono;
   final String texto;
   final String accion;
   final VoidCallback onAccion;
 
-  const _AvisoEnLinea({required this.texto, required this.accion, required this.onAccion});
+  const _AvisoEnLinea(
+      {this.icono = Icons.nights_stay_outlined, required this.texto, required this.accion, required this.onAccion});
 
   @override
   Widget build(BuildContext context) {
@@ -1081,7 +1100,7 @@ class _AvisoEnLinea extends StatelessWidget {
       decoration: BoxDecoration(color: b.viaSuave, borderRadius: BorderRadius.circular(16)),
       child: Row(
         children: [
-          Icon(Icons.nights_stay_outlined, color: b.texto),
+          Icon(icono, color: b.texto),
           const SizedBox(width: 10),
           Expanded(child: Text(texto, style: Theme.of(context).textTheme.bodySmall)),
           TextButton(onPressed: onAccion, child: Text(accion)),

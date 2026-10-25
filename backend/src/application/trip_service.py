@@ -9,8 +9,8 @@ from src.domain.paraderos import abordaje
 from src.domain.ports import IncidentRepository, PlaceRepository, TransitRepository
 from src.domain.route_risk import PENALIZACION_RIESGO_MIN, RADIO_BUSQUEDA_M, ResultadoRiesgo, evaluar_riesgo
 from src.domain.trip_planning import (
-    CAMINATA_MAXIMA_DE_ACCESO_M, MAX_CORTES_CONFIABLES, OpcionViaje, PasoCercano, caminata_entre, costo_percibido,
-    con_alternativas, donde_pasa_cerca, el_que_pase_primero, estaciones_en_orden, muestrear, paradas_del_tramo,
+    CAMINATA_MAXIMA_DE_ACCESO_M, MAX_CORTES_CONFIABLES, OpcionViaje, PasoCercano, caminata_entre, carril_de_la_troncal,
+    costo_percibido, con_alternativas, donde_pasa_cerca, el_que_pase_primero, estaciones_en_orden, muestrear, paradas_del_tramo,
     planificar,
 )
 
@@ -18,6 +18,8 @@ Criterio = Literal["rapida", "segura", "sin_transbordo"]
 
 # Cuánto pesa el riesgo al ordenar, según el criterio que eligió el viajero.
 PESO_DEL_RIESGO = {"rapida": 1, "segura": 3, "sin_transbordo": 1}
+CAMINATA_LARGA_M = 2500   # si ninguna ruta pasa cerca, se busca caminando hasta esto (a pie de verdad), y se avisa
+MotivoDelAviso = Literal["horario", "caminata", "caminata_larga"]
 
 
 @dataclass(frozen=True)
@@ -25,8 +27,9 @@ class Sugerencias:
     opciones: list[tuple[OpcionViaje, ResultadoRiesgo]]
     salida: datetime
     criterio: Criterio
-    # Por qué no hay opciones en bus, cuando es por el horario («La primera sale mañana a las 5:30 a. m.»).
+    # Por qué no hay opciones en bus («La primera sale mañana a las 5:30 a. m.»), o qué tienen de raro las que hay.
     aviso: str | None = None
+    motivo_del_aviso: MotivoDelAviso | None = None
 
 
 @dataclass(frozen=True)
@@ -64,17 +67,49 @@ class TripService:
         4. A las más rápidas se les evalúa el riesgo con los reportes vigentes de su corredor.
         5. Se ordenan por tiempo + lo que cuesta cada transbordo + penalización por riesgo, que pesa el
            triple si se pide la más segura.
+        6. Si no queda ninguna en bus, se dice por qué; y si es porque ninguna ruta pasa cerca, se busca otra vez
+           caminando hasta 2,5 km, avisando que hay que caminar más de lo normal.
         """
         salida = salida or datetime.now(timezone.utc)
+        horarios = self.transit.schedules()
+        estaciones = self.transit.list_stations()
+        cercanas, en_servicio, evaluadas = self._buscar(origen, destino, criterio, salida, caminata_maxima_m,
+                                                        horarios, estaciones)
+        aviso, motivo = None, None
+        if not any(opcion.rutas for opcion, _ in evaluadas):
+            aviso = self._aviso_de_horario(cercanas, en_servicio, horarios, estaciones, origen, destino,
+                                           criterio, salida)
+            motivo = "horario" if aviso else None
+            if aviso is None and caminata_maxima_m and any(
+                    o.rutas for o in planificar(en_servicio, estaciones, origen, destino,
+                                                con_transbordos=criterio != "sin_transbordo")):
+                aviso, motivo = (f"Caminando hasta {caminata_maxima_m} m no hay rutas que te sirvan. "
+                                 "Si puedes caminar un poco más, sí las hay."), "caminata"
+            elif aviso is None and caminata_maxima_m is None:
+                # Ninguna ruta pasa cerca del origen o del destino: mejor una caminata larga que nada.
+                _, _, lejanas = self._buscar(origen, destino, criterio, salida, CAMINATA_LARGA_M, horarios, estaciones)
+                if any(opcion.rutas for opcion, _ in lejanas):
+                    evaluadas = lejanas
+                    aviso, motivo = ("Ninguna ruta pasa cerca de tu origen o de tu destino: en estas opciones hay que "
+                                     "caminar más de lo normal."), "caminata_larga"
+
+        return Sugerencias(
+            opciones=[(self._etiquetar(opcion, estaciones, nombre_origen, nombre_destino), riesgo)
+                      for opcion, riesgo in evaluadas[:self.MAX_OPCIONES]],
+            salida=en_colombia(salida), criterio=criterio, aviso=aviso, motivo_del_aviso=motivo,
+        )
+
+    def _buscar(self, origen, destino, criterio: Criterio, salida: datetime, caminata_maxima_m: int | None,
+                horarios, estaciones):
+        """Las rutas cerca, las que operan a esa hora y las opciones ordenadas, con su riesgo."""
         radio = max(CAMINATA_MAXIMA_DE_ACCESO_M, caminata_maxima_m or 0)
         areas = [circulo(*origen, radio), circulo(*destino, radio)]
         cercanas = self.transit.routes_intersecting_any(areas)
-        horarios = self.transit.schedules()
         en_servicio = [r for r in cercanas if opera(horarios.get(r.id), salida)]
-        estaciones = self.transit.list_stations()
 
+        carril = carril_de_la_troncal(self.transit.list_routes("troncal"))
         muestras = [m for r in en_servicio if r.cortes_en_osm <= MAX_CORTES_CONFIABLES
-                    if (m := muestrear(r, estaciones)) is not None]
+                    if (m := muestrear(r, estaciones, carril)) is not None]
         opciones = el_que_pase_primero(planificar(en_servicio, estaciones, origen, destino,
                                                   con_transbordos=criterio != "sin_transbordo",
                                                   caminata_maxima_m=caminata_maxima_m, muestras=muestras), estaciones)
@@ -87,22 +122,7 @@ class TripService:
             evaluadas.append((opcion, evaluar_riesgo(self.incidents.find_active_within(corredor, ahora))))
         peso = PESO_DEL_RIESGO[criterio]
         evaluadas.sort(key=lambda par: costo_percibido(par[0]) + peso * PENALIZACION_RIESGO_MIN[par[1].nivel])
-
-        aviso = None
-        if not any(opcion.rutas for opcion, _ in evaluadas):
-            aviso = self._aviso_de_horario(cercanas, en_servicio, horarios, estaciones, origen, destino,
-                                           criterio, salida)
-            if aviso is None and caminata_maxima_m and any(
-                    o.rutas for o in planificar(en_servicio, estaciones, origen, destino,
-                                                con_transbordos=criterio != "sin_transbordo")):
-                aviso = (f"Caminando hasta {caminata_maxima_m} m no hay rutas que te sirvan. "
-                         "Si puedes caminar un poco más, sí las hay.")
-
-        return Sugerencias(
-            opciones=[(self._etiquetar(opcion, estaciones, nombre_origen, nombre_destino), riesgo)
-                      for opcion, riesgo in evaluadas[:self.MAX_OPCIONES]],
-            salida=en_colombia(salida), criterio=criterio, aviso=aviso,
-        )
+        return cercanas, en_servicio, evaluadas
 
     def _aviso_de_horario(self, cercanas, en_servicio, horarios, estaciones, origen, destino,
                           criterio: Criterio, salida: datetime) -> str | None:

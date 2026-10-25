@@ -97,7 +97,10 @@ class RouteSuggestResponse(BaseModel):
     opciones: List[RouteOptionResponse]
     criterio: Literal["rapida", "segura", "sin_transbordo"]
     salida: datetime = Field(..., description="Hora de salida usada, en hora de Colombia")
-    aviso: str | None = Field(None, description="Por qué no hay opciones en bus, si es por el horario")
+    aviso: str | None = Field(None, description="Por qué no hay opciones en bus, o qué tienen de raro las que hay")
+    motivo_del_aviso: Literal["horario", "caminata", "caminata_larga"] | None = Field(
+        None, description="horario: no opera a esa hora; caminata: no hay rutas con el límite de caminata pedido; "
+                          "caminata_larga: ninguna ruta pasa cerca, y estas opciones caminan más de lo normal")
     nota: str
     fuente: str
 

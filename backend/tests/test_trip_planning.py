@@ -64,6 +64,23 @@ def test_fuera_del_corredor_la_troncal_para_en_la_via():
     assert subida[0] == pytest.approx(-75.549, abs=0.001)
 
 
+def test_la_pretroncal_para_en_la_calle_cuando_sale_del_carril_de_la_troncal():
+    from src.domain.trip_planning import carril_de_la_troncal, muestrear
+    # La X999 va por una calle paralela, a 150 m de la troncal y de sus estaciones (como el X103 por Zaragocilla).
+    paralela = [(-75.55, 10.40 + 150 / METROS_POR_GRADO_LAT), (-75.50, 10.40 + 150 / METROS_POR_GRADO_LAT)]
+    pretroncal = RutaTransporte(id="X999", nombre="X", tipo="pretroncal", coordenadas=paralela, cortes_en_osm=0)
+    estaciones = [Estacion(id=e.id, nombre=e.nombre, latitud=e.latitud, longitud=e.longitud, rutas=["T999", "X999"])
+                  for e in ESTACIONES]
+    carril = carril_de_la_troncal([_ruta("troncal", "T999")])
+    # Sin saber dónde va el carril, se cree que está en él: solo sube cerca de las estaciones.
+    assert not muestrear(pretroncal, estaciones).abordable.all()
+    # Sabiéndolo, se sube en cualquier punto de la calle.
+    assert muestrear(pretroncal, estaciones, carril).abordable.all()
+    # Y sobre el carril mismo, solo en las estaciones.
+    sobre = RutaTransporte(id="X999", nombre="X", tipo="pretroncal", coordenadas=RECTA, cortes_en_osm=0)
+    assert not muestrear(sobre, estaciones, carril).abordable.all()
+
+
 def test_troncal_sin_estaciones_no_sirve():
     assert mejor_opcion_en_ruta(_ruta("troncal", "T999"), [], _al_norte(-75.545, 100), _al_norte(-75.505, 100)) is None
 
