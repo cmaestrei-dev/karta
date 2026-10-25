@@ -2,6 +2,7 @@ from typing import List, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from src.application.incident_service import IncidentService
+from src.application.realtime_service import RealtimeService, RutaDesconocida
 from src.application.trip_service import TripService
 from src.domain.route_risk import ResultadoRiesgo
 from src.domain.schemas.route_schema import (
@@ -10,7 +11,8 @@ from src.domain.schemas.route_schema import (
     RouteSuggestRequest, RouteSuggestResponse, TramoResponse,
 )
 from src.domain.trip_planning import OpcionViaje
-from src.infrastructure.dependencies import get_incident_service, get_trip_service
+from src.domain.schemas.realtime_schema import LlegadaResponse
+from src.infrastructure.dependencies import get_incident_service, get_realtime_service, get_trip_service
 
 router = APIRouter(prefix="/api/v1/routes", tags=["Rutas"])
 
@@ -50,6 +52,29 @@ def route_page(codigo: str = Path(..., pattern=r"^[ATXC]\d{3}E?$", description='
                               domingo_y_festivos=franja("domingo_y_festivos")) if horario else None,
         hoy=pagina.hoy,
         opera_ahora=pagina.opera_ahora,
+    )
+
+@router.get("/{codigo}/live", summary="Cuándo llega el próximo bus", response_model=LlegadaResponse,
+            responses={404: {"description": "No existe esa ruta"}})
+def next_arrival(codigo: str = Path(..., pattern=r"^[ATXC]\d{3}E?$"),
+                 desde_lat: float = Query(..., ge=-90, le=90), desde_lon: float = Query(..., ge=-180, le=180),
+                 hasta_lat: float = Query(..., ge=-90, le=90), hasta_lon: float = Query(..., ge=-180, le=180),
+                 service: RealtimeService = Depends(get_realtime_service)):
+    """
+    Cuánto le falta al próximo bus de la ruta para llegar a la subida (`desde`), en el sentido de la bajada
+    (`hasta`), según lo que vieron los viajeros en la última media hora. Sin observaciones no se inventa nada:
+    `minutos` es null.
+    """
+    try:
+        estimacion = service.arrival(codigo, (desde_lon, desde_lat), (hasta_lon, hasta_lat))
+    except RutaDesconocida:
+        raise HTTPException(status_code=404, detail=f"No existe la ruta {codigo}.")
+    if estimacion is None:
+        return LlegadaResponse()
+    return LlegadaResponse(
+        minutos=estimacion.minutos, fuentes=estimacion.fuentes,
+        ocupacion=estimacion.ocupacion.value if estimacion.ocupacion else None,
+        visto_hace_min=estimacion.visto_hace_min,
     )
 
 @router.post("/risk", summary="Riesgo de un recorrido", response_model=RouteRiskResponse)

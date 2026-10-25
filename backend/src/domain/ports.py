@@ -7,6 +7,7 @@ from src.domain.models import (
     Estacion, IconoLugar, Incidente, Lugar, LugarGuardado, RutaTransporte, TipoViajero, Usuario,
 )
 from src.domain.reportes import TipoReporte
+from src.domain.tiempo_real import Observacion, Ocupacion
 
 
 class UserRepository(Protocol):
@@ -126,4 +127,26 @@ class TokenIssuer(Protocol):
 class RateLimiter(Protocol):
     def hit(self, clave: str, limite: int, ventana: timedelta) -> int | None:
         """Cuenta una petición; si la ventana ya llegó al límite devuelve los segundos que faltan."""
+        ...
+
+
+class RealtimeRepository(Protocol):
+    """Lo que los viajeros ven de los buses. Nada guarda quién lo envió y todo vence solo (TTL)."""
+
+    def add_sighting(self, ruta: str, longitud: float, latitud: float, ocupacion: Ocupacion | None,
+                     en: datetime) -> None: ...
+
+    def start_trip(self, ruta: str, longitud: float, latitud: float, en: datetime) -> str:
+        """Crea un viaje compartido anónimo y devuelve su identificador aleatorio."""
+        ...
+
+    def update_trip(self, viaje: str, longitud: float, latitud: float, ocupacion: Ocupacion | None,
+                    en: datetime) -> bool:
+        """Mueve el viaje; False si ya no existe (terminó o venció)."""
+        ...
+
+    def end_trip(self, viaje: str) -> None: ...
+
+    def observations(self, ruta: str, desde: datetime) -> list[Observacion]:
+        """Avistamientos y viajes compartidos de la ruta desde ese momento."""
         ...

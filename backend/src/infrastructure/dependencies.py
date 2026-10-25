@@ -6,12 +6,13 @@ from pymongo.database import Database
 from src.application.auth_service import AuthService
 from src.application.incident_service import IncidentService
 from src.application.place_service import PlaceService
+from src.application.realtime_service import RealtimeService
 from src.application.trip_service import TripService
 from src.domain.models import Usuario
 from src.infrastructure.database import get_database
 from src.infrastructure.repositories import (
-    MongoIncidentRepository, MongoPlaceRepository, MongoSavedPlaceRepository, MongoTransitRepository,
-    MongoUserRepository,
+    MongoIncidentRepository, MongoPlaceRepository, MongoRealtimeRepository, MongoSavedPlaceRepository,
+    MongoTransitRepository, MongoUserRepository,
 )
 from src.infrastructure.security import password_hasher, token_issuer
 
@@ -41,6 +42,10 @@ def get_place_service(db: Database = Depends(get_db)) -> PlaceService:
 
 def get_trip_service(db: Database = Depends(get_db)) -> TripService:
     return TripService(MongoTransitRepository(db), MongoPlaceRepository(db), MongoIncidentRepository(db))
+
+
+def get_realtime_service(db: Database = Depends(get_db)) -> RealtimeService:
+    return RealtimeService(MongoRealtimeRepository(db), MongoTransitRepository(db))
 
 
 def get_current_user(

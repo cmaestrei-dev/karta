@@ -25,6 +25,11 @@ def ensure_indexes(db: Database) -> None:
     db.incident_votes.create_index([("incidente", ASCENDING), ("usuario", ASCENDING)], unique=True)
     db.incident_votes.create_index([("expira_en", ASCENDING)], expireAfterSeconds=0)
     db.rate_limits.create_index([("expira_en", ASCENDING)], expireAfterSeconds=0)
+    # Tiempo real de los viajeros: vence solo (30 min los avistamientos, 5 min sin moverse los viajes compartidos).
+    db.sightings.create_index([("ruta", ASCENDING), ("en", ASCENDING)])
+    db.sightings.create_index([("expira_en", ASCENDING)], expireAfterSeconds=0)
+    db.live_trips.create_index([("ruta", ASCENDING), ("en", ASCENDING)])
+    db.live_trips.create_index([("expira_en", ASCENDING)], expireAfterSeconds=0)
     migrar(db)
 
 

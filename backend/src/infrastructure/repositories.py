@@ -1,6 +1,7 @@
 """Adaptadores de MongoDB para los puertos del dominio."""
 import math
 import re
+import secrets
 from datetime import datetime, timedelta, timezone
 
 from bson import ObjectId
@@ -14,6 +15,7 @@ from src.domain.models import (
 )
 from src.domain.horarios import HorarioRuta
 from src.domain.reportes import TipoReporte, VotoRepetido, alias_publico
+from src.domain.tiempo_real import Observacion, Ocupacion
 
 
 class MongoUserRepository:
@@ -351,3 +353,55 @@ class MongoRateLimiter:
         if doc["conteo"] <= limite:
             return None
         return max(1, math.ceil(inicio + segundos - ahora.timestamp()))
+
+
+class MongoRealtimeRepository:
+    """
+    Avistamientos (`sightings`, vencen a los 30 min) y viajes compartidos (`live_trips`, un documento por viaje que
+    se sobrescribe y vence 5 min después de la última posición). Ningún documento guarda al viajero: no hay
+    historial de ubicaciones de nadie (Ley 1581).
+    """
+    VIGENCIA_AVISTAMIENTO = timedelta(minutes=30)
+    VIGENCIA_VIAJE = timedelta(minutes=5)
+
+    def __init__(self, db: Database):
+        self._sightings = db.sightings
+        self._trips = db.live_trips
+
+    def add_sighting(self, ruta: str, longitud: float, latitud: float, ocupacion: Ocupacion | None,
+                     en: datetime) -> None:
+        self._sightings.insert_one({
+            "ruta": ruta, "ubicacion": {"type": "Point", "coordinates": [longitud, latitud]},
+            "ocupacion": ocupacion.value if ocupacion else None,
+            "en": en, "expira_en": en + self.VIGENCIA_AVISTAMIENTO,
+        })
+
+    def start_trip(self, ruta: str, longitud: float, latitud: float, en: datetime) -> str:
+        viaje = secrets.token_urlsafe(16)
+        self._trips.insert_one({
+            "_id": viaje, "ruta": ruta, "ubicacion": {"type": "Point", "coordinates": [longitud, latitud]},
+            "ocupacion": None, "en": en, "expira_en": en + self.VIGENCIA_VIAJE,
+        })
+        return viaje
+
+    def update_trip(self, viaje: str, longitud: float, latitud: float, ocupacion: Ocupacion | None,
+                    en: datetime) -> bool:
+        cambios = {"ubicacion": {"type": "Point", "coordinates": [longitud, latitud]}, "en": en,
+                   "expira_en": en + self.VIGENCIA_VIAJE}
+        if ocupacion:
+            cambios["ocupacion"] = ocupacion.value
+        # El TTL de MongoDB barre cada minuto: un viaje vencido puede seguir ahí unos segundos.
+        resultado = self._trips.update_one({"_id": viaje, "expira_en": {"$gt": en}}, {"$set": cambios})
+        return resultado.matched_count == 1
+
+    def end_trip(self, viaje: str) -> None:
+        self._trips.delete_one({"_id": viaje})
+
+    def observations(self, ruta: str, desde: datetime) -> list[Observacion]:
+        def observacion(doc: dict, en_vivo: bool) -> Observacion:
+            lon, lat = doc["ubicacion"]["coordinates"]
+            return Observacion(longitud=lon, latitud=lat, en=doc["en"], en_vivo=en_vivo,
+                               ocupacion=Ocupacion(doc["ocupacion"]) if doc.get("ocupacion") else None)
+        filtro = {"ruta": ruta, "en": {"$gte": desde}}
+        return ([observacion(d, True) for d in self._trips.find({**filtro, "expira_en": {"$gt": desde}})]
+                + [observacion(d, False) for d in self._sightings.find(filtro)])
