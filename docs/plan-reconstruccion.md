@@ -222,7 +222,7 @@ Con eso el servidor estima «sale en ~6 min, según 3 viajeros». Todo vence sol
   - El planificador trata como transbordos integrados el cambio dentro de una estación y el de Santa Lucía a Madre Bernarda (40 m por la cebra; el pasaje no se cobra otra vez dentro de 90 minutos).
   - Entrar desde la calle a una estación troncal suma 2 minutos por cruzar la avenida.
   - Sobre la troncal, las rutas X solo paran en estaciones.
-  - El análisis de toda la red está en [analisis-transbordos.md](analisis-transbordos.md): los transbordos de más de 200 m caminando pasaron de 11 a 0.
+  - El análisis de toda la red está en [analisis-transbordos.md](analisis-transbordos.md): los transbordos de más de 200 m caminando pasaron de 25 a 0 (con el modelo de velocidad con paradas).
   - Del archivo oficial de paraderos salen el módulo de cada ruta en cada estación y su sentido. Por ejemplo, la T101 hacia el Centro para en el módulo A1 de Madre Bernarda y la de vuelta en el A2. La app ya dice «Sube al T101 en Estación Madre Bernarda · módulo A1, hacia el Centro» y «Haz la fila del T101 en el módulo A1». Falta confirmar en persona cuál mitad física de cada plataforma es la A y cuál la B.
 - **Lo que se sabe por experiencia** (Camilo, 25 de octubre):
   - **Patio Portal:** dos plataformas unidas por un puente. Cada una tiene dos mitades donde paran rutas distintas, y en cada mitad se hace la fila. Los letreros dicen el código de cada ruta (X103, T101, T100E).

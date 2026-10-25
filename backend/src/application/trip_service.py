@@ -10,7 +10,7 @@ from src.domain.ports import IncidentRepository, PlaceRepository, TransitReposit
 from src.domain.route_risk import PENALIZACION_RIESGO_MIN, RADIO_BUSQUEDA_M, ResultadoRiesgo, evaluar_riesgo
 from src.domain.trip_planning import (
     CAMINATA_MAXIMA_DE_ACCESO_M, MAX_CORTES_CONFIABLES, OpcionViaje, PasoCercano, caminata_entre, costo_percibido,
-    donde_pasa_cerca, estaciones_en_orden, paradas_del_tramo, planificar,
+    donde_pasa_cerca, el_que_pase_primero, estaciones_en_orden, paradas_del_tramo, planificar,
 )
 
 Criterio = Literal["rapida", "segura", "sin_transbordo"]
@@ -72,8 +72,9 @@ class TripService:
         en_servicio = [r for r in cercanas if opera(horarios.get(r.id), salida)]
         estaciones = self.transit.list_stations()
 
-        opciones = sorted(planificar(en_servicio, estaciones, origen, destino,
-                                     con_transbordos=criterio != "sin_transbordo", caminata_maxima_m=caminata_maxima_m),
+        opciones = sorted(el_que_pase_primero(planificar(en_servicio, estaciones, origen, destino,
+                                                         con_transbordos=criterio != "sin_transbordo",
+                                                         caminata_maxima_m=caminata_maxima_m), estaciones),
                           key=costo_percibido)
         ahora = datetime.now(timezone.utc)
         evaluadas = []
@@ -172,7 +173,7 @@ class TripService:
             tramos[0] = replace(tramos[0], desde=inicio, hasta=fin)
             return OpcionViaje(tramos=tuple(tramos))
 
-        paraderos = self.transit.official_stops([tramos[k].ruta.id for k in buses])
+        paraderos = self.transit.official_stops([r.id for k in buses for r in (tramos[k].ruta, *tramos[k].alternativas)])
         hacia = self.transit.directions()
         for k in buses:
             ruta = tramos[k].ruta
@@ -187,10 +188,15 @@ class TripService:
             if estacion_bajada and not tramos[k + 1].integrado:
                 tramos[k + 1] = caminata_entre((estacion_bajada.longitud, estacion_bajada.latitud),
                                                tramos[k + 1].coordenadas[-1])
-            como = abordaje(ruta.id, estacion_subida.id if estacion_subida else None,
-                            estacion_bajada.id if estacion_bajada else None, paraderos, hacia)
+            # Con «el que pase primero», el módulo solo se dice si todas las rutas paran en el mismo.
+            comos = [abordaje(r.id, estacion_subida.id if estacion_subida else None,
+                              estacion_bajada.id if estacion_bajada else None, paraderos, hacia)
+                     for r in (ruta, *tramos[k].alternativas)]
+            modulos = {c.modulo if c else None for c in comos}
+            destinos = list(dict.fromkeys(c.hacia for c in comos if c and c.hacia))  # «Bocagrande o el Centro»
             tramos[k] = replace(tramos[k], desde=subida, hasta=bajada, paradas=paradas_del_tramo(tramos[k], estaciones),
-                                modulo=como.modulo if como else None, hacia=como.hacia if como else None)
+                                modulo=modulos.pop() if len(modulos) == 1 else None,
+                                hacia=" o ".join(destinos) if destinos else None)
 
         # Cada caminata va del punto anterior al siguiente: el origen, una bajada, una subida o el destino.
         for k, tramo in enumerate(tramos):

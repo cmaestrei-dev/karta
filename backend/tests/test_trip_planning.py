@@ -200,3 +200,22 @@ def test_con_un_limite_de_caminata_nadie_camina_mas_que_eso_hasta_la_ruta():
     assert con_ruta and con_ruta[0].tramos[0].distancia_m == pytest.approx(400 * FACTOR_RODEO, rel=0.05)
     assert not [o for o in planificar([ruta], [], origen, destino, caminata_maxima_m=500) if o.rutas]
     assert [o for o in planificar([ruta], [], origen, destino, caminata_maxima_m=600) if o.rutas]
+
+
+def test_el_que_pase_primero_junta_las_rutas_iguales_y_deja_aparte_el_expreso():
+    from scripts.analizar_transbordos import cargar
+    from src.domain.trip_planning import el_que_pase_primero
+    rutas, estaciones = cargar()
+    madre_bernarda = next(e for e in estaciones if e.id == "madre-bernarda")
+    bodeguita = next(e for e in estaciones if e.id == "la-bodeguita")
+    troncales = [r for r in rutas if r.id in ("T100E", "T101", "T103")]
+    opciones = planificar(troncales, estaciones, (madre_bernarda.longitud, madre_bernarda.latitud),
+                          (bodeguita.longitud, bodeguita.latitud), con_transbordos=False)
+    juntas = el_que_pase_primero([o for o in opciones if o.rutas], estaciones)
+    buses = [next(t for t in o.tramos if t.modo == "bus") for o in juntas]
+    por_ruta = {b.ruta.id: b for b in buses}
+    # T101 y T103 en una sola opción, con la mitad de la espera; la T100E, expresa, aparte.
+    juntada = next(b for b in buses if b.alternativas)
+    assert {juntada.ruta.id, *(r.id for r in juntada.alternativas)} == {"T101", "T103"}
+    assert juntada.espera_min == pytest.approx(ESPERA_ESTIMADA_MIN["troncal"] / 2)
+    assert "T100E" in por_ruta and not por_ruta["T100E"].alternativas

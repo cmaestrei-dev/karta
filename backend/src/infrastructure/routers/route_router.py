@@ -164,7 +164,7 @@ def _minutos(valor: float) -> int:
     return max(1, round(valor)) if valor > 0 else 0
 
 def _a_respuesta(opcion: OpcionViaje, riesgo: ResultadoRiesgo) -> RouteOptionResponse:
-    codigos = [r.id for r in opcion.rutas]
+    codigos = [" o ".join([t.ruta.id, *(r.id for r in t.alternativas)]) for t in opcion.tramos if t.ruta]
     return RouteOptionResponse(
         resumen=f"Transcaribe {' y '.join(codigos)}" if codigos else "A pie",
         tiempo_total_min=_minutos(opcion.tiempo_total_min),
@@ -180,6 +180,7 @@ def _a_respuesta(opcion: OpcionViaje, riesgo: ResultadoRiesgo) -> RouteOptionRes
                 tipo_ruta=t.ruta.tipo if t.ruta else None,
                 paradas=[ParadaDelTramo(nombre=e.nombre, latitud=e.latitud, longitud=e.longitud) for e in t.paradas],
                 indicacion=t.indicacion, modulo=t.modulo, hacia=t.hacia,
+                alternativas=[r.id for r in t.alternativas],
                 geometria=LineaGeoJSON(coordinates=[[round(lon, 6), round(lat, 6)] for lon, lat in t.coordenadas]),
             )
             for t in opcion.tramos

@@ -37,5 +37,7 @@ def test_las_opciones_dicen_el_modulo_y_hacia_donde_va_el_bus(api):
     respuesta = api.post("/api/v1/routes/suggest", json={
         "origen": {"lat": 10.395141, "lon": -75.478607}, "destino": {"lat": 10.420019, "lon": -75.55141},
         "salida": "2026-10-27T08:00:00-05:00", "criterio": "sin_transbordo"}).json()
-    buses = [t for o in respuesta["opciones"] for t in o["tramos"] if t["modo"] == "bus" and t["ruta"] == "T101"]
-    assert buses and buses[0]["modulo"] == "A1" and buses[0]["hacia"] == "el Centro"
+    # La T101 viene junto con la T103 («el que pase primero»): las dos paran en el módulo A1.
+    buses = [t for o in respuesta["opciones"] for t in o["tramos"]
+             if t["modo"] == "bus" and "T101" in [t["ruta"], *t["alternativas"]]]
+    assert buses and buses[0]["modulo"] == "A1" and "el Centro" in buses[0]["hacia"]

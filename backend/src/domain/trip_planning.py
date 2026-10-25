@@ -56,7 +56,14 @@ INTEGRACIONES = {
                    "Al entrar vuelves a pasar la tarjeta, pero no te cobra si cambias en menos de 90 minutos."),
 }
 
-VELOCIDAD_BUS_KMH = {"troncal": 22, "pretroncal": 18, "alimentadora": 15, "complementaria": 15}
+VELOCIDAD_BUS_KMH = {"troncal": 30, "pretroncal": 18, "alimentadora": 15, "complementaria": 15}
+# Las troncales van rápido en su carril y se detienen en cada estación de su servicio (con estaciones cada unos
+# 800 m, el promedio da unos 22 km/h): así un expreso como la T100E, que se salta estaciones, llega antes que la
+# T101 por el mismo carril. Fuera del corredor van en vía mixta, más despacio.
+PARADA_EN_ESTACION_MIN = 0.6
+VELOCIDAD_TRONCAL_EN_VIA_MIXTA_KMH = 18
+# Velocidad promedio con las paradas incluidas: para estimar dónde va un bus visto hace unos minutos.
+VELOCIDAD_PROMEDIO_KMH = {"troncal": 22, "pretroncal": 18, "alimentadora": 15, "complementaria": 15}
 ESPERA_ESTIMADA_MIN = {"troncal": 5, "pretroncal": 8, "alimentadora": 10, "complementaria": 10}
 
 
@@ -71,6 +78,7 @@ class Tramo:
     desde: str = ""
     hasta: str = ""
     paradas: tuple[Estacion, ...] = ()  # estaciones por las que pasa el bus, en orden (incluye subida y bajada)
+    alternativas: tuple[RutaTransporte, ...] = ()  # otras rutas igual de buenas en este tramo: «el que pase primero»
     modulo: str | None = None           # en qué módulo de la estación para el bus en este sentido («A1»)
     hacia: str | None = None            # hacia dónde va el bus («Bocagrande»)
     integrado: bool = False             # caminata de un transbordo en la misma estación o en una integración
@@ -156,6 +164,7 @@ class RutaMuestreada:
     abordable: np.ndarray    # dónde se puede subir o bajar
     velocidad: float         # m/min
     estacion: np.ndarray = field(default_factory=lambda: np.array([], dtype=object))  # id de la estación propia o ""
+    minutos: np.ndarray = field(default_factory=lambda: np.array([]))  # minutos acumulados desde el inicio, con paradas
 
     @property
     def espera(self) -> float:
@@ -163,9 +172,9 @@ class RutaMuestreada:
 
     def sentidos(self):
         """OSM guarda una relación por ruta aunque los buses van y vuelven: se evalúan los dos sentidos.
-        Cada sentido es (índices en orden de avance, metros avanzados en ese orden)."""
+        Cada sentido es (índices en orden de avance, minutos a bordo acumulados en ese orden)."""
         ida = np.arange(len(self.posiciones))
-        return [(ida, self.posiciones), (ida[::-1], self.linea.length - self.posiciones[::-1])]
+        return [(ida, self.minutos), (ida[::-1], self.minutos[-1] - self.minutos[::-1])]
 
     def lonlat(self, k: int) -> tuple[float, float]:
         return tuple(a_grados(Point(self.puntos[k])).coords[0])
@@ -175,7 +184,7 @@ class RutaMuestreada:
         recorrido = a_grados(substring(self.linea, self.posiciones[i], self.posiciones[j]))
         distancia = float(abs(self.posiciones[j] - self.posiciones[i]))
         return Tramo(modo="bus", coordenadas=tuple(recorrido.coords), distancia_m=distancia,
-                     duracion_min=distancia / self.velocidad, espera_min=self.espera, ruta=self.ruta)
+                     duracion_min=float(abs(self.minutos[j] - self.minutos[i])), espera_min=self.espera, ruta=self.ruta)
 
 
 def _distancia_minima(puntos: np.ndarray, estaciones: list[Estacion]) -> np.ndarray:
@@ -190,6 +199,7 @@ def muestrear(ruta: RutaTransporte, estaciones: list[Estacion]) -> RutaMuestread
     puntos = shapely.get_coordinates(shapely.line_interpolate_point(linea, posiciones))
 
     abordable = np.ones(len(posiciones), dtype=bool)
+    fuera_del_corredor = np.zeros(len(posiciones), dtype=bool)
     propias = [e for e in estaciones if ruta.id in e.rutas]
     if ruta.tipo == "troncal" and not propias:
         return None
@@ -200,7 +210,16 @@ def muestrear(ruta: RutaTransporte, estaciones: list[Estacion]) -> RutaMuestread
         fuera_del_corredor = _distancia_minima(puntos, estaciones) > ANCHO_CORREDOR_TRONCAL_M
         abordable = cerca_de_propia | fuera_del_corredor
     velocidad = VELOCIDAD_BUS_KMH[ruta.tipo] * 1000 / 60
-    return RutaMuestreada(ruta, linea, posiciones, puntos, abordable, velocidad, _estacion_propia(puntos, ruta, estaciones))
+    estacion = _estacion_propia(puntos, ruta, estaciones)
+    por_metro = np.full(len(posiciones), 1 / velocidad)
+    if ruta.tipo == "troncal":
+        por_metro[fuera_del_corredor] = 60 / (VELOCIDAD_TRONCAL_EN_VIA_MIXTA_KMH * 1000)
+    minutos = np.concatenate(([0.0], np.cumsum(np.diff(posiciones) * por_metro[1:])))
+    if ruta.tipo == "troncal" and len(estacion):
+        # Una parada cada vez que el recorrido entra a una estación de su servicio.
+        entra = (estacion != "") & (np.concatenate(([""], estacion[:-1])) != estacion)
+        minutos = minutos + PARADA_EN_ESTACION_MIN * np.cumsum(entra)
+    return RutaMuestreada(ruta, linea, posiciones, puntos, abordable, velocidad, estacion, minutos)
 
 
 def _estacion_propia(puntos: np.ndarray, ruta: RutaTransporte, estaciones: list[Estacion]) -> np.ndarray:
@@ -240,13 +259,13 @@ def _llegadas(m: RutaMuestreada, a_origen: np.ndarray, limite: float = CAMINATA_
     """En cada sentido, lo antes que se llega en bus a cada punto saliendo del origen (caminata, espera y
     viaje), y dónde conviene subirse para eso. Solo cuenta en los puntos donde se puede bajar."""
     sentidos = []
-    for orden, avance in m.sentidos():
+    for orden, a_bordo in m.sentidos():
         puede_subir = m.abordable[orden] & (a_origen[orden] <= limite)
-        costo = np.where(puede_subir, minutos_caminando(a_origen[orden]) - avance / m.velocidad, np.inf)
+        costo = np.where(puede_subir, minutos_caminando(a_origen[orden]) - a_bordo, np.inf)
         # Subirse estrictamente antes del punto: el mínimo acumulado hasta k − 1.
         previo = np.concatenate(([np.inf], np.minimum.accumulate(costo)[:-1]))
         subida = np.concatenate(([-1], _argmin_acumulado(costo)[:-1]))
-        minutos = np.where(m.abordable[orden], previo + avance / m.velocidad + m.espera, np.inf)
+        minutos = np.where(m.abordable[orden], previo + a_bordo + m.espera, np.inf)
         sentidos.append(_Sentido(orden, minutos, np.where(subida >= 0, orden[np.maximum(subida, 0)], -1)))
     return sentidos
 
@@ -255,15 +274,15 @@ def _salidas(m: RutaMuestreada, a_destino: np.ndarray, limite: float = CAMINATA_
     """En cada sentido, lo que falta para llegar al destino subiéndose en cada punto (espera aparte),
     y dónde conviene bajarse."""
     sentidos = []
-    for orden, avance in m.sentidos():
+    for orden, a_bordo in m.sentidos():
         puede_bajar = m.abordable[orden] & (a_destino[orden] <= limite)
-        costo = np.where(puede_bajar, avance / m.velocidad + minutos_caminando(a_destino[orden]), np.inf)
+        costo = np.where(puede_bajar, a_bordo + minutos_caminando(a_destino[orden]), np.inf)
         # Bajarse estrictamente después del punto: el mínimo de k + 1 en adelante.
         al_reves = costo[::-1]
         siguiente = np.concatenate((np.minimum.accumulate(al_reves)[::-1][1:], [np.inf]))
         arg = _argmin_acumulado(al_reves)
         bajada = np.concatenate((np.where(arg >= 0, len(costo) - 1 - arg, -1)[::-1][1:], [-1]))
-        minutos = np.where(m.abordable[orden], siguiente - avance / m.velocidad, np.inf)
+        minutos = np.where(m.abordable[orden], siguiente - a_bordo, np.inf)
         sentidos.append(_Sentido(orden, minutos, np.where(bajada >= 0, orden[np.maximum(bajada, 0)], -1)))
     return sentidos
 
@@ -465,6 +484,62 @@ def _depurar(opciones: list[OpcionViaje]) -> list[OpcionViaje]:
         if actual is None or costo_percibido(o) < costo_percibido(actual):
             mejor_por_primera_ruta[o.ruta.id] = o
     return resultado + list(mejor_por_primera_ruta.values())
+
+
+SALTO_PARA_SEPARAR_MIN = 1.5  # entre dos rutas ordenadas por tiempo a bordo, más que esto ya no es «da igual cuál»
+
+
+def _estacion_de(punto: tuple[float, float], ruta: RutaTransporte, estaciones: list[Estacion]) -> str | None:
+    p = a_metros(Point(punto))
+    for e in estaciones:
+        if ruta.id in e.rutas and a_metros(Point(e.longitud, e.latitud)).distance(p) <= RADIO_DE_ESTACION_M:
+            return e.id
+    return None
+
+
+def el_que_pase_primero(opciones: list[OpcionViaje], estaciones: list[Estacion]) -> list[OpcionViaje]:
+    """
+    Junta las opciones directas que suben y bajan en las mismas estaciones y tardan casi lo mismo a bordo (la T101 y
+    la T103 de Madre Bernarda a La Bodeguita): una sola opción, «el que pase primero». Con dos rutas pasan el doble
+    de buses, así que la espera es la mitad. Un expreso que llega antes (la T100E) queda aparte: pasa después, pero
+    llegas primero.
+    """
+    grupos: dict[tuple[str, str], list[OpcionViaje]] = {}
+    resultado = []
+    for o in opciones:
+        buses = [t for t in o.tramos if t.modo == "bus"]
+        if len(buses) != 1:
+            resultado.append(o)
+            continue
+        bus = buses[0]
+        clave = (_estacion_de(bus.coordenadas[0], bus.ruta, estaciones), _estacion_de(bus.coordenadas[-1], bus.ruta, estaciones))
+        if None in clave:
+            resultado.append(o)
+            continue
+        grupos.setdefault(clave, []).append(o)
+    duracion = lambda o: next(t for t in o.tramos if t.modo == "bus").duracion_min
+    for grupo in grupos.values():
+        # Se ordenan por tiempo a bordo y se cortan donde hay un salto: el expreso queda en su propio grupo.
+        grupo.sort(key=duracion)
+        juntas_por_tiempo = [[grupo[0]]]
+        for o in grupo[1:]:
+            if duracion(o) - duracion(juntas_por_tiempo[-1][-1]) > SALTO_PARA_SEPARAR_MIN:
+                juntas_por_tiempo.append([])
+            juntas_por_tiempo[-1].append(o)
+        for juntas in juntas_por_tiempo:
+            base = min(juntas, key=lambda o: o.tiempo_total_min)
+            if len(juntas) == 1:
+                resultado.append(base)
+                continue
+            buses = [next(t for t in o.tramos if t.modo == "bus") for o in juntas]
+            bus_base = next(t for t in base.tramos if t.modo == "bus")
+            # Buses de cada ruta cada 2 × espera: juntas pasan con la suma de las frecuencias.
+            frecuencia = sum(1 / (2 * t.espera_min) for t in buses if t.espera_min > 0)
+            espera = 1 / frecuencia / 2 if frecuencia else bus_base.espera_min
+            juntado = replace(bus_base, espera_min=espera, duracion_min=max(t.duracion_min for t in buses),
+                              alternativas=tuple(t.ruta for t in buses if t is not bus_base))
+            resultado.append(OpcionViaje(tramos=tuple(juntado if t is bus_base else t for t in base.tramos)))
+    return resultado
 
 
 def estaciones_en_orden(ruta: RutaTransporte, estaciones: list[Estacion]) -> list[Estacion]:

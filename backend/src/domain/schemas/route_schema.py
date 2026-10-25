@@ -71,6 +71,8 @@ class TramoResponse(BaseModel):
     paradas: List[ParadaDelTramo] = Field(
         default_factory=list,
         description="Estaciones por las que pasa el bus en este tramo, en orden (vacía fuera de la troncal)")
+    alternativas: List[str] = Field(
+        default_factory=list, description="Otras rutas igual de buenas en este tramo: se toma la que pase primero")
     modulo: str | None = Field(None, description="Módulo de la estación donde para el bus en este sentido («A1»)")
     hacia: str | None = Field(None, description="Hacia dónde va el bus («Bocagrande»)")
     indicacion: str | None = Field(

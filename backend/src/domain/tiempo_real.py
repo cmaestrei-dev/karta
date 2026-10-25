@@ -16,7 +16,7 @@ from shapely.geometry import LineString, Point
 
 from src.domain.geo import a_metros
 from src.domain.models import RutaTransporte
-from src.domain.trip_planning import PASO_DE_MUESTREO_M, VELOCIDAD_BUS_KMH
+from src.domain.trip_planning import PASO_DE_MUESTREO_M, VELOCIDAD_PROMEDIO_KMH
 
 CERCA_DE_LA_RUTA_M = 120          # un punto más lejos que esto de la ruta no se puede ubicar en ella
 CERCA_DEL_VARADO_M = 250          # lo que se ve a esta distancia de un bus varado es ese mismo bus
@@ -115,7 +115,7 @@ def estimar_llegada(ruta: RutaTransporte, subida: tuple[float, float], bajada: t
     if ubicada is None:
         return None
     parada, sentido = ubicada
-    velocidad = VELOCIDAD_BUS_KMH[ruta.tipo] * 1000 / 60  # m/min
+    velocidad = VELOCIDAD_PROMEDIO_KMH[ruta.tipo] * 1000 / 60  # m/min
 
     llegadas: list[tuple[float, Observacion]] = []
     for obs in observaciones:
