@@ -266,6 +266,10 @@ class _PlanRouteViewState extends State<_PlanRouteView> {
       context: context,
       initialTime: TimeOfDay.fromDateTime(_salida ?? ahora),
       helpText: 'Hora de salida',
+      // En español el selector muestra 24 horas, pero al escribir la hora Flutter la lee en 12 si el teléfono no
+      // pide 24: «08» con la hora inicial de la tarde quedaba en las 8 p. m. Así se ve y se lee igual.
+      builder: (context, child) =>
+          MediaQuery(data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true), child: child!),
     );
     if (!mounted || hora == null) return;
     final salida = DateTime(dia.year, dia.month, dia.day, hora.hour, hora.minute);
