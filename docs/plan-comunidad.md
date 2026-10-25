@@ -10,7 +10,18 @@
 - «Gracias: con tu viaje, 23 personas supieron cuándo llegaba el T103.»
 - «Nadie ha visto el X103 en la última media hora. Si lo ves pasar, avísanos.»
 
-**Cómo llamar a la comunidad:** ver el análisis de la sección 7.
+**Cómo se llama:** decidido el 25 de octubre (análisis en la sección 7):
+- **Karteños:** toda la comunidad.
+- **Kartógrafos:** quienes mapean paraderos y plataformas.
+- **Guardianes:** los niveles 4 y 5, que cuidan una ruta o una estación.
+
+La encuesta queda para el piloto, cuando haya más personas usando Karta.
+
+**Cultura ciudadana.** Karta también puede transmitir cómo se viaja bien: hacer la fila, no colarse, dejar bajar antes de subir y ceder el puesto. Siempre con un mensaje breve y amable, en el momento justo y sin regañar:
+- en la plataforma: «Haz la fila del T103: se sube en orden»;
+- al llegar el bus: «Deja bajar primero».
+
+Nunca se premia ni se castiga, porque no se puede medir. Es parte del tono de Karta.
 
 **La regla de oro** es decir siempre para qué sirve el aporte. Por ejemplo:
 - en la llegada: «Esta llegada es precisa gracias a 3 viajeros»;
@@ -111,7 +122,7 @@ Los **beneficios económicos** quedan para después: por ejemplo, alianzas o cos
 | **Karteros** | 3 | 3: carteros que traen noticias | 5 | 3 | 5 | 3: se confunde con «cartero» | 4 | **26** |
 | **Viajeros Karta** | 2 | 2 | 3 | 2 | 3 | 4 | 5 | **21** |
 
-### Recomendación
+### Recomendación (adoptada)
 
 - **Para toda la comunidad: Karteños** («Gracias, karteño», «Ya somos 1.200 karteños»). Es un gentilicio, el tipo de nombre que más pertenencia genera. Suena a la costa, como *costeño*, y lleva la marca en sí mismo. No encontré otra marca ni comunidad con ese nombre.
 - **Para quienes mapean: Kartógrafos.** Es el rol de quienes marcan paraderos y plataformas, y le da nombre a la jornada: «Semana de los kartógrafos». Los **Guardianes** siguen siendo los niveles 4 y 5, que cuidan una ruta o una estación.

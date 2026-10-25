@@ -129,7 +129,11 @@ Con eso el servidor estima «sale en ~6 min, según 3 viajeros». Todo vence sol
   - si la bajada es una estación, el bus para solo: se queda «Bájate en la próxima»;
   - si es un paradero, «¡Toca el timbre!»;
   - «¡Grita parada!» queda listo para cuando haya busetas en los datos.
-- **El manual no menciona el timbre.** La práctica la confirma la comunidad (D12).
+- **El manual no menciona el timbre. Lo confirmó Camilo como usuario** (25 de octubre):
+  - en las estaciones de su ruta el bus para siempre, sin timbre;
+  - en los paraderos se toca el timbre en el tramo entre la última parada y la tuya.
+
+  El aviso a 200 m del paradero cae dentro de esa ventana. Para las demás rutas y las busetas, la comunidad lo confirma (D12).
 
 **D12 · Lo que la comunidad sabe de las rutas.** Preguntar cuando algo se sale de lo normal, para armar una base de conocimiento:
 - **Desvíos:**
@@ -208,6 +212,10 @@ Con eso el servidor estima «sale en ~6 min, según 3 viajeros». Todo vence sol
   - **Guardianes de estación** (niveles 4 y 5): corrigen el plano.
   - **Fuente oficial:** pedirle a Transcaribe los planos de módulos de sus estaciones.
 - **Primer paso, sin depender de la comunidad:** importar Patio Portal, Santa Lucía y las plataformas por ruta desde OpenStreetMap.
+- **Lo que se sabe por experiencia** (Camilo, 25 de octubre):
+  - **Patio Portal:** dos plataformas unidas por un puente. Cada una tiene dos mitades donde paran rutas distintas, y en cada mitad se hace la fila. Los letreros dicen el código de cada ruta (X103, T101, T100E).
+  - **De Santa Lucía a Madre Bernarda** hay que salir de la estación y cruzar por la cebra. El aviso lo dice así: «Sal de Santa Lucía y cruza por la cebra hasta Madre Bernarda».
+- **Cultura ciudadana:** en las plataformas, un mensaje breve y amable en el momento justo: «Haz la fila del T103: se sube en orden». Ver [plan-comunidad.md](plan-comunidad.md).
 
 **D19 · «El que pase primero».** Varias rutas sirven el mismo trayecto (en la troncal, el T101, el T102 y el T103 comparten estaciones).
 - **Opciones agrupadas:** «Toma el T101 o el T103, el que pase primero», con la llegada de cada uno.
