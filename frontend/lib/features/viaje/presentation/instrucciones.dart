@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/format.dart';
 import '../../trip/domain/trip_models.dart';
+import '../data/tiempo_real_repository.dart';
 import '../domain/seguidor_de_viaje.dart';
 
 /// Lo que dice la franja de arriba del viaje activo: qué hacer ahora, en grande, y qué viene después.
@@ -69,8 +70,9 @@ String? _despuesDeBajarse(SeguidorDeViaje seguidor, String destino) {
   final k = seguidor.estado.tramo;
   final otroBus = tramos.skip(k + 1).where((t) => !t.esCaminata).firstOrNull;
   if (otroBus != null) return 'cambia al ${otroBus.ruta} en ${otroBus.desde}';
+  // Si el destino es la misma estación, no hay caminata que anunciar («camina 0 min»).
   final caminata = k + 1 < tramos.length ? tramos[k + 1] : null;
-  return caminata != null ? 'camina ${minutos(caminata.duracionMin)} hasta $destino' : null;
+  return caminata != null && caminata.duracionMin > 0 ? 'camina ${minutos(caminata.duracionMin)} hasta $destino' : null;
 }
 
 /// Las estaciones del tramo en bus para la barra de avance: cuántas hay y cuántas ya pasó.
@@ -80,4 +82,19 @@ String? _despuesDeBajarse(SeguidorDeViaje seguidor, String destino) {
   if (estado.fase != Fase.aBordo || estado.paradasQueFaltan == null || paradas.length < 2) return null;
   final total = paradas.length - 1; // la de subida no cuenta como tramo por recorrer
   return (total: total, pasadas: (total - estado.paradasQueFaltan!).clamp(0, total));
+}
+
+/// Lo que saben los viajeros del bus que viene: «El T103 llega en unos 6 min» / «según 3 viajeros · de pie».
+/// Sin observaciones lo dice, en vez de inventar.
+({String titulo, String detalle}) textoDeLlegada(String ruta, Llegada llegada) {
+  final m = llegada.minutos;
+  if (m == null) return (titulo: 'Nadie ha visto pasar el $ruta', detalle: 'en la última media hora');
+  return (
+    titulo: m <= 1 ? 'El $ruta está llegando' : 'El $ruta llega en unos $m min',
+    detalle: [
+      llegada.fuentes == 1 ? 'según 1 viajero' : 'según ${llegada.fuentes} viajeros',
+      if ((llegada.vistoHaceMin ?? 0) >= 2) 'visto hace ${llegada.vistoHaceMin} min',
+      if (llegada.ocupacion != null) llegada.ocupacion!.etiqueta.toLowerCase(),
+    ].join(' · '),
+  );
 }

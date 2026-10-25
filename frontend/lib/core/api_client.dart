@@ -8,7 +8,11 @@ import 'config.dart';
 /// Error que se le puede mostrar al viajero tal cual.
 class ApiException implements Exception {
   final String message;
-  const ApiException(this.message);
+
+  /// Código HTTP de la respuesta, si hubo respuesta (sin conexión es null).
+  final int? codigo;
+
+  const ApiException(this.message, {this.codigo});
 
   @override
   String toString() => message;
@@ -34,6 +38,8 @@ class ApiClient {
 
   Future<dynamic> patch(String path, Object body, {bool auth = false}) =>
       _send('PATCH', path, body: body, auth: auth);
+
+  Future<dynamic> put(String path, Object body, {bool auth = false}) => _send('PUT', path, body: body, auth: auth);
 
   Future<void> delete(String path, {bool auth = false}) => _send('DELETE', path, auth: auth);
 
@@ -65,7 +71,7 @@ class ApiClient {
 
     if (response.statusCode == 401 && auth) throw SessionExpiredException();
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw ApiException(apiErrorMessage(response));
+      throw ApiException(apiErrorMessage(response), codigo: response.statusCode);
     }
     if (response.bodyBytes.isEmpty) return null;
     return json.decode(utf8.decode(response.bodyBytes));

@@ -76,6 +76,27 @@ void main() {
     expect(instruccionDe(s, 'Bocagrande').titulo, 'Bájate aquí');
   });
 
+  test('si el destino es la estación, a bordo no anuncia una caminata de 0 min', () {
+    final base = _viaje();
+    final hastaLaEstacion = RouteOption(
+      resumen: base.resumen,
+      tiempoTotalMin: 18,
+      distanciaCaminataM: 200,
+      tramos: [
+        base.tramos[0],
+        base.tramos[1],
+        Leg(modo: 'caminata', desde: 'Estación La Bodeguita', hasta: 'Estación La Bodeguita', distanciaM: 0,
+            duracionMin: 0, esperaMin: 0, puntos: [_p(3000, 200), _p(3000, 200)]),
+      ],
+      riesgo: base.riesgo,
+    );
+    final s = SeguidorDeViaje(hastaLaEstacion)
+      ..actualizar(_p(0, 195))
+      ..actualizar(_p(300, 200));
+    expect(s.estado.fase, Fase.aBordo);
+    expect(instruccionDe(s, 'Estación La Bodeguita').luego, isNull);
+  });
+
   test('el viaje avisa con notificaciones en el orden del recorrido', () async {
     final avisos = _AvisosDePrueba();
     final posiciones = StreamController<LatLng>();

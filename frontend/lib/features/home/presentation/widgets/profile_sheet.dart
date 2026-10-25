@@ -7,6 +7,7 @@ import '../../../auth/domain/models/usuario.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../places/presentation/cubit/saved_places_cubit.dart';
 import '../../../places/presentation/screens/saved_places_screen.dart';
+import '../../../viaje/data/preferencia_de_compartir.dart';
 
 /// Avatar del viajero con sus iniciales y su nivel en una insignia.
 class AvatarDeViajero extends StatelessWidget {
@@ -84,6 +85,11 @@ void showProfileSheet(BuildContext context) {
               ),
               const SizedBox(height: 20),
               const _Apariencia(),
+              BlocBuilder<AuthBloc, AuthState>(
+                builder: (context, state) => state is AuthAuthenticated
+                    ? const Padding(padding: EdgeInsets.only(top: 20), child: _Privacidad())
+                    : const SizedBox.shrink(),
+              ),
               const SizedBox(height: 8),
               ListTile(
                 leading: const Icon(Icons.bookmarks_outlined),
@@ -236,6 +242,74 @@ class _Apariencia extends StatelessWidget {
               ],
               selected: {modo},
               onSelectionChanged: (elegido) => context.read<AparienciaCubit>().elegir(elegido.first),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Compartir dónde va el bus viene activado; aquí se apaga (y se vuelve a prender). Apagarlo pide confirmación.
+class _Privacidad extends StatefulWidget {
+  const _Privacidad();
+
+  @override
+  State<_Privacidad> createState() => _PrivacidadState();
+}
+
+class _PrivacidadState extends State<_Privacidad> {
+  final _preferencia = PreferenciaDeCompartir();
+  bool? _compartir;
+
+  @override
+  void initState() {
+    super.initState();
+    _preferencia.compartir().then((si) {
+      if (mounted) setState(() => _compartir = si);
+    });
+  }
+
+  Future<void> _cambiar(bool si) async {
+    if (!si) {
+      final seguro = await showDialog<bool>(
+        context: context,
+        builder: (dialogo) => AlertDialog(
+          title: const Text('¿Dejar de compartir?'),
+          content: const Text('Quienes esperan el bus tendrán menos datos para saber cuándo llega. '
+              'Puedes volver a activarlo aquí cuando quieras.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(dialogo).pop(false), child: const Text('Seguir compartiendo')),
+            FilledButton(onPressed: () => Navigator.of(dialogo).pop(true), child: const Text('Dejar de compartir')),
+          ],
+        ),
+      );
+      if (seguro != true) return;
+    } else {
+      await _preferencia.marcarAvisoVisto(); // lo activa aquí, leyendo lo que se comparte
+    }
+    await _preferencia.guardar(si);
+    if (mounted) setState(() => _compartir = si);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final b = Bahia.de(context);
+    final texto = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Semantics(header: true, child: Text('Privacidad', style: texto.titleMedium)),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: _compartir ?? true,
+            onChanged: _compartir == null ? null : _cambiar,
+            title: const Text('Compartir dónde va el bus'),
+            subtitle: Text(
+              'En tus viajes, sin tu nombre y solo el tramo en bus. Se borra 5 minutos después.',
+              style: texto.bodySmall?.copyWith(color: b.textoSuave),
             ),
           ),
         ],
