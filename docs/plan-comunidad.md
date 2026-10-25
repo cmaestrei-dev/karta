@@ -10,13 +10,7 @@
 - «Gracias: con tu viaje, 23 personas supieron cuándo llegaba el T103.»
 - «Nadie ha visto el X103 en la última media hora. Si lo ves pasar, avísanos.»
 
-**Cómo llamar a la comunidad** (decisión pendiente):
-
-| Opción | A favor | En contra |
-|---|---|---|
-| **Karteros** | Propio, fácil y con juego de palabras (carteros que traen noticias del bus) | Hay que explicarlo una vez |
-| **Llaves** («mi llave», como se dice en el Caribe) | Muy cartagenero y cercano | Puede sonar forzado en textos formales |
-| **Viajeros Karta** | Neutro y claro | Sin personalidad |
+**Cómo llamar a la comunidad:** ver el análisis de la sección 7.
 
 **La regla de oro** es decir siempre para qué sirve el aporte. Por ejemplo:
 - en la llegada: «Esta llegada es precisa gracias a 3 viajeros»;
@@ -93,6 +87,39 @@ Los **beneficios económicos** quedan para después: por ejemplo, alianzas o cos
    - medir los indicadores.
 3. **Después de la entrega:** Guardianes con permisos de edición, encuentros y aportes a OpenStreetMap.
 
-## Decisión pendiente
+## 7. El nombre de la comunidad: análisis
 
-- El nombre de la comunidad: Karteros, Llaves, Viajeros Karta u otro.
+### Qué tiene que lograr un nombre, según la psicología
+
+1. **Pertenencia (identidad social).** La gente se define en parte por los grupos a los que pertenece. Un nombre de grupo convierte el uso de la app en una identidad: los usuarios de Waze se llaman a sí mismos *Wazers*. Un gentilicio («de dónde soy») es la forma más fuerte de esa pertenencia.
+2. **Propósito (autopercepción).** Las personas actúan según cómo se describen. Un nombre que dice lo que el grupo **hace** por otros, como los *Local Guides* de Google, refuerza ese comportamiento. Aquí lo que se hace es mapear y avisar.
+3. **Fluidez.** Lo corto, fácil de pronunciar y de escribir se recuerda mejor y gusta más. Lo ideal son 3 sílabas o menos.
+4. **Arraigo local.** Que suene a Cartagena y al Caribe, sin volverse caricatura.
+5. **Marca.** Que lleve la «K» de Karta, para que el nombre y la app se refuercen.
+6. **Que funcione en todas las frases:** «Gracias, ___», «Eres ___ nivel 3», «Únete a los ___», y también en un texto formal (informes, la docente, una alianza con Transcaribe).
+7. **Inclusión y riesgo.** Que no excluya a nadie ni tenga un doble sentido negativo.
+
+### Las opciones, puntuadas (1 a 5)
+
+| Nombre | Pertenencia | Propósito | Fluidez | Arraigo | Marca | Frases | Riesgo bajo | **Total** |
+|---|---|---|---|---|---|---|---|---|
+| **Karteños** (karteño, karteña) | 5: es un gentilicio, como costeño o caleño | 3 | 5: 3 sílabas | 5: suena a costeño y a cartagenero | 5 | 5: «Gracias, karteño» | 5 | **33** |
+| **Kartógrafos** | 4 | 5: los que hacen el mapa | 3: 4 sílabas | 3 | 5 | 3: formal | 5 | **28** |
+| **Llaves** («mi llave») | 4 | 2 | 5 | 5: muy caribeño | 2 | 3: bien en confianza, flojo en un informe | 3: jerga | **24** |
+| **Parche Karta** | 4 | 2 | 4 | 3: más del interior | 3 | 3 | 4 | **23** |
+| **Tripulación** | 3 | 3 | 3 | 4: el mar | 2 | 3 | 5 | **23** |
+| **Karteros** | 3 | 3: carteros que traen noticias | 5 | 3 | 5 | 3: se confunde con «cartero» | 4 | **26** |
+| **Viajeros Karta** | 2 | 2 | 3 | 2 | 3 | 4 | 5 | **21** |
+
+### Recomendación
+
+- **Para toda la comunidad: Karteños** («Gracias, karteño», «Ya somos 1.200 karteños»). Es un gentilicio, el tipo de nombre que más pertenencia genera. Suena a la costa, como *costeño*, y lleva la marca en sí mismo. No encontré otra marca ni comunidad con ese nombre.
+- **Para quienes mapean: Kartógrafos.** Es el rol de quienes marcan paraderos y plataformas, y le da nombre a la jornada: «Semana de los kartógrafos». Los **Guardianes** siguen siendo los niveles 4 y 5, que cuidan una ruta o una estación.
+- **Lenguaje inclusivo:** «karteños y karteñas» en los textos generales, y el alias de cada quien en los mensajes personales.
+
+### Cómo confirmarlo antes de adoptarlo
+
+Una encuesta corta, de 2 minutos, con 15 a 20 personas: compañeros y quienes hagan el piloto.
+- **Qué se muestra:** los tres finalistas (Karteños, Kartógrafos, Llaves) dentro de frases reales, por ejemplo: «Gracias, ___: con tu viaje, 23 personas supieron cuándo llegaba el T103».
+- **Qué se pregunta:** con cuál se sienten parte de algo, cuál recuerdan al día siguiente y cuál les daría pena decir en voz alta.
+- **Regla de decisión:** gana el que más se recuerde sin que nadie lo rechace.
