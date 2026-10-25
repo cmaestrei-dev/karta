@@ -70,9 +70,12 @@ String _tituloABordo(EstadoDelViaje estado, Leg tramo) {
 }
 
 /// Une dos frases para el lector de pantalla sin doble puntuación: «¡Toca el timbre! Te bajas…», no «¡Toca el
-/// timbre!. Te bajas…».
-String frase(String primera, String segunda) =>
-    RegExp(r'[.!?…]$').hasMatch(primera.trim()) ? '${primera.trim()} $segunda' : '${primera.trim()}. $segunda';
+/// timbre!. Te bajas…»; y si la segunda sigue a la primera en minúscula, con una coma: «Sube al T103, en Bazurto».
+String frase(String primera, String segunda) {
+  final uno = primera.trim();
+  if (RegExp(r'[.!?…]$').hasMatch(uno)) return '$uno $segunda';
+  return RegExp(r'^\p{Ll}', unicode: true).hasMatch(segunda) ? '$uno, $segunda' : '$uno. $segunda';
+}
 
 /// «¡Toca el timbre!» en Transcaribe; «¡Grita «parada»!» en las busetas, que paran donde les pidan.
 String textoDePedirLaParada(ComoPedirLaParada como) => switch (como) {

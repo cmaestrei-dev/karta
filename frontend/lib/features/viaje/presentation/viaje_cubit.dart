@@ -315,6 +315,7 @@ class ViajeCubit extends Cubit<ViajeState> {
 
   void _alSubir() {
     if (state.ocupacion != null) emit(state.copyWith(ocupacion: () => null));
+    saltarComoPedi(); // si no respondió antes de subir al siguiente bus, el momento ya pasó
     if (_quiereCompartir) _empezarACompartir();
     _contadoEsteBus = false;
     // Con el bus quieto el GPS no manda posiciones (solo cada 10 m): un reloj revisa si lleva mucho quieto.

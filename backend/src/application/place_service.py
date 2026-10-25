@@ -10,6 +10,18 @@ PRIORIDAD_POR_TIPO = {
     "Universidad": 4, "Hospital": 5, "Terminal / estación": 6, "Aeropuerto": 6,
 }
 
+# Cómo llama la gente a sitios que en OpenStreetMap tienen otro nombre (normalizado → nombre oficial).
+NOMBRES_POPULARES = {
+    "torre del reloj": "Puerta del Reloj",
+    "plaza de bolivar": "Parque de Bolívar",
+}
+
+
+def nombre_oficial(texto: str) -> str | None:
+    """«torre del re» (mientras se escribe) o «torre del reloj» → «Puerta del Reloj»."""
+    return next((oficial for popular, oficial in NOMBRES_POPULARES.items()
+                 if len(texto) >= 6 and (popular.startswith(texto) or texto.startswith(popular))), None)
+
 
 class PlaceService:
     MAX_PALABRAS = 5
@@ -42,6 +54,11 @@ class PlaceService:
             PRIORIDAD_POR_TIPO.get(l.tipo, 9),
             len(l.nombre),
         ))
+        oficial = nombre_oficial(texto)
+        if oficial:
+            conocidos = [l for l in self.places.search(tokens(oficial), limite=5)
+                         if normalizar(l.nombre) == normalizar(oficial)]
+            candidatos = conocidos + [l for l in candidatos if l not in conocidos]
         return candidatos[:limite]
 
     def _direcciones(self, consulta: str) -> list[Lugar]:

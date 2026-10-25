@@ -167,6 +167,8 @@ Con eso el servidor estima «sale en ~6 min, según 3 viajeros». Todo vence sol
   - Precisión esperada: 20 a 60 m, suficiente para planificar.
 - **Calles completas:** escribir «Calle 30» muestra la vía en el mapa.
 - **Respaldo externo**, solo si el piloto muestra huecos: evaluar un servicio con plan gratuito que tenga mejores direcciones colombianas, revisando antes sus términos de uso. Nominatim no sirve para autocompletar porque su política de uso lo prohíbe.
+- **Nombres populares:** «Torre del Reloj» encuentra la «Puerta del Reloj» y «Plaza de Bolívar» el «Parque de Bolívar» (hecho en la fase 3b). La lista crece con lo que se busque sin resultado en el piloto.
+- **Lugares que faltan (fase 3c):** en una prueba del 25 de octubre no aparecieron el Mercado de Bazurto, el Centro de Convenciones, la Plaza de la Aduana, Caribe Plaza ni el Convento de La Popa. No están en los lugares importados: hay que ampliar la importación de OpenStreetMap a mercados, plazas, centros de convenciones, centros comerciales y sitios religiosos históricos, y revisar los que sigan faltando.
 
 **D16 · Lo que está cerca: estaciones, rutas y paraderos.** El inicio solo muestra estaciones. Los paraderos no tienen coordenadas oficiales, y OpenStreetMap tiene apenas 103 en Cartagena (38 con nombre).
 - **«Rutas que pasan cerca»:** para cada ruta a menos de ~150 m, por dónde pasa y a qué distancia. Por ejemplo: «A107 pasa por la Av. Kennedy con Calle 18 · 120 m». Es honesto, porque no inventa un paradero exacto.
