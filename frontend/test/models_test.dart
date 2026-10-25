@@ -223,6 +223,12 @@ void main() {
   test('horas del horario en formato de Colombia', () {
     expect(horaLegible('05:30'), '5:30${nbsp}a.${nbsp}m.');
     expect(horaLegible('21:00'), '9:00${nbsp}p.${nbsp}m.');
+    // El día de salida: hoy, mañana o el día con su fecha.
+    final domingo = DateTime(2026, 10, 25, 14, 50);
+    expect(cuandoSale(DateTime(2026, 10, 25, 18, 30), ahora: domingo), 'Hoy 6:30 p. m.');
+    expect(cuandoSale(DateTime(2026, 10, 26, 8, 0), ahora: domingo), 'Mañana 8:00 a. m.');
+    expect(cuandoSale(DateTime(2026, 10, 30, 0, 15), ahora: domingo), 'Vie 30 oct 12:15 a. m.');
+    expect(cuandoSale(DateTime(2026, 11, 3, 12, 5), ahora: domingo), 'Mar 3 nov 12:05 p. m.');
     expect(horaLegible('12:15'), '12:15${nbsp}p.${nbsp}m.');
     expect(horaLegible('00:05'), '12:05${nbsp}a.${nbsp}m.');
   });

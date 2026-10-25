@@ -65,6 +65,12 @@ Hora de llegada de la opción más rápida. «Karta antes» es la versión previ
 ## Pendiente
 
 - **Esperas calibradas.** Karta usa esperas fijas: 5 minutos en la troncal, 8 en las pretroncales y 10 en las alimentadoras. Con las frecuencias reales (si Transcaribe responde la petición) o con los avistamientos del piloto, los trayectos 8 y 9 dejarían de perder 8 y 11 minutos.
-- **El buscador.** Karta no encuentra «Mercado de Bazurto», «La Boquilla», «Hotel Caribe» ni «Caribe Plaza».
-- **Elegir el día** de salida, no solo la hora.
+- ~~**El buscador.** Karta no encuentra «Mercado de Bazurto», «La Boquilla», «Hotel Caribe» ni «Caribe Plaza».~~
+  **Hecho:** de OpenStreetMap ya se importan 1.517 lugares (antes 455):
+  - mercados y zonas comerciales;
+  - hoteles, iglesias, colegios, clínicas y supermercados;
+  - estaciones de servicio, policía, corregimientos e islas.
+
+  Cada sitio lleva su barrio, para distinguir los que se llaman igual («Terpel · Alto Bosque»).
+- ~~**Elegir el día** de salida, no solo la hora.~~ **Hecho:** «Hoy, a otra hora», «Mañana» u «Otro día» (hasta un mes), y la cabecera dice «Vie 30 oct 8:00 a. m.».
 - **Repetir esta comparación** en el piloto con viajes reales, midiendo la hora a la que se llega de verdad.

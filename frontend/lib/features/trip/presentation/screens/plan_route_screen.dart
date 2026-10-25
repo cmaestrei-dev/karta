@@ -7,6 +7,7 @@ import 'package:latlong2/latlong.dart';
 
 import '../../../../core/design/bahia.dart';
 import '../../../../core/design/movimiento.dart';
+import '../../../../core/format.dart';
 import '../../../../core/location_service.dart';
 import '../../../../core/map/capa_bahia.dart';
 import '../../../../core/widgets/karta_map.dart';
@@ -198,14 +199,22 @@ class _PlanRouteViewState extends State<_PlanRouteView> {
     _planear();
   }
 
-  /// Salir ahora o a una hora: si la hora ya pasó hoy, es la de mañana.
+  /// Salir ahora, hoy a otra hora, mañana u otro día del próximo mes: los domingos y festivos operan menos rutas.
   Future<void> _elegirSalida() async {
+    final ahora = DateTime.now();
+    final hoy = DateUtils.dateOnly(ahora);
+    final manana = DateUtils.addDaysToDate(hoy, 1);
+    final diaElegido = _salida == null ? null : DateUtils.dateOnly(_salida!);
     final eleccion = await showModalBottomSheet<String>(
       context: context,
       builder: (hoja) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            const ListTile(
+              title: Text('¿Cuándo sales?'),
+              subtitle: Text('Solo cuentan las rutas que operan ese día y a esa hora'),
+            ),
             ListTile(
               leading: const Icon(Icons.near_me_outlined),
               title: const Text('Salir ahora'),
@@ -214,10 +223,21 @@ class _PlanRouteViewState extends State<_PlanRouteView> {
             ),
             ListTile(
               leading: const Icon(Icons.schedule),
-              title: const Text('Elegir la hora de salida'),
-              subtitle: const Text('Solo cuentan las rutas que operan a esa hora'),
-              selected: _salida != null,
-              onTap: () => Navigator.of(hoja).pop('hora'),
+              title: const Text('Hoy, a otra hora'),
+              selected: diaElegido == hoy,
+              onTap: () => Navigator.of(hoja).pop('hoy'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.wb_twilight_outlined),
+              title: const Text('Mañana'),
+              selected: diaElegido == manana,
+              onTap: () => Navigator.of(hoja).pop('mañana'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.calendar_month_outlined),
+              title: const Text('Otro día'),
+              selected: diaElegido != null && diaElegido != hoy && diaElegido != manana,
+              onTap: () => Navigator.of(hoja).pop('otro'),
             ),
           ],
         ),
@@ -230,16 +250,31 @@ class _PlanRouteViewState extends State<_PlanRouteView> {
       _planear();
       return;
     }
-    final inicial = _salida ?? DateTime.now();
+    var dia = eleccion == 'hoy' ? hoy : manana;
+    if (eleccion == 'otro') {
+      final otro = await showDatePicker(
+        context: context,
+        initialDate: diaElegido != null && diaElegido.isAfter(manana) ? diaElegido : DateUtils.addDaysToDate(hoy, 2),
+        firstDate: hoy,
+        lastDate: DateUtils.addDaysToDate(hoy, 31),
+        helpText: 'Día de salida',
+      );
+      if (!mounted || otro == null) return;
+      dia = otro;
+    }
     final hora = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.fromDateTime(inicial),
+      initialTime: TimeOfDay.fromDateTime(_salida ?? ahora),
       helpText: 'Hora de salida',
     );
     if (!mounted || hora == null) return;
-    final ahora = DateTime.now();
-    var salida = DateTime(ahora.year, ahora.month, ahora.day, hora.hour, hora.minute);
-    if (salida.isBefore(ahora.subtract(const Duration(minutes: 5)))) salida = salida.add(const Duration(days: 1));
+    final salida = DateTime(dia.year, dia.month, dia.day, hora.hour, hora.minute);
+    if (salida.isBefore(DateTime.now().subtract(const Duration(minutes: 5)))) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('Esa hora ya pasó: elige una más tarde u otro día.')));
+      return;
+    }
     setState(() => _salida = salida);
     _planear();
   }
@@ -605,7 +640,7 @@ class _Cabecera extends StatelessWidget {
                 children: [
                   _Ficha(
                     icono: Icons.schedule,
-                    etiqueta: salida == null ? 'Ahora' : _horaDeSalida(salida!),
+                    etiqueta: salida == null ? 'Ahora' : cuandoSale(salida!),
                     elegida: false,
                     onTap: onSalida,
                     semantica: salida == null ? 'Salida: ahora. Toca para elegir otra hora' : null,
@@ -642,13 +677,6 @@ class _Cabecera extends StatelessWidget {
     );
   }
 
-  /// «Hoy 6:30 p. m.» o «Mañana 5:30 a. m.».
-  static String _horaDeSalida(DateTime salida) {
-    final hoy = DateTime.now();
-    final dia = DateUtils.isSameDay(salida, hoy) ? 'Hoy' : 'Mañana';
-    final hora = salida.hour % 12 == 0 ? 12 : salida.hour % 12;
-    return '$dia $hora:${salida.minute.toString().padLeft(2, '0')} ${salida.hour < 12 ? 'a. m.' : 'p. m.'}';
-  }
 }
 
 class _BotonRedondo extends StatelessWidget {
