@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -12,138 +10,7 @@ import '../../../auth/presentation/screens/register_screen.dart';
 import '../../../places/presentation/cubit/saved_places_cubit.dart';
 import '../../../places/presentation/screens/saved_places_screen.dart';
 import '../../../viaje/data/preferencia_de_compartir.dart';
-
-/// Avatar del viajero con sus iniciales, el marco de su nivel y el nivel en una insignia.
-class AvatarDeViajero extends StatelessWidget {
-  final Usuario usuario;
-  final double tamano;
-
-  const AvatarDeViajero({super.key, required this.usuario, this.tamano = 48});
-
-  @override
-  Widget build(BuildContext context) {
-    final b = Bahia.de(context);
-    return SizedBox.square(
-      dimension: tamano + 6,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Positioned.fill(
-            child: Padding(
-              padding: const EdgeInsets.all(3),
-              child: CustomPaint(
-                foregroundPainter: PintorDeMarco(marco: usuario.marco, acento: b.acento),
-                child: Container(
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(color: b.hoja, shape: BoxShape.circle),
-                  child: usuario.sinCuenta
-                      ? Icon(Icons.person_outline, size: tamano * 0.5, color: b.texto)
-                      : Text(
-                          usuario.iniciales,
-                          style: TextStyle(fontSize: tamano * 0.34, fontWeight: FontWeight.w800, color: b.texto),
-                        ),
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            right: 0,
-            bottom: 0,
-            child: Container(
-              constraints: const BoxConstraints(minWidth: 22),
-              height: 22,
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: b.acento,
-                borderRadius: BorderRadius.circular(11),
-                border: Border.all(color: b.hoja, width: 2),
-              ),
-              child: Text('${usuario.nivel}',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: b.sobreAcento, height: 1)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Los marcos del avatar, uno por nivel y con imágenes de Cartagena: se ganan con reputación, no se compran.
-/// Son trazos simples, sin animación, para que no pesen en un teléfono económico.
-class PintorDeMarco extends CustomPainter {
-  final String? marco;
-  final Color acento;
-
-  const PintorDeMarco({required this.marco, required this.acento});
-
-  static const arena = Color(0xFFC9A46A);
-  static const oro = Color(0xFFE0B84F);
-  static const mar = [Color(0xFF1F8FC9), Color(0xFF2EC4B6), Color(0xFF1F8FC9)];
-  static const atardecer = [Color(0xFFFF9A3C), Color(0xFFFF5E7E), Color(0xFF8E5CF7), Color(0xFFFF9A3C)];
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final centro = size.center(Offset.zero);
-    final radio = size.shortestSide / 2;
-    final grosor = (size.shortestSide * 0.075).clamp(2.5, 6.0);
-    final aro = Rect.fromCircle(center: centro, radius: radio - grosor / 2);
-    final pincel = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = grosor;
-    switch (marco) {
-      case 'Muralla':
-        // Bloques de piedra coralina, como los de la muralla.
-        pincel.color = arena;
-        const bloques = 12, hueco = 0.1;
-        for (var i = 0; i < bloques; i++) {
-          canvas.drawArc(aro, -pi / 2 + i * 2 * pi / bloques + hueco / 2, 2 * pi / bloques - hueco, false, pincel);
-        }
-      case 'Bahía':
-        pincel.shader = const SweepGradient(colors: mar).createShader(aro);
-        canvas.drawOval(aro, pincel);
-      case 'Castillo':
-        // Doble muro dorado con cuatro baluartes, como el San Felipe.
-        pincel.color = oro;
-        canvas.drawOval(aro, pincel);
-        canvas.drawOval(
-            aro.deflate(grosor),
-            Paint()
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = 1
-              ..color = oro.withValues(alpha: 0.7));
-        final baluarte = Paint()..color = oro;
-        for (var i = 0; i < 4; i++) {
-          final angulo = -pi / 2 + i * pi / 2;
-          canvas
-            ..save()
-            ..translate(centro.dx + cos(angulo) * aro.width / 2, centro.dy + sin(angulo) * aro.height / 2)
-            ..rotate(angulo + pi / 4)
-            ..drawRect(Rect.fromCenter(center: Offset.zero, width: grosor * 1.7, height: grosor * 1.7), baluarte)
-            ..restore();
-        }
-      case 'La Popa':
-        // El atardecer visto desde La Popa, con un halo.
-        canvas.drawOval(
-            aro,
-            Paint()
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = grosor * 1.6
-              ..color = const Color(0x59FF5E7E)
-              ..maskFilter = MaskFilter.blur(BlurStyle.normal, grosor));
-        pincel.shader = const SweepGradient(colors: atardecer).createShader(aro);
-        canvas.drawOval(aro, pincel);
-      default:
-        pincel
-          ..color = acento
-          ..strokeWidth = 2;
-        canvas.drawOval(Rect.fromCircle(center: centro, radius: radio - 1), pincel);
-    }
-  }
-
-  @override
-  bool shouldRepaint(PintorDeMarco antes) => antes.marco != marco || antes.acento != acento;
-}
+import 'avatar_de_viajero.dart';
 
 /// Cuenta del viajero: alias, nivel y reputación (al día), lugares guardados y cerrar sesión.
 void showProfileSheet(BuildContext context) {
@@ -172,6 +39,7 @@ void showProfileSheet(BuildContext context) {
                           _Reputacion(usuario: state.usuario),
                           _TuImpacto(impacto: state.usuario.impacto),
                           _Insignias(usuario: state.usuario),
+                          _ColeccionDeMarcos(usuario: state.usuario),
                           if (state.usuario.sinCuenta) _CrearCuenta(hoja: hoja, raiz: context),
                         ],
                       )
@@ -341,7 +209,11 @@ class _Reputacion extends StatelessWidget {
         children: [
           Row(
             children: [
-              AvatarDeViajero(usuario: usuario, tamano: 56),
+              // Espacio para el arte del marco, que se sale del círculo.
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 30, 8, 14),
+                child: AvatarDeViajero(usuario: usuario, tamano: 88, animar: true),
+              ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
@@ -438,6 +310,66 @@ class _MarcoGanado extends StatelessWidget {
                 dimension: 16, child: CustomPaint(painter: PintorDeMarco(marco: marco, acento: b.acento))),
             const SizedBox(width: 5),
             Text(marco, style: Theme.of(context).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w700)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Los cuatro marcos como colección: los ganados con su arte y los que faltan en gris, con el nivel que piden.
+class _ColeccionDeMarcos extends StatelessWidget {
+  final Usuario usuario;
+
+  const _ColeccionDeMarcos({required this.usuario});
+
+  @override
+  Widget build(BuildContext context) {
+    final b = Bahia.de(context);
+    final texto = Theme.of(context).textTheme;
+    final ganados = marcosPorNivel.keys.where((n) => n <= usuario.nivel).length;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+        decoration: BoxDecoration(color: b.tarjeta, borderRadius: BorderRadius.circular(18)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(child: Text('Tus marcos', style: texto.titleMedium)),
+                Text('$ganados de ${marcosPorNivel.length}',
+                    style: texto.bodySmall?.copyWith(color: b.textoSuave, fontFeatures: tabularFigures)),
+              ],
+            ),
+            const SizedBox(height: 22),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                for (final MapEntry(key: nivel, value: marco) in marcosPorNivel.entries)
+                  Semantics(
+                    label: nivel <= usuario.nivel ? 'Marco $marco, ganado' : 'Marco $marco: se gana en el nivel $nivel',
+                    excludeSemantics: true,
+                    child: Column(
+                      children: [
+                        MarcoDeAvatar(
+                          marco: marco,
+                          tamano: 44,
+                          bloqueado: nivel > usuario.nivel,
+                          child: nivel > usuario.nivel
+                              ? Icon(Icons.lock_outline, size: 18, color: b.textoSuave)
+                              : Text(usuario.sinCuenta ? '' : usuario.iniciales,
+                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: b.texto)),
+                        ),
+                        const SizedBox(height: 14),
+                        Text(marco, style: texto.labelMedium?.copyWith(fontWeight: FontWeight.w700)),
+                        Text('Nivel $nivel', style: texto.labelSmall?.copyWith(color: b.textoSuave)),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
           ],
         ),
       ),
