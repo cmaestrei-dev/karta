@@ -177,6 +177,8 @@ Con eso el servidor estima «sale en ~6 min, según 3 viajeros». Todo vence sol
   - los que la comunidad confirme (D12: donde el bus se detiene a menudo).
 
   Se muestran con «según N viajeros» hasta estar confirmados.
+- **Hecho en la fase 3c (25 de octubre):** en el inicio, debajo de las estaciones, «Rutas que pasan cerca» con el punto de la calle donde se toma cada una, nombrado por el cruce («Av. John F. Kennedy con Calle 18»), y una nota de que el paradero puede estar a unos metros.
+- **Siguiente paso, los paraderos oficiales:** el archivo de datos abiertos «Paradero_Transcaribe 2025» (Cartagena, CC BY) trae 948 paraderos en orden por ruta y sentido, pero sin coordenadas y casi todos con nombres de referencia («Iglesia Pozón», «Central de Abastos»); solo unos 30 tienen la forma «Kr 68 entre Cl 16 y 17». Ubicarlos exige cruzar fuentes: los cruces de calles, los paraderos de OSM, el GTFS comunitario de 2019 (CC BY-SA) y los lugares, midiendo cuántos quedan bien ubicados.
 
 **D17 · Aprender de los demás y medirnos.** Google Maps es un competidor directo: muy completo, pero con quejas por su navegación y por las rutas y los tiempos de transporte.
 - **Estudio de las reseñas** de las tiendas (Google Play y App Store) de Google Maps, Moovit, Waze, MiBus y las apps de Transcaribe y TransMilenio: los dolores más frecuentes, lo que se valora y qué adoptar y evitar (en curso).
