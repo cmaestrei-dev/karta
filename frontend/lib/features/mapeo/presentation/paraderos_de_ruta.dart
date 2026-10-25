@@ -152,13 +152,15 @@ class _FilaDeParadero extends StatelessWidget {
     final texto = Theme.of(context).textTheme;
     final marca = paradero.marca;
     final (color, relleno) = switch (paradero.estado) {
-      EstadoDeParadero.estacion || EstadoDeParadero.direccion || EstadoDeParadero.comunidad => (b.acento, true),
+      EstadoDeParadero.estacion || EstadoDeParadero.direccion || EstadoDeParadero.estimado ||
+      EstadoDeParadero.comunidad => (b.acento, true),
       EstadoDeParadero.porConfirmar => (b.via, true),
       EstadoDeParadero.sinUbicar => (b.textoSuave, false),
     };
     final detalle = switch (paradero.estado) {
       EstadoDeParadero.estacion => paradero.modulo != null ? 'Estación · módulo ${paradero.modulo}' : 'Estación',
       EstadoDeParadero.direccion => 'En el mapa',
+      EstadoDeParadero.estimado => 'En el mapa · ubicación estimada por la dirección',
       EstadoDeParadero.comunidad => 'En el mapa · lo ubicó la comunidad',
       EstadoDeParadero.porConfirmar => marca!.mia
           ? 'Tu marca · falta que la confirmen'

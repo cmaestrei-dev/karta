@@ -10,6 +10,8 @@ Solo se publican los que se pueden ubicar bien:
    (el 1 es hacia el Centro y el 2 hacia el Portal; las letras, la mitad de la plataforma).
 2. `direccion`: una dirección («Kr 68 entre Cl 16 y 17», «Cl 4 con Kr 80A»): los cruces de calles de OSM, llevados
    al recorrido de la ruta (a más de 250 m de él, no se usa).
+3. `estimado`: una dirección cuyo cruce no está en OSM: se estima sobre la misma vía, entre los cruces conocidos
+   más cercanos, en proporción al número (la nomenclatura de Cartagena es casi regular).
 Los demás quedan fuera. Se probó ubicarlos por el nombre de un lugar conocido y repartiéndolos entre sus vecinos:
 el lugar casi siempre era el barrio entero («Iglesia Pozón» → El Pozón) o uno equivocado, y los repartidos quedaban
 a una mediana de 230 m y, uno de cada cinco, a más de 1,4 km. Para esos hace falta la comunidad (D12, D16).
@@ -105,6 +107,47 @@ def _cruces_de(a: Via, b: Via, cruces: list[Cruce]) -> list[Point]:
     return [a_metros(Point(c.longitud, c.latitud)) for c in cruces if a in c.vias and b in c.vias]
 
 
+def _numero(via: Via) -> float | None:
+    """«22a» → 22.5, «21bis» → 21.3, «22» → 22: para ordenar las vías de un mismo tipo."""
+    m = re.match(r"(\d+)(bis)?([a-z])?", via.numero)
+    if not m:
+        return None
+    return int(m.group(1)) + (0.3 if m.group(2) else 0) + (0.5 if m.group(3) else 0)
+
+
+def _cruce_estimado(via: Via, otra: Via, cruces: list[Cruce], linea) -> Point | None:
+    """
+    OSM no tiene todos los cruces (en Blas de Lezo, la Kr 68 no cruza ninguna calle con nombre entre la 15 y la 28).
+    La nomenclatura es casi regular: el cruce con la Calle 21 queda sobre la Kr 68 entre los cruces conocidos con la
+    14 y con la 29, en proporción al número.
+    """
+    objetivo = _numero(otra)
+    if objetivo is None:
+        return None
+    conocidos = []
+    for c in cruces:
+        if via not in c.vias:
+            continue
+        for v in c.vias:
+            if v.tipo == otra.tipo and (n := _numero(v)) is not None:
+                conocidos.append((n, a_metros(Point(c.longitud, c.latitud))))
+    antes = [k for k in conocidos if k[0] < objetivo]
+    despues = [k for k in conocidos if k[0] > objetivo]
+    if not antes or not despues:
+        return None
+    # Los más cercanos en número, y entre ellos los más cercanos al recorrido (la numeración se repite en la ciudad).
+    n1 = max(k[0] for k in antes)
+    n2 = min(k[0] for k in despues)
+    if n2 - n1 > 20:  # demasiado lejos para confiar en la proporción
+        return None
+    p1 = min((k[1] for k in antes if k[0] == n1), key=linea.distance)
+    p2 = min((k[1] for k in despues if k[0] == n2), key=linea.distance)
+    if p1.distance(p2) > 2500:
+        return None
+    t = (objetivo - n1) / (n2 - n1)
+    return Point(p1.x + (p2.x - p1.x) * t, p1.y + (p2.y - p1.y) * t)
+
+
 def _via_o_numero(texto: str, como: Via | None) -> Via | None:
     """«Cl 16» → Via(calle, 16); «17» solo hereda el tipo de la vía anterior («entre Cl 16 y 17»)."""
     via = leer_via(texto)
@@ -113,7 +156,7 @@ def _via_o_numero(texto: str, como: Via | None) -> Via | None:
     return via
 
 
-def por_direccion(nombre: str, cruces: list[Cruce], linea) -> Point | None:
+def por_direccion(nombre: str, cruces: list[Cruce], linea) -> tuple[Point, bool] | None:
     """«Kr 68 entre Cl 16 y 17» (punto medio de los dos cruces), «Cl 4 con Kr 80A», «Calle 14 #65-34», «Kr 10»."""
     texto = re.sub(r"\s*-\s*.*$", "", nombre).strip()  # «Kr 9 - Beach Club» → «Kr 9»
     cerca = lambda puntos: min(puntos, key=linea.distance) if puntos else None
@@ -124,24 +167,35 @@ def por_direccion(nombre: str, cruces: list[Cruce], linea) -> Point | None:
         b = _via_o_numero(m.group(3), a)
         if via and a and b:
             pa, pb = cerca(_cruces_de(via, a, cruces)), cerca(_cruces_de(via, b, cruces))
+            estimado = not (pa and pb)
+            pa = pa or _cruce_estimado(via, a, cruces, linea)
+            pb = pb or _cruce_estimado(via, b, cruces, linea)
             if pa and pb:
-                return Point((pa.x + pb.x) / 2, (pa.y + pb.y) / 2)
-            return pa or pb
+                return Point((pa.x + pb.x) / 2, (pa.y + pb.y) / 2), estimado
+            return (pa or pb, True) if (pa or pb) else None
         return None
     m = re.match(r"^(.+?)\s+con\s+(.+)$", texto, re.I)
     if m:
         via, otra = leer_via(m.group(1)), leer_via(m.group(2))
         if via and otra is None and re.fullmatch(r"\d{1,3}\s*[a-zA-Z]?", m.group(2).strip()):
             otra = Via("calle" if via.tipo != "calle" else "carrera", re.sub(r"\s+", "", m.group(2).lower()))
-        return cerca(_cruces_de(via, otra, cruces)) if via and otra else None
+        if not (via and otra):
+            return None
+        exacto = cerca(_cruces_de(via, otra, cruces))
+        if exacto:
+            return exacto, False
+        estimado = _cruce_estimado(via, otra, cruces, linea)
+        return (estimado, True) if estimado else None
     direccion = leer_direccion(texto)
     if direccion and direccion.cruce:
         puntos = [a_metros(Point(u.longitud, u.latitud))
                   for u in ubicar(direccion, [c for c in cruces if direccion.via in c.vias], limite=6)]
-        return cerca(puntos)
+        punto = cerca(puntos)
+        return (punto, False) if punto else None
     via = leer_via(texto)
     if via:  # solo la vía: el cruce de esa vía más cercano al recorrido
-        return cerca([a_metros(Point(c.longitud, c.latitud)) for c in cruces if via in c.vias])
+        punto = cerca([a_metros(Point(c.longitud, c.latitud)) for c in cruces if via in c.vias])
+        return (punto, False) if punto else None
     return None
 
 
@@ -191,7 +245,8 @@ def ubicar_paraderos() -> tuple[list[dict], dict]:
             punto, estacion, modulo = e
             precision = "estacion"
         elif (d := por_direccion(p["nombre"], cruces, linea)) is not None:
-            punto, precision = d, "direccion"
+            punto, estimado = d
+            precision = "estimado" if estimado else "direccion"
         if punto is not None and linea.distance(punto) > LEJOS_DEL_RECORRIDO_M:
             punto, precision = None, None
         avance = linea.project(punto) if punto is not None else None
@@ -233,6 +288,8 @@ def validar(salida: list[dict], gtfs: Path) -> None:
             por_ruta[viajes.get(f["trip_id"])].append(paradas[f["stop_id"]])
     errores = defaultdict(list)
     for p in salida:
+        if "ubicacion" not in p:
+            continue
         claves = {t for t in tokens(p["nombre"]) if t not in VACIAS and len(t) >= 4}
         if not claves:
             continue

@@ -14,7 +14,7 @@ class ParaderoOficial:
     nombre: str           # «Madre Bernarda A1», «Kr 68 entre Cl 16 y 17»
     estacion: str | None  # id de la estación, si es una
     modulo: str | None    # «A1»: el 1 es hacia el Centro, el 2 hacia el Portal; la letra, la mitad de la plataforma
-    precision: str | None  # estacion | direccion | comunidad (lo ubicó la comunidad) | None (sin ubicar)
+    precision: str | None  # estacion | direccion | estimado | comunidad (lo ubicó la comunidad) | None (sin ubicar)
     longitud: float | None = None
     latitud: float | None = None
     id: str | None = None  # «A107-ida-05»

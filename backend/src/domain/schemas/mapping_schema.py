@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 from src.domain.schemas.realtime_schema import PATRON_RUTA, _EnCartagena
 
-EstadoDeParadero = Literal["estacion", "direccion", "comunidad", "por_confirmar", "sin_ubicar"]
+EstadoDeParadero = Literal["estacion", "direccion", "estimado", "comunidad", "por_confirmar", "sin_ubicar"]
 
 
 class MarcaResponse(BaseModel):

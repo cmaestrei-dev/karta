@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 enum EstadoDeParadero {
   estacion('estacion'),
   direccion('direccion'),
+  estimado('estimado'),
   comunidad('comunidad'),
   porConfirmar('por_confirmar'),
   sinUbicar('sin_ubicar');
@@ -16,7 +17,7 @@ enum EstadoDeParadero {
   static EstadoDeParadero deApi(String? valor) =>
       values.firstWhere((e) => e.api == valor, orElse: () => EstadoDeParadero.sinUbicar);
 
-  bool get ubicado => this == estacion || this == direccion || this == comunidad;
+  bool get ubicado => this == estacion || this == direccion || this == estimado || this == comunidad;
 }
 
 /// Una marca de la comunidad: dónde dice un Kartógrafo que está el paradero, y cuánto apoyo tiene.
