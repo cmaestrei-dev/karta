@@ -113,6 +113,9 @@ class _TiempoReal implements TiempoRealRepository {
   }
 
   @override
+  Future<void> subida(String ruta, LatLng punto) async => llamadas.add('subida $ruta');
+
+  @override
   Future<ComoSePideAqui?> comoSePide(String ruta, LatLng paradero) async {
     expect(paradero, _p(3000, 200));
     llamadas.add('como se pide $ruta');
@@ -228,6 +231,7 @@ void main() {
     await en(_p(2990, 200), despues: const Duration(seconds: 30)); // se bajó
     expect(servidor.envios, [
       'iniciar T103',
+      'subida T103', // subió en la calle: el punto (sin su nombre) es una pista para ubicar el paradero
       'mover v1',
       'mover v1',
       'iniciar T103',
@@ -260,6 +264,7 @@ void main() {
       'avistamiento T103 muy_lleno',
       'avistamiento T103 de_pie',
       'iniciar T103',
+      'subida T103',
       'mover v1 muy_lleno',
     ]);
     await compartiendo.close();

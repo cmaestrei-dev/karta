@@ -7,6 +7,7 @@ import '../../../../core/format.dart';
 import '../../../../core/map/capa_bahia.dart';
 import '../../../../core/widgets/karta_map.dart';
 import '../../../../core/widgets/route_capsule.dart';
+import '../../../mapeo/presentation/paraderos_de_ruta.dart';
 import '../../data/trip_repository.dart';
 import '../../domain/trip_models.dart';
 
@@ -67,6 +68,8 @@ class _RoutePageScreenState extends State<RoutePageScreen> {
                   if (pagina.tieneHorario) _Horario(pagina: pagina) else const _SinHorario(),
                   const SizedBox(height: 24),
                   _Estaciones(pagina: pagina),
+                  const SizedBox(height: 28),
+                  ParaderosDeLaRuta(ruta: pagina.codigo, tipoRuta: pagina.tipo, recorrido: pagina.puntos),
                   const SizedBox(height: 24),
                   Text(
                     'Recorrido y estaciones: © colaboradores de OpenStreetMap (ODbL). Horarios: «Rutas_Transcaribe '

@@ -185,6 +185,7 @@ class ViajeCubit extends Cubit<ViajeState> {
   String? get rutaDelBus => state.rutaABordo ?? _rutaPrevista ?? seguidor.tramoActual.ruta;
   String? _rutaPrevista;
   String? _rutaCompartida;
+  LatLng? _dondeEsperaba;
 
   /// «Voy en el T101»: con «el que pase primero», cuál de las rutas tomó. Lo que comparta va con esa ruta.
   void voyEn(String ruta) {
@@ -227,6 +228,7 @@ class ViajeCubit extends Cubit<ViajeState> {
   void posicion(LatLng punto) {
     if (isClosed) return;
     final tramoAntes = seguidor.tramoActual;
+    if (seguidor.estado.fase == Fase.esperando) _dondeEsperaba = state.posicion ?? punto;
     final eventos = seguidor.actualizar(punto);
     for (final evento in eventos) {
       _avisar(evento);
@@ -358,6 +360,7 @@ class ViajeCubit extends Cubit<ViajeState> {
     if (state.rutaABordo != null) emit(state.copyWith(rutaABordo: () => null));
     saltarComoPedi(); // si no respondió antes de subir al siguiente bus, el momento ya pasó
     if (_quiereCompartir) _empezarACompartir();
+    _contarSubida();
     _contadoEsteBus = false;
     // Con el bus quieto el GPS no manda posiciones (solo cada 10 m): un reloj revisa si lleva mucho quieto.
     _yaPreguntoVarado = false;
@@ -365,6 +368,16 @@ class ViajeCubit extends Cubit<ViajeState> {
     _quietoDesde = reloj();
     _vigiaQuieto?.cancel();
     _vigiaQuieto = Timer.periodic(cadaCuanto, (_) => revisarSiSeVaro());
+  }
+
+  /// Subió a la ruta en la calle, no en una estación: ese punto es una pista para ubicar el paradero. Va con el
+  /// mismo permiso de compartir el viaje, y sin el nombre de nadie.
+  void _contarSubida() {
+    final tramo = seguidor.tramoActual, punto = _dondeEsperaba;
+    _dondeEsperaba = null;
+    if (!_quiereCompartir || !haySesion() || tiempoReal == null || punto == null || tramo.subeEnEstacion) return;
+    final ruta = rutaDelBus;
+    if (ruta != null) tiempoReal!.subida(ruta, punto).catchError((_) {});
   }
 
   void _seMovio(LatLng punto) {

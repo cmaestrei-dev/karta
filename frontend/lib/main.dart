@@ -19,6 +19,7 @@ import 'features/incidents/presentation/bloc/incident_bloc.dart';
 import 'features/places/data/places_repository.dart';
 import 'features/places/presentation/cubit/saved_places_cubit.dart';
 
+import 'features/mapeo/data/mapeo_repository.dart';
 import 'features/trip/data/trip_repository.dart';
 
 void main() {
@@ -44,6 +45,7 @@ class KartaApp extends StatelessWidget {
         RepositoryProvider(create: (context) => IncidentRepository(api: context.read<ApiClient>())),
         RepositoryProvider(create: (context) => PlacesRepository(api: context.read<ApiClient>())),
         RepositoryProvider(create: (context) => TripRepository(api: context.read<ApiClient>())),
+        RepositoryProvider(create: (context) => MapeoRepository(api: context.read<ApiClient>())),
       ],
       child: MultiBlocProvider(
         providers: [
