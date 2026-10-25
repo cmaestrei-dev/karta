@@ -342,7 +342,7 @@ class _Franja extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
               child: Semantics(
                 liveRegion: true,
-                label: error ?? '${instruccion.titulo}. ${instruccion.detalle}',
+                label: error ?? frase(instruccion.titulo, instruccion.detalle),
                 excludeSemantics: true,
                 child: AnimatedSwitcher(
                   duration: Movimiento.reducido(context) ? Duration.zero : Movimiento.normal,
@@ -855,7 +855,7 @@ class _PideLaParadaState extends State<_PideLaParada> with SingleTickerProviderS
           padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
           child: Semantics(
             liveRegion: true,
-            label: '$titulo. $detalle: ${widget.paradero}',
+            label: frase(titulo, '$detalle: ${widget.paradero}'),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [

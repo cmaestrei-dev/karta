@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
@@ -34,25 +35,38 @@ abstract final class Rastreo {
     return Geolocator.getPositionStream(locationSettings: ajustes).map((p) => LatLng(p.latitude, p.longitude));
   }
 
-  /// Recorre cada tramo en orden: caminando a ~10 m/s y en bus a ~40 m/s, con una espera corta en la parada.
+  /// Recorre cada tramo en orden, una posición cada medio segundo: caminando a ~20 m/s y en bus a ~80 m/s para no
+  /// esperar, con una pausa corta en la parada. En los últimos 300 m el bus frena (~10 m/s), como uno de verdad al
+  /// llegar: así se alcanzan a ver los avisos de bajarse y la pantalla de pedir la parada.
   static Stream<LatLng> _simulacion(RouteOption opcion) async* {
     const distancia = Distance();
     for (final tramo in opcion.tramos) {
-      final paso = tramo.esCaminata ? 10.0 : 40.0;
-      if (!tramo.esCaminata && tramo.puntos.isNotEmpty) {
+      final puntos = tramo.puntos;
+      if (puntos.isEmpty) continue;
+      if (!tramo.esCaminata) {
         for (var i = 0; i < 4; i++) {
           await Future<void>.delayed(const Duration(seconds: 1));
-          yield tramo.puntos.first;
+          yield puntos.first;
         }
       }
-      for (var k = 0; k + 1 < tramo.puntos.length; k++) {
-        final a = tramo.puntos[k], b = tramo.puntos[k + 1];
-        final pasos = (distancia.as(LengthUnit.Meter, a, b) / paso).ceil().clamp(1, 10000);
-        for (var i = 1; i <= pasos; i++) {
-          await Future<void>.delayed(const Duration(milliseconds: 500));
-          final t = i / pasos;
-          yield LatLng(a.latitude + (b.latitude - a.latitude) * t, a.longitude + (b.longitude - a.longitude) * t);
+      final largos = [0.0];
+      for (var k = 0; k + 1 < puntos.length; k++) {
+        largos.add(largos.last + distancia.as(LengthUnit.Meter, puntos[k], puntos[k + 1]));
+      }
+      final total = largos.last;
+      var avance = 0.0;
+      var k = 0;
+      while (avance < total) {
+        final paso = tramo.esCaminata ? 10.0 : (total - avance <= 300 ? 5.0 : 40.0);
+        avance = math.min(total, avance + paso);
+        while (k < largos.length - 2 && largos[k + 1] < avance) {
+          k++;
         }
+        final largo = largos[k + 1] - largos[k];
+        final t = largo <= 0 ? 1.0 : (avance - largos[k]) / largo;
+        final a = puntos[k], b = puntos[k + 1];
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        yield LatLng(a.latitude + (b.latitude - a.latitude) * t, a.longitude + (b.longitude - a.longitude) * t);
       }
     }
   }

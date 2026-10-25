@@ -220,4 +220,9 @@ void main() {
     await cubit.close();
     await posiciones.close();
   });
+
+  test('el lector de pantalla no lee doble puntuación', () {
+    expect(frase('¡Toca el timbre!', 'Te bajas en el próximo paradero'), '¡Toca el timbre! Te bajas en el próximo paradero');
+    expect(frase('Sube al T103', 'en Estación Bazurto'), 'Sube al T103. en Estación Bazurto');
+  });
 }
