@@ -490,7 +490,8 @@ class ViajeCubit extends Cubit<ViajeState> {
     EventoDelViaje.bajaste => switch (seguidor.estado.fase) {
         Fase.transbordo => (
             titulo: 'Ahora cambia de bus',
-            texto: 'Camina hasta ${actual.hasta} y toma el ${seguidor.tramoSiguiente?.ruta ?? 'siguiente bus'}.',
+            texto: actual.indicacion ??
+                'Camina hasta ${actual.hasta} y toma el ${seguidor.tramoSiguiente?.ruta ?? 'siguiente bus'}.',
           ),
         _ => (titulo: 'Camina a $destino', texto: 'Ya casi llegas.'),
       },

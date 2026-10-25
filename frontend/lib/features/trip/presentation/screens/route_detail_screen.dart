@@ -333,6 +333,11 @@ class _FilaDeTramo extends StatelessWidget {
                 style: texto.titleSmall?.copyWith(fontFeatures: tabularFigures),
               ),
               Text(mismoPunto ? 'en ${tramo.hasta}' : 'hasta ${tramo.hasta}', style: secundario),
+              if (tramo.indicacion != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(tramo.indicacion!, style: texto.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
+                ),
             ],
           )
         // El tramo en bus es la placa del recorrido: la ruta, dónde subir y dónde bajar.

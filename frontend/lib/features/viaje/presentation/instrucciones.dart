@@ -42,7 +42,8 @@ Instruccion instruccionDe(SeguidorDeViaje seguidor, String destino) {
     Fase.transbordo => (
         icono: Icons.sync_alt,
         titulo: 'Cambia al ${siguiente?.ruta ?? 'siguiente bus'}',
-        detalle: falta < 30 ? 'aquí mismo, en ${actual.hasta}' : 'camina ${metros(falta)} hasta ${actual.hasta}',
+        detalle: actual.indicacionCorta ??
+            (falta < 30 ? 'aquí mismo, en ${actual.hasta}' : 'camina ${metros(falta)} hasta ${actual.hasta}'),
         luego: siguiente != null ? _bajarse(siguiente) : null,
       ),
     Fase.caminandoAlDestino => (

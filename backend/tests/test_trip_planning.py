@@ -166,3 +166,26 @@ def test_las_estaciones_de_una_ruta_de_ida_y_vuelta_salen_en_el_orden_de_la_ida(
     estaciones = [Estacion(id=str(k), nombre=f"E{k}", latitud=10.40, longitud=lon, rutas=["T999"])
                   for k, lon in enumerate([-75.51, -75.54, -75.525])]
     assert [e.nombre for e in estaciones_en_orden(ida_y_vuelta, estaciones)] == ["E1", "E2", "E0"]
+
+
+def test_de_la_a107_al_centro_se_cambia_en_santa_lucia_y_se_cruza_a_madre_bernarda():
+    # Con los datos reales, a lo largo del recorrido de la A107 (Blas de Lezo), lejos de la troncal.
+    from scripts.analizar_transbordos import cargar, origenes
+    from src.domain.trip_planning import costo_percibido
+    rutas, estaciones = cargar()
+    a107 = next(r for r in rutas if r.id == "A107")
+    troncales = [e for e in estaciones if any(r.startswith(("T", "X")) for r in e.rutas)]
+    bodeguita = next(e for e in estaciones if e.id == "la-bodeguita")
+    por_la_a107 = 0
+    for origen in origenes(a107, troncales):
+        opciones = [o for o in planificar(rutas, estaciones, origen, (bodeguita.longitud, bodeguita.latitud)) if o.rutas]
+        # Ninguna opción hace caminar más de 200 m entre un bus y otro.
+        assert all(t.distancia_m <= 200 for o in opciones for k, t in enumerate(o.tramos)
+                   if t.modo == "caminata" and 0 < k < len(o.tramos) - 1)
+        mejor = min(opciones, key=costo_percibido)
+        if mejor.rutas[0].id == "A107" and mejor.transbordos == 1:
+            por_la_a107 += 1
+            cambio = mejor.tramos[2]
+            assert cambio.integrado and cambio.distancia_m == 40
+            assert "cruza por la cebra hasta Madre Bernarda" in cambio.indicacion
+    assert por_la_a107 > 0

@@ -68,6 +68,9 @@ class TramoResponse(BaseModel):
     paradas: List[ParadaDelTramo] = Field(
         default_factory=list,
         description="Estaciones por las que pasa el bus en este tramo, en orden (vacía fuera de la troncal)")
+    indicacion: str | None = Field(
+        None, description="En la caminata de un transbordo integrado, cómo hacer el cambio "
+                          "(«Sal de Santa Lucía y cruza por la cebra hasta Madre Bernarda…»)")
     geometria: LineaGeoJSON
 
 class RiesgoResumen(BaseModel):

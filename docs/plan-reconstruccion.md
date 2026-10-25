@@ -214,6 +214,12 @@ Con eso el servidor estima «sale en ~6 min, según 3 viajeros». Todo vence sol
   - **Guardianes de estación** (niveles 4 y 5): corrigen el plano.
   - **Fuente oficial:** pedirle a Transcaribe los planos de módulos de sus estaciones.
 - **Primer paso, sin depender de la comunidad:** importar Patio Portal, Santa Lucía y las plataformas por ruta desde OpenStreetMap.
+- **Hecho en la fase 3c (25 de octubre):**
+  - Santa Lucía (alimentadoras A103, A104, A105, A107, A108 y A111) y el Patio Portal ya son estaciones.
+  - El planificador trata como transbordos integrados el cambio dentro de una estación y el de Santa Lucía a Madre Bernarda (40 m por la cebra; el pasaje no se cobra otra vez dentro de 90 minutos).
+  - Entrar desde la calle a una estación troncal suma 2 minutos por cruzar la avenida.
+  - Sobre la troncal, las rutas X solo paran en estaciones.
+  - El análisis de toda la red está en [analisis-transbordos.md](analisis-transbordos.md): los transbordos de más de 200 m caminando pasaron de 11 a 0.
 - **Lo que se sabe por experiencia** (Camilo, 25 de octubre):
   - **Patio Portal:** dos plataformas unidas por un puente. Cada una tiene dos mitades donde paran rutas distintas, y en cada mitad se hace la fila. Los letreros dicen el código de cada ruta (X103, T101, T100E).
   - **De Santa Lucía a Madre Bernarda** hay que salir de la estación y cruzar por la cebra. El aviso lo dice así: «Sal de Santa Lucía y cruza por la cebra hasta Madre Bernarda».

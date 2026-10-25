@@ -36,6 +36,10 @@ class Leg extends Equatable {
   /// Vacía fuera de la troncal: ahí el bus para en paraderos sin coordenadas publicadas.
   final List<({String nombre, LatLng punto})> paradas;
 
+  /// En la caminata de un transbordo integrado, cómo hacer el cambio
+  /// («Sal de Santa Lucía y cruza por la cebra hasta Madre Bernarda: 40 m. …»).
+  final String? indicacion;
+
   const Leg({
     required this.modo,
     required this.desde,
@@ -48,7 +52,16 @@ class Leg extends Equatable {
     this.nombreRuta,
     this.tipoRuta,
     this.paradas = const [],
+    this.indicacion,
   });
+
+  /// La primera frase de la indicación, para la franja del viaje: «Sal de Santa Lucía y cruza por la cebra…».
+  String? get indicacionCorta {
+    final texto = indicacion;
+    if (texto == null) return null;
+    final fin = texto.indexOf('. ');
+    return fin < 0 ? texto.replaceAll(RegExp(r'\.$'), '') : texto.substring(0, fin);
+  }
 
   bool get esCaminata => modo == 'caminata';
 
@@ -71,6 +84,7 @@ class Leg extends Equatable {
         ruta: json['ruta'] as String?,
         nombreRuta: json['nombre_ruta'] as String?,
         tipoRuta: json['tipo_ruta'] as String?,
+        indicacion: json['indicacion'] as String?,
         paradas: [
           for (final p in json['paradas'] as List<dynamic>? ?? const [])
             (nombre: p['nombre'] as String, punto: LatLng((p['latitud'] as num).toDouble(), (p['longitud'] as num).toDouble())),

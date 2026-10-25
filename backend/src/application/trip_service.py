@@ -145,10 +145,11 @@ class TripService:
             bajada, estacion_bajada = self._parada(tramos[k].coordenadas[-1], ruta, estaciones)
             # Si se sube o se baja en una estación, la caminata llega a la estación misma: así su distancia
             # coincide con la que muestra /stops/nearby para esa estación.
-            if estacion_subida:
+            # Las caminatas de una integración (Santa Lucía ↔ Madre Bernarda) ya miden lo que se camina de verdad.
+            if estacion_subida and not tramos[k - 1].integrado:
                 tramos[k - 1] = caminata_entre(tramos[k - 1].coordenadas[0],
                                                (estacion_subida.longitud, estacion_subida.latitud))
-            if estacion_bajada:
+            if estacion_bajada and not tramos[k + 1].integrado:
                 tramos[k + 1] = caminata_entre((estacion_bajada.longitud, estacion_bajada.latitud),
                                                tramos[k + 1].coordenadas[-1])
             tramos[k] = replace(tramos[k], desde=subida, hasta=bajada, paradas=paradas_del_tramo(tramos[k], estaciones))

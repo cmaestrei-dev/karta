@@ -8,6 +8,7 @@ Uso (desde backend/):
 Datos © colaboradores de OpenStreetMap, disponibles bajo la licencia ODbL.
 """
 import json
+import sys
 import time
 from pathlib import Path
 from urllib.parse import urlencode
@@ -190,7 +191,45 @@ def procesar_lugares(elementos: list[dict], estaciones: list[dict]) -> list[dict
     return sorted(lugares, key=lambda l: l["nombre"])
 
 
+# Estaciones cuyos andenes no tienen nombre en OSM: sin ellas, las alimentadoras no tienen dónde integrarse con la
+# troncal. Rutas según Transcaribe, «Rutas y recorridos» (julio de 2024); coordenadas de OSM (ODbL).
+ESTACIONES_DE_INTEGRACION = [
+    {"_id": "santa-lucia", "nombre": "Santa Lucía", "osm": "way 185608086",
+     "ubicacion": {"type": "Point", "coordinates": [-75.478005, 10.395206]},
+     "rutas": ["A103", "A104", "A105", "A107", "A108", "A111"]},
+    {"_id": "portal", "nombre": "Patio Portal", "osm": "relation 13764314",
+     "ubicacion": {"type": "Point", "coordinates": [-75.472655, 10.395616]},
+     "rutas": ["A101", "A102", "A114", "A117", "C016", "T100E", "T101", "T102", "T103", "X102", "X103"]},
+]
+
+
+def agregar_estaciones_de_integracion(transcaribe: dict, lugares: list[dict]) -> None:
+    """Agrega (o reemplaza) las estaciones de integración y sus lugares buscables."""
+    ids = {e["_id"] for e in ESTACIONES_DE_INTEGRACION}
+    transcaribe["estaciones"] = sorted(
+        [e for e in transcaribe["estaciones"] if e["_id"] not in ids]
+        + [{k: v for k, v in e.items() if k != "osm"} for e in ESTACIONES_DE_INTEGRACION],
+        key=lambda e: e["nombre"])
+    lugares[:] = [l for l in lugares if l["_id"] not in {f"estacion-{i}" for i in ids}]
+    for e in ESTACIONES_DE_INTEGRACION:
+        lugares.append({"_id": f"estacion-{e['_id']}", "nombre": f"Estación {e['nombre']}", "tipo": "Estación Transcaribe",
+                        "ubicacion": e["ubicacion"], "tokens": tokens(f"Estación {e['nombre']} Transcaribe")})
+    lugares.sort(key=lambda l: l["nombre"])
+
+
+def solo_estaciones_de_integracion():
+    """Aplica ESTACIONES_DE_INTEGRACION a los archivos ya descargados, sin consultar OSM."""
+    datos = {n: json.loads((DATA_DIR / n).read_text(encoding="utf-8")) for n in ("transcaribe.json", "lugares.json")}
+    agregar_estaciones_de_integracion(datos["transcaribe.json"], datos["lugares.json"]["lugares"])
+    for nombre, contenido in datos.items():
+        with open(DATA_DIR / nombre, "w", encoding="utf-8") as archivo:
+            json.dump(contenido, archivo, ensure_ascii=False, separators=(",", ":"))
+    print(f"✅ {len(datos['transcaribe.json']['estaciones'])} estaciones.")
+
+
 def main():
+    if "--solo-integraciones" in sys.argv:
+        return solo_estaciones_de_integracion()
     DATA_DIR.mkdir(exist_ok=True)
     print("Descargando rutas de Transcaribe…")
     relaciones = consultar_overpass(CONSULTA_RUTAS)
@@ -199,6 +238,7 @@ def main():
 
     print("Descargando lugares de Cartagena…")
     lugares = procesar_lugares(consultar_overpass(CONSULTA_LUGARES), transcaribe["estaciones"])
+    agregar_estaciones_de_integracion(transcaribe, lugares)
 
     atribucion = "Datos © colaboradores de OpenStreetMap (ODbL), descargados el " + time.strftime("%Y-%m-%d")
     for nombre, contenido in (("transcaribe.json", transcaribe), ("lugares.json", {"lugares": lugares})):

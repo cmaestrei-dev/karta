@@ -30,6 +30,19 @@ void main() {
     });
   });
 
+  test('la caminata de un transbordo integrado trae cómo hacerlo, y la franja usa la primera frase', () {
+    final cambio = Leg.fromJson({
+      'modo': 'caminata', 'desde': 'Estación Santa Lucía', 'hasta': 'Estación Madre Bernarda', 'distancia_m': 40,
+      'duracion_min': 2, 'espera_min': 0,
+      'indicacion': 'Sal de Santa Lucía y cruza por la cebra hasta Madre Bernarda: 40 m. Al entrar vuelves a pasar '
+          'la tarjeta, pero no te cobra si cambias en menos de 90 minutos.',
+      'geometria': {'type': 'LineString', 'coordinates': [[-75.478, 10.3952], [-75.4786, 10.3951]]},
+    });
+    expect(cambio.indicacionCorta, 'Sal de Santa Lucía y cruza por la cebra hasta Madre Bernarda: 40 m');
+    expect(const Leg(modo: 'caminata', desde: 'a', hasta: 'b', distanciaM: 1, duracionMin: 1, esperaMin: 0, puntos: [])
+        .indicacionCorta, isNull);
+  });
+
   test('RouteSuggestions.fromJson lee los tramos y convierte GeoJSON [lon, lat]', () {
     final sugerencias = RouteSuggestions.fromJson({
       'opciones': [

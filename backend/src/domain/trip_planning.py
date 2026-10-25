@@ -6,8 +6,13 @@ Cada ruta se muestrea cada 25 m. Para cada punto se calcula, en los dos sentidos
 que se puede llegar a él desde el origen (caminar, esperar, ir en bus) y lo que falta desde él hasta el
 destino. Un viaje directo une esos dos cálculos en la misma ruta; un transbordo los une en dos rutas que
 pasan a menos de 300 m una de la otra.
+
+Un transbordo no cuesta lo mismo en todas partes. Dentro de una estación (el Portal) o entre las dos estaciones
+que Transcaribe integra frente a frente (Santa Lucía, de las alimentadoras, y Madre Bernarda, de las troncales:
+40 m por la cebra) se camina poco y el pasaje no se vuelve a cobrar. Entrar desde la calle a una estación troncal,
+que está en el separador de la avenida, obliga a cruzarla: eso suma minutos que la línea recta no ve.
 """
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 import numpy as np
 import shapely
@@ -27,6 +32,29 @@ ANCHO_CORREDOR_TRONCAL_M = 700      # más lejos de toda estación, la troncal v
 MAX_CORTES_CONFIABLES = 2           # rutas con más huecos en OSM no se usan para planificar
 TRANSBORDO_MAXIMO_M = 300           # lo máximo que se camina entre una ruta y la otra
 PENALIZACION_TRANSBORDO_MIN = 4     # cambiar de bus cuesta más que los minutos que dura
+PENALIZACION_TRANSBORDO_INTEGRADO_MIN = 2  # en la misma estación o en una integración oficial: menos incómodo
+CRUCE_A_ESTACION_MIN = 2            # cruzar la avenida hasta una estación troncal (semáforo o cebra) y entrar
+TRANSBORDO_EN_ESTACION_M = 60       # cambiar de andén dentro de la misma estación
+# Las pretroncales (X) también van por el carril de Transcaribe y ahí solo paran en estaciones; fuera del
+# corredor, en paraderos de la vía como cualquier bus.
+SOLO_EN_ESTACIONES = ("troncal", "pretroncal")
+
+
+@dataclass(frozen=True)
+class Integracion:
+    """Dos estaciones separadas por una calle que funcionan como una sola para transbordar."""
+    caminata_m: float
+    cruce_min: float
+    indicacion: str
+
+
+# Fuente: Transcaribe, «Rutas y recorridos» (julio de 2024), y OpenStreetMap (paso cebra, way 1249740541).
+INTEGRACIONES = {
+    frozenset({"santa-lucia", "madre-bernarda"}): Integracion(
+        caminata_m=40, cruce_min=1,
+        indicacion="Sal de Santa Lucía y cruza por la cebra hasta Madre Bernarda: 40 m. "
+                   "Al entrar vuelves a pasar la tarjeta, pero no te cobra si cambias en menos de 90 minutos."),
+}
 
 VELOCIDAD_BUS_KMH = {"troncal": 22, "pretroncal": 18, "alimentadora": 15, "complementaria": 15}
 ESPERA_ESTIMADA_MIN = {"troncal": 5, "pretroncal": 8, "alimentadora": 10, "complementaria": 10}
@@ -43,6 +71,8 @@ class Tramo:
     desde: str = ""
     hasta: str = ""
     paradas: tuple[Estacion, ...] = ()  # estaciones por las que pasa el bus, en orden (incluye subida y bajada)
+    integrado: bool = False             # caminata de un transbordo en la misma estación o en una integración
+    indicacion: str | None = None       # cómo hacer el cambio («Sal de Santa Lucía y cruza por la cebra…»)
 
 
 @dataclass(frozen=True)
@@ -70,6 +100,13 @@ class OpcionViaje:
         return max(len(self.rutas) - 1, 0)
 
     @property
+    def penalizacion_de_transbordos(self) -> float:
+        """Lo que cuestan los cambios de bus además de sus minutos: menos en una estación integrada."""
+        buses = [k for k, t in enumerate(self.tramos) if t.modo == "bus"]
+        return sum(PENALIZACION_TRANSBORDO_INTEGRADO_MIN if any(t.integrado for t in self.tramos[k1 + 1:k2])
+                   else PENALIZACION_TRANSBORDO_MIN for k1, k2 in zip(buses, buses[1:]))
+
+    @property
     def coordenadas(self) -> list[tuple[float, float]]:
         puntos: list[tuple[float, float]] = []
         for tramo in self.tramos:
@@ -79,7 +116,7 @@ class OpcionViaje:
 
 def costo_percibido(opcion: "OpcionViaje") -> float:
     """El tiempo del viaje más lo que cuesta cada cambio de bus: con esto se comparan opciones."""
-    return opcion.tiempo_total_min + PENALIZACION_TRANSBORDO_MIN * opcion.transbordos
+    return opcion.tiempo_total_min + opcion.penalizacion_de_transbordos
 
 
 def minutos_caminando(distancia_m):
@@ -116,6 +153,7 @@ class RutaMuestreada:
     puntos: np.ndarray       # (n, 2) en metros
     abordable: np.ndarray    # dónde se puede subir o bajar
     velocidad: float         # m/min
+    estacion: np.ndarray = field(default_factory=lambda: np.array([], dtype=object))  # id de la estación propia o ""
 
     @property
     def espera(self) -> float:
@@ -150,17 +188,31 @@ def muestrear(ruta: RutaTransporte, estaciones: list[Estacion]) -> RutaMuestread
     puntos = shapely.get_coordinates(shapely.line_interpolate_point(linea, posiciones))
 
     abordable = np.ones(len(posiciones), dtype=bool)
-    if ruta.tipo == "troncal":
-        propias = [e for e in estaciones if ruta.id in e.rutas]
-        if not propias:
-            return None
+    propias = [e for e in estaciones if ruta.id in e.rutas]
+    if ruta.tipo == "troncal" and not propias:
+        return None
+    if ruta.tipo in SOLO_EN_ESTACIONES and propias:
         # Dentro del corredor (cerca de cualquier estación) solo se sube en las estaciones de esta
         # ruta: el expreso T100E pasa por Los Ejecutivos sin parar. Fuera del corredor va en vía mixta.
         cerca_de_propia = _distancia_minima(puntos, propias) <= RADIO_DE_ESTACION_M
         fuera_del_corredor = _distancia_minima(puntos, estaciones) > ANCHO_CORREDOR_TRONCAL_M
         abordable = cerca_de_propia | fuera_del_corredor
     velocidad = VELOCIDAD_BUS_KMH[ruta.tipo] * 1000 / 60
-    return RutaMuestreada(ruta, linea, posiciones, puntos, abordable, velocidad)
+    return RutaMuestreada(ruta, linea, posiciones, puntos, abordable, velocidad, _estacion_propia(puntos, ruta, estaciones))
+
+
+def _estacion_propia(puntos: np.ndarray, ruta: RutaTransporte, estaciones: list[Estacion]) -> np.ndarray:
+    """Para cada punto, la estación de esta ruta en la que está (a menos de 60 m), o "" si no está en ninguna."""
+    resultado = np.full(len(puntos), "", dtype=object)
+    propias = [e for e in estaciones if ruta.id in e.rutas]
+    if not propias:
+        return resultado
+    en_metros = shapely.get_coordinates(a_metros(shapely.points([(e.longitud, e.latitud) for e in propias])))
+    distancias = np.hypot(puntos[:, None, 0] - en_metros[None, :, 0], puntos[:, None, 1] - en_metros[None, :, 1])
+    cercana = distancias.argmin(axis=1)
+    dentro = distancias[np.arange(len(puntos)), cercana] <= RADIO_DE_ESTACION_M
+    resultado[dentro] = np.array([propias[k].id for k in cercana[dentro]], dtype=object)
+    return resultado
 
 
 def _distancias(m: RutaMuestreada, punto: tuple[float, float]) -> np.ndarray:
@@ -263,7 +315,8 @@ def _con_transbordo(a: RutaMuestreada, b: RutaMuestreada, origen, destino,
     if len(ia) == 0:
         return None
     entre = np.hypot(a.puntos[ia, 0] - b.puntos[ib, 0], a.puntos[ia, 1] - b.puntos[ib, 1])
-    cambio = minutos_caminando(entre) + b.espera + PENALIZACION_TRANSBORDO_MIN
+    caminar, integrado = _caminata_de_transbordo(a.estacion[ia], b.estacion[ib], entre)
+    cambio = caminar + b.espera + np.where(integrado, PENALIZACION_TRANSBORDO_INTEGRADO_MIN, PENALIZACION_TRANSBORDO_MIN)
 
     mejor = None
     for llegada in _llegadas(a, a_origen):
@@ -281,23 +334,61 @@ def _con_transbordo(a: RutaMuestreada, b: RutaMuestreada, origen, destino,
     return OpcionViaje(tramos=(
         _caminata(origen, a.lonlat(sube), a_origen[sube]),
         a.tramo(sube, baja_en_a),
-        _caminata(a.lonlat(baja_en_a), b.lonlat(sube_en_b), entre_m),
+        _cambio(a.lonlat(baja_en_a), b.lonlat(sube_en_b), entre_m, a.estacion[baja_en_a], b.estacion[sube_en_b]),
         b.tramo(sube_en_b, baja),
         _caminata(b.lonlat(baja), destino, b_destino[baja]),
     ))
 
 
+def _caminata_de_transbordo(estacion_a: np.ndarray, estacion_b: np.ndarray,
+                            entre: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Minutos de la caminata de cada transbordo posible y si es integrado. En la misma estación se cambia de
+    andén; en una integración oficial se camina lo que mide de verdad; si no, la línea recta con rodeo y, si
+    se sube en una estación troncal desde la calle, el cruce de la avenida.
+    """
+    misma = (estacion_a != "") & (estacion_a == estacion_b)
+    integracion = [INTEGRACIONES.get(frozenset({x, y})) if x and y and x != y else None
+                   for x, y in zip(estacion_a, estacion_b)]
+    oficial = np.array([i is not None for i in integracion], dtype=bool)
+    por_integracion = np.array([i.caminata_m / VELOCIDAD_CAMINATA_M_POR_MIN + i.cruce_min if i else 0.0
+                                for i in integracion])
+    desde_la_calle = minutos_caminando(entre) + np.where(estacion_b != "", CRUCE_A_ESTACION_MIN, 0.0)
+    minutos = np.where(misma, TRANSBORDO_EN_ESTACION_M / VELOCIDAD_CAMINATA_M_POR_MIN,
+                       np.where(oficial, por_integracion, desde_la_calle))
+    return minutos, misma | oficial
+
+
+def _cambio(desde: tuple[float, float], hasta: tuple[float, float], entre_m: float,
+            estacion_a: str, estacion_b: str) -> Tramo:
+    """La caminata entre los dos buses, con cómo hacerla cuando es una integración."""
+    if estacion_a and estacion_a == estacion_b:
+        return Tramo(modo="caminata", coordenadas=(desde, hasta), distancia_m=TRANSBORDO_EN_ESTACION_M,
+                     duracion_min=TRANSBORDO_EN_ESTACION_M / VELOCIDAD_CAMINATA_M_POR_MIN, integrado=True,
+                     indicacion="Cambia de bus dentro de la estación, sin volver a pagar.")
+    integracion = INTEGRACIONES.get(frozenset({estacion_a, estacion_b})) if estacion_a and estacion_b else None
+    if integracion:
+        return Tramo(modo="caminata", coordenadas=(desde, hasta), distancia_m=integracion.caminata_m,
+                     duracion_min=integracion.caminata_m / VELOCIDAD_CAMINATA_M_POR_MIN + integracion.cruce_min,
+                     integrado=True, indicacion=integracion.indicacion)
+    tramo = _caminata(desde, hasta, entre_m)
+    if estacion_b:
+        return replace(tramo, duracion_min=tramo.duracion_min + CRUCE_A_ESTACION_MIN)
+    return tramo
+
+
 def planificar(rutas: list[RutaTransporte], estaciones: list[Estacion],
                origen: tuple[float, float], destino: tuple[float, float],
-               con_transbordos: bool = True) -> list[OpcionViaje]:
+               con_transbordos: bool = True, muestras: list[RutaMuestreada] | None = None) -> list[OpcionViaje]:
     """
     Opciones posibles: a pie (si es cerca), una por cada ruta que sirve sola y, con `con_transbordos`, la mejor
     combinación de cada par de rutas (una que pasa cerca del origen y otra que pasa cerca del destino).
     Se descartan las que tardan más que caminar.
     """
     caminando = opcion_caminando(origen, destino)
-    muestras = [m for r in rutas if r.cortes_en_osm <= MAX_CORTES_CONFIABLES
-                if (m := muestrear(r, estaciones)) is not None]
+    if muestras is None:  # quien planifica muchos viajes seguidos (scripts/analizar_transbordos.py) las reutiliza
+        muestras = [m for r in rutas if r.cortes_en_osm <= MAX_CORTES_CONFIABLES
+                    if (m := muestrear(r, estaciones)) is not None]
     a_origen = {m.ruta.id: _distancias(m, origen) for m in muestras}
     a_destino = {m.ruta.id: _distancias(m, destino) for m in muestras}
     cerca_del_origen = [m for m in muestras if a_origen[m.ruta.id].min() <= CAMINATA_MAXIMA_DE_ACCESO_M]
@@ -338,7 +429,7 @@ def _depurar(opciones: list[OpcionViaje]) -> list[OpcionViaje]:
         if any(directas.get(r.id, np.inf) <= costo_percibido(o) for r in o.rutas):
             continue
         actual = mejor_por_primera_ruta.get(o.ruta.id)
-        if actual is None or o.tiempo_total_min < actual.tiempo_total_min:
+        if actual is None or costo_percibido(o) < costo_percibido(actual):
             mejor_por_primera_ruta[o.ruta.id] = o
     return resultado + list(mejor_por_primera_ruta.values())
 
