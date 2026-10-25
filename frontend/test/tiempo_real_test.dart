@@ -284,6 +284,10 @@ void main() {
         paradas: [(nombre: 'Bazurto', punto: _p(0, 210)), (nombre: 'La Bodeguita', punto: _p(3000, 200))]);
     expect(consejoDeEspera(paradero, null), isNull);
     expect(consejoDeEspera(enEstacion, null), 'Haz la fila del T103: se sube en orden.');
+    final conModulo = Leg(modo: 'bus', desde: 'Estación Bazurto', hasta: 'Estación La Bodeguita', distanciaM: 3000,
+        duracionMin: 10, esperaMin: 5, ruta: 'T103', tipoRuta: 'troncal', puntos: [_p(0, 200), _p(3000, 200)],
+        paradas: [(nombre: 'Bazurto', punto: _p(0, 210)), (nombre: 'La Bodeguita', punto: _p(3000, 200))], modulo: 'A1');
+    expect(consejoDeEspera(conModulo, null), 'Haz la fila del T103 en el módulo A1: se sube en orden.');
     expect(consejoDeEspera(enEstacion, const Llegada(minutos: 6, fuentes: 1)), 'Haz la fila del T103: se sube en orden.');
     expect(consejoDeEspera(paradero, const Llegada(minutos: 1, fuentes: 1)), 'Deja bajar primero y sube en orden.');
     // Un dato viejo no sirve para decir que el bus ya está llegando.

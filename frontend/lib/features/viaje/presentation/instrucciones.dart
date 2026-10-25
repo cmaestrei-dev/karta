@@ -26,7 +26,7 @@ Instruccion instruccionDe(SeguidorDeViaje seguidor, String destino) {
     Fase.esperando => (
         icono: Icons.directions_bus,
         titulo: 'Sube al ${actual.ruta}',
-        detalle: 'en ${actual.desde}',
+        detalle: actual.comoAbordar != null ? 'en ${actual.desde} · ${actual.comoAbordar}' : 'en ${actual.desde}',
         luego: _bajarse(actual),
       ),
     Fase.aBordo => (
@@ -126,7 +126,11 @@ String textoDeLoQueSeSabe(ComoSePideAqui sabido) {
 String? consejoDeEspera(Leg bus, Llegada? llegada) {
   final m = llegada?.minutos;
   if (m != null && m <= 1 && !llegada!.sinConexion) return 'Deja bajar primero y sube en orden.';
-  if (bus.subeEnEstacion && bus.ruta != null) return 'Haz la fila del ${bus.ruta}: se sube en orden.';
+  if (bus.subeEnEstacion && bus.ruta != null) {
+    return bus.modulo != null
+        ? 'Haz la fila del ${bus.ruta} en el módulo ${bus.modulo}: se sube en orden.'
+        : 'Haz la fila del ${bus.ruta}: se sube en orden.';
+  }
   return null;
 }
 

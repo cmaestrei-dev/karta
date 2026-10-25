@@ -40,6 +40,10 @@ class Leg extends Equatable {
   /// («Sal de Santa Lucía y cruza por la cebra hasta Madre Bernarda: 40 m. …»).
   final String? indicacion;
 
+  /// En qué módulo de la estación para el bus en este sentido («A1») y hacia dónde va («Bocagrande»).
+  final String? modulo;
+  final String? hacia;
+
   const Leg({
     required this.modo,
     required this.desde,
@@ -53,7 +57,15 @@ class Leg extends Equatable {
     this.tipoRuta,
     this.paradas = const [],
     this.indicacion,
+    this.modulo,
+    this.hacia,
   });
+
+  /// «módulo A1, hacia Bocagrande»: dónde hacer la fila y en qué sentido. Null si no se sabe.
+  String? get comoAbordar {
+    final partes = [if (modulo != null) 'módulo $modulo', if (hacia != null) 'hacia $hacia'];
+    return partes.isEmpty ? null : partes.join(', ');
+  }
 
   /// La primera frase de la indicación, para la franja del viaje: «Sal de Santa Lucía y cruza por la cebra…».
   String? get indicacionCorta {
@@ -85,6 +97,8 @@ class Leg extends Equatable {
         nombreRuta: json['nombre_ruta'] as String?,
         tipoRuta: json['tipo_ruta'] as String?,
         indicacion: json['indicacion'] as String?,
+        modulo: json['modulo'] as String?,
+        hacia: json['hacia'] as String?,
         paradas: [
           for (final p in json['paradas'] as List<dynamic>? ?? const [])
             (nombre: p['nombre'] as String, punto: LatLng((p['latitud'] as num).toDouble(), (p['longitud'] as num).toDouble())),

@@ -11,6 +11,7 @@ from pymongo.errors import DuplicateKeyError
 
 from src.domain.conocimiento import ComoSePidio, RespuestaDeParada
 from src.domain.direcciones import Cruce, Via
+from src.domain.paraderos import ParaderoOficial
 from src.domain.models import (
     ALIAS_SIN_CUENTA, REPUTACION_INICIAL, EmailYaRegistrado, Impacto, Estacion, IconoLugar, Incidente, LimiteLugaresGuardados,
     Lugar, LugarGuardado, LugarGuardadoNoEncontrado, RutaTransporte, TipoViajero, Usuario,
@@ -256,6 +257,8 @@ class MongoTransitRepository:
         self._stations = db.stations
         self._schedules = db.route_schedules
         self._intersections = db.intersections
+        self._official_stops = db.route_stops
+        self._directions = db.route_directions
 
     def routes_intersecting_all(self, areas: list[dict]) -> list[RutaTransporte]:
         filtro = {"$and": [{"geometria": {"$geoIntersects": {"$geometry": area}}} for area in areas]}
@@ -272,6 +275,16 @@ class MongoTransitRepository:
         doc = self._intersections.find_one({"ubicacion": {"$nearSphere": {
             "$geometry": {"type": "Point", "coordinates": [lon, lat]}, "$maxDistance": radio_m}}})
         return doc["nombre"] if doc else None
+
+    def official_stops(self, rutas: list[str] | None = None) -> list[ParaderoOficial]:
+        filtro = {"ruta": {"$in": rutas}} if rutas is not None else {}
+        return [ParaderoOficial(ruta=d["ruta"], sentido=d["sentido"], orden=d["orden"], nombre=d["nombre"],
+                                estacion=d.get("estacion"), modulo=d.get("modulo"), precision=d["precision"],
+                                longitud=d["ubicacion"]["coordinates"][0], latitud=d["ubicacion"]["coordinates"][1])
+                for d in self._official_stops.find(filtro)]
+
+    def directions(self) -> dict[str, str]:
+        return {d["_id"]: d["hacia"] for d in self._directions.find()}
 
     def list_stations(self) -> list[Estacion]:
         return [_to_estacion(doc) for doc in self._stations.find()]

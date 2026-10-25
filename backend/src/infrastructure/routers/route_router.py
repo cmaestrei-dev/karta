@@ -179,7 +179,7 @@ def _a_respuesta(opcion: OpcionViaje, riesgo: ResultadoRiesgo) -> RouteOptionRes
                 nombre_ruta=t.ruta.nombre if t.ruta else None,
                 tipo_ruta=t.ruta.tipo if t.ruta else None,
                 paradas=[ParadaDelTramo(nombre=e.nombre, latitud=e.latitud, longitud=e.longitud) for e in t.paradas],
-                indicacion=t.indicacion,
+                indicacion=t.indicacion, modulo=t.modulo, hacia=t.hacia,
                 geometria=LineaGeoJSON(coordinates=[[round(lon, 6), round(lat, 6)] for lon, lat in t.coordenadas]),
             )
             for t in opcion.tramos

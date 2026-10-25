@@ -368,6 +368,9 @@ class _FilaDeTramo extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text('Sube en ${tramo.desde}', style: texto.titleMedium?.copyWith(color: scheme.primary)),
+                if (tramo.comoAbordar != null)
+                  Text(tramo.comoAbordar![0].toUpperCase() + tramo.comoAbordar!.substring(1),
+                      style: texto.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
                 Text('Espera aprox. ${minutos(tramo.esperaMin)} · ${minutos(tramo.duracionMin)} de viaje',
                     style: secundario?.copyWith(fontFeatures: tabularFigures)),
                 const SizedBox(height: 4),

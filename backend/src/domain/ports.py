@@ -5,6 +5,7 @@ from typing import Protocol
 from src.domain.horarios import HorarioRuta
 from src.domain.conocimiento import ComoSePidio, RespuestaDeParada
 from src.domain.direcciones import Cruce
+from src.domain.paraderos import ParaderoOficial
 from src.domain.models import (
     Estacion, IconoLugar, Incidente, Lugar, LugarGuardado, RutaTransporte, TipoViajero, Usuario,
 )
@@ -131,6 +132,14 @@ class TransitRepository(Protocol):
         ...
 
     def list_stations(self) -> list[Estacion]: ...
+
+    def official_stops(self, rutas: list[str] | None = None) -> list[ParaderoOficial]:
+        """Los paraderos oficiales ubicados (todas las rutas, o solo esas)."""
+        ...
+
+    def directions(self) -> dict[str, str]:
+        """Hacia dónde va cada ruta en cada sentido («T103-ida» → «Bocagrande»)."""
+        ...
 
     def stations_near(self, lon: float, lat: float, radio_m: float, limite: int) -> list[tuple[Estacion, float]]: ...
 

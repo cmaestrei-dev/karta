@@ -71,6 +71,8 @@ class Tramo:
     desde: str = ""
     hasta: str = ""
     paradas: tuple[Estacion, ...] = ()  # estaciones por las que pasa el bus, en orden (incluye subida y bajada)
+    modulo: str | None = None           # en qué módulo de la estación para el bus en este sentido («A1»)
+    hacia: str | None = None            # hacia dónde va el bus («Bocagrande»)
     integrado: bool = False             # caminata de un transbordo en la misma estación o en una integración
     indicacion: str | None = None       # cómo hacer el cambio («Sal de Santa Lucía y cruza por la cebra…»)
 

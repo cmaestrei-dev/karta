@@ -73,6 +73,8 @@ El backend sigue una arquitectura hexagonal (puertos y adaptadores):
 | `transit_routes` | `nombre`, `tipo`, `desde`, `hasta`, `geometria` (LineString) | `2dsphere` en `geometria` |
 | `route_schedules` | `_id` = código de ruta; primer y último despacho de `lunes_a_viernes`, `sabado` y `domingo_y_festivos` | — |
 | `intersections` | `nombre` («Av. Pedro de Heredia con Cra. 28»), `ubicacion` (Point) | `2dsphere` |
+| `route_stops` | Paraderos oficiales ubicados (`scripts/importar_paraderos.py`): `ruta`, `sentido`, `orden`, `nombre`, `estacion`, `modulo` («A1»), `precision` (`estacion` o `direccion`), `ubicacion` | (`ruta`, `sentido`, `orden`); `2dsphere` |
+| `route_directions` | `_id` = «T101-ida», `hacia` («el Centro») | — |
 | `address_crossings` | `nombre`, `vias` (`calle:9`, `carrera:3`), `ubicacion`: cruces de vías numeradas para ubicar direcciones | `vias` |
 
 El riesgo de una ruta se calcula trazando un corredor de 500 m alrededor de la polilínea

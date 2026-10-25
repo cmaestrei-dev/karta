@@ -39,6 +39,13 @@ void main() {
       'geometria': {'type': 'LineString', 'coordinates': [[-75.478, 10.3952], [-75.4786, 10.3951]]},
     });
     expect(cambio.indicacionCorta, 'Sal de Santa Lucía y cruza por la cebra hasta Madre Bernarda: 40 m');
+    expect(cambio.comoAbordar, isNull);
+    final t101 = Leg.fromJson({
+      'modo': 'bus', 'desde': 'Estación Madre Bernarda', 'hasta': 'Estación La Bodeguita', 'distancia_m': 9000,
+      'duracion_min': 26, 'espera_min': 5, 'ruta': 'T101', 'modulo': 'A1', 'hacia': 'Centro',
+      'geometria': {'type': 'LineString', 'coordinates': [[-75.4786, 10.3951], [-75.5514, 10.42]]},
+    });
+    expect(t101.comoAbordar, 'módulo A1, hacia Centro');
     expect(const Leg(modo: 'caminata', desde: 'a', hasta: 'b', distanciaM: 1, duracionMin: 1, esperaMin: 0, puntos: [])
         .indicacionCorta, isNull);
   });

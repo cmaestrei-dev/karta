@@ -5,6 +5,7 @@ from typing import Literal
 from src.domain.geo import circulo, corredor_de_ruta, distancia_m
 from src.domain.horarios import HorarioRuta, cuando, en_colombia, opera, proximo_servicio, tipo_de_dia
 from src.domain.models import Estacion, RutaTransporte
+from src.domain.paraderos import abordaje
 from src.domain.ports import IncidentRepository, PlaceRepository, TransitRepository
 from src.domain.route_risk import PENALIZACION_RIESGO_MIN, RADIO_BUSQUEDA_M, ResultadoRiesgo, evaluar_riesgo
 from src.domain.trip_planning import (
@@ -42,6 +43,7 @@ class TripService:
     RADIO_ESTACION_M = 150
     RADIO_CRUCE_M = 120
     RADIO_REFERENCIA_M = 300
+    RADIO_PARADERO_OFICIAL_M = 150
 
     def __init__(self, transit: TransitRepository, places: PlaceRepository, incidents: IncidentRepository):
         self.transit = transit
@@ -140,7 +142,18 @@ class TripService:
         pasos = sorted((p for r in cercanas if r.cortes_en_osm <= MAX_CORTES_CONFIABLES
                         if (p := donde_pasa_cerca(r, estaciones, (lon, lat), radio_m))),
                        key=lambda p: p.distancia_m)[:limite]
-        return [(p, self._parada((p.longitud, p.latitud), p.ruta, estaciones)[0]) for p in pasos]
+        oficiales = [o for o in self.transit.official_stops([p.ruta.id for p in pasos]) if o.precision == "direccion"]
+
+        def nombre(paso: PasoCercano) -> str:
+            # El paradero oficial de esa ruta, si hay uno ubicado por su dirección a pocos metros.
+            cerca = [(distancia_m((paso.longitud, paso.latitud), (o.longitud, o.latitud)), o)
+                     for o in oficiales if o.ruta == paso.ruta.id]
+            distancia, oficial = min(cerca, key=lambda par: par[0], default=(None, None))
+            if oficial and distancia <= self.RADIO_PARADERO_OFICIAL_M:
+                return f"Paradero {oficial.nombre}"
+            return self._parada((paso.longitud, paso.latitud), paso.ruta, estaciones)[0]
+
+        return [(p, nombre(p)) for p in pasos]
 
     def _etiquetar(self, opcion: OpcionViaje, estaciones: list[Estacion],
                    nombre_origen: str | None, nombre_destino: str | None) -> OpcionViaje:
@@ -152,6 +165,8 @@ class TripService:
             tramos[0] = replace(tramos[0], desde=inicio, hasta=fin)
             return OpcionViaje(tramos=tuple(tramos))
 
+        paraderos = self.transit.official_stops([tramos[k].ruta.id for k in buses])
+        hacia = self.transit.directions()
         for k in buses:
             ruta = tramos[k].ruta
             subida, estacion_subida = self._parada(tramos[k].coordenadas[0], ruta, estaciones)
@@ -165,7 +180,10 @@ class TripService:
             if estacion_bajada and not tramos[k + 1].integrado:
                 tramos[k + 1] = caminata_entre((estacion_bajada.longitud, estacion_bajada.latitud),
                                                tramos[k + 1].coordenadas[-1])
-            tramos[k] = replace(tramos[k], desde=subida, hasta=bajada, paradas=paradas_del_tramo(tramos[k], estaciones))
+            como = abordaje(ruta.id, estacion_subida.id if estacion_subida else None,
+                            estacion_bajada.id if estacion_bajada else None, paraderos, hacia)
+            tramos[k] = replace(tramos[k], desde=subida, hasta=bajada, paradas=paradas_del_tramo(tramos[k], estaciones),
+                                modulo=como.modulo if como else None, hacia=como.hacia if como else None)
 
         # Cada caminata va del punto anterior al siguiente: el origen, una bajada, una subida o el destino.
         for k, tramo in enumerate(tramos):

@@ -22,6 +22,7 @@ GRUPOS = {
     "horarios": ("horarios.json",),
     "cruces": ("cruces.json",),
     "direcciones": ("nomenclatura.json", "cruces.json"),
+    "paraderos": ("paraderos.json",),
 }
 
 
@@ -37,11 +38,17 @@ def cargar_datos_de_referencia(db: Database, forzar: bool = False) -> None:
         _reemplazar(db.stations, transcaribe["estaciones"])
         _reemplazar(db.places, _leer("lugares.json")["lugares"])
 
+    def _cargar_paraderos():
+        paraderos = _leer("paraderos.json")
+        _reemplazar(db.route_stops, paraderos["paraderos"])
+        _reemplazar(db.route_directions, [{"_id": k, "hacia": v} for k, v in paraderos["hacia"].items()])
+
     cargas = {
         "transcaribe": (db.transit_routes, _cargar_transcaribe),
         "horarios": (db.route_schedules, lambda: _reemplazar(db.route_schedules, _leer("horarios.json")["horarios"])),
         "cruces": (db.intersections, lambda: _reemplazar(db.intersections, _leer("cruces.json")["cruces"])),
         "direcciones": (db.address_crossings, lambda: _reemplazar(db.address_crossings, cruces_para_direcciones())),
+        "paraderos": (db.route_stops, _cargar_paraderos),
     }
 
     for grupo, (coleccion, cargar) in cargas.items():
