@@ -184,6 +184,11 @@ Con eso el servidor estima «sale en ~6 min, según 3 viajeros». Todo vence sol
   - **Confirmar:** «¿Está aquí?» se responde estando allí (a menos de 300 m). Con apoyo 3 (la marca y dos confirmaciones; un Guardián cuenta doble) queda en el mapa; con −2 se descarta y se puede marcar otra vez.
   - **Reconocimiento:** +5 de reputación al que lo marcó y +1 a quien acertó; insignias Kartógrafo (1 paradero) y Gran Kartógrafo (10).
   - **Pistas:** las subidas anónimas fuera de estaciones (solo ruta y punto, se borran a los 180 días) se muestran agrupadas, desde 3 en 30 m.
+  - **Mapear desde el bus (viaje de mapeo):**
+    - El viajero va en la ruta con la lista oficial del sentido. En cada paradero toca «Paró aquí» o «No paró», y la app le avisa cuando el bus está detenido.
+    - Al terminar se envía todo junto (`POST /api/v1/routes/{codigo}/mapping-rides`). Cada paradero sin ubicar queda marcado.
+    - Si ya tenía una marca, el punto del viaje la confirma (el bus paró a menos de 40 m) o dice que no está ahí (a más de 150 m).
+    - Tres viajes que coinciden lo dejan en el mapa. Los datos son de Karta, sin problemas de licencia y aportables a OpenStreetMap.
 - **Fuente oficial:** derecho de petición a Transcaribe pidiendo el GTFS, los paraderos con coordenadas, el significado de los módulos y una licencia CC BY 4.0 ([borrador y notas](legal/derecho-de-peticion-transcaribe.md)). Camilo lo firma y lo radica. Qué fuentes se revisaron y por qué no sirven todavía: [fuentes-de-paraderos.md](fuentes-de-paraderos.md).
 - **El archivo de paraderos:** el archivo de datos abiertos «Paradero_Transcaribe 2025» (Cartagena, CC BY) trae 948 paraderos en orden por ruta y sentido, pero sin coordenadas y casi todos con nombres de referencia («Iglesia Pozón», «Central de Abastos»); solo unos 30 tienen la forma «Kr 68 entre Cl 16 y 17». Ubicarlos exige cruzar fuentes: los cruces de calles, los paraderos de OSM, el GTFS comunitario de 2019 (CC BY-SA) y los lugares, midiendo cuántos quedan bien ubicados.
 
@@ -196,6 +201,7 @@ Con eso el servidor estima «sale en ~6 min, según 3 viajeros». Todo vence sol
     - la distancia a la que suena cada aviso de bajarse;
     - cuántos toques hacen falta para empezar un viaje;
     - batería y datos móviles por hora de viaje.
+- **Primera comparación (25 de octubre):** 10 trayectos en Karta, Google Maps y Moovit el lunes a las 8:00; ver [comparacion-apps.md](comparacion-apps.md). Karta llega primero, o a menos de 6 minutos de la mejor, en 7 de 10. De ahí salieron tres arreglos: la caminata larga cuando ninguna ruta pasa cerca, las X fuera del carril de la troncal y el motivo de cada aviso.
 - **Trazas para pruebas:** con permiso expreso de quienes hagan el piloto, se graban los recorridos GPS reales. Se usan para reproducir viajes en las pruebas automáticas y para afinar el seguidor. Nunca salen del equipo de desarrollo y se borran al terminar.
 
 **D18 · Estaciones por dentro: plataformas, sentido y estaciones confusas** (propuesto el 25 de octubre).
