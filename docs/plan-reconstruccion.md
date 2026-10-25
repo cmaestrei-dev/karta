@@ -238,6 +238,10 @@ Con eso el servidor estima «sale en ~6 min, según 3 viajeros». Todo vence sol
   - Karta distingue «Pasa primero» de «Llegas primero».
 - **En el viaje:** Karta detecta en cuál se subió cuando las rutas se separan. Solo pregunta si cambia algo.
 - **Honestidad:** «Calculado con 3 viajeros en la última media hora», o «Sin datos: estimado con la frecuencia habitual».
+- **Hecho en la fase 3c (25 de octubre):**
+  - las rutas que paran en las mismas dos estaciones y tardan casi lo mismo a bordo salen juntas, «T103 o T101, el que pase primero», con la espera de las dos juntas (también el segundo bus de un transbordo);
+  - el expreso queda aparte: el planificador ahora cuenta 0,6 min por estación en que para cada ruta, así que la T100E llega antes;
+  - mientras se espera se consulta la llegada de cada ruta y se muestra la que pasa primero, y a bordo «¿En cuál vas?» deja decir cuál se tomó.
 
 **D20 · Identidad y comunidad.**
 - **Tono:** cercano, con identidad propia y diciendo siempre para qué sirve cada aporte («Esta llegada es precisa gracias a 3 viajeros»).
@@ -249,7 +253,7 @@ Con eso el servidor estima «sale en ~6 min, según 3 viajeros». Todo vence sol
 - mostrar **hace cuánto** se actualizó cada llegada;
 - reportar «no paró en el paradero»;
 - el sentido en cada bus (D18);
-- un límite de caminata elegible;
+- un límite de caminata elegible (hecho en la fase 3c: 300, 500 u 800 m, o lo normal, hasta 1 km);
 - una consulta de un vistazo (notificación con el próximo bus);
 - planificar sin conexión;
 - reportar «ruta o paradero desactualizado».
