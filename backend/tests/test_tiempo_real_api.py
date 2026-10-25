@@ -17,7 +17,8 @@ def _llegada(api):
 
 
 def test_sin_observaciones_no_se_inventa_la_llegada(api):
-    assert _llegada(api) == {"minutos": None, "fuentes": 0, "ocupacion": None, "visto_hace_min": None}
+    assert _llegada(api) == {"minutos": None, "fuentes": 0, "ocupacion": None, "visto_hace_min": None,
+                             "varado": None}
 
 
 def test_un_viaje_compartido_y_un_avistamiento_dan_la_llegada(api, registrar):
@@ -57,3 +58,18 @@ def test_validaciones_del_tiempo_real(api, registrar):
                     headers=_auth(token)).status_code == 422
     assert api.get("/api/v1/routes/T999/live", params={"desde_lat": 10.41, "desde_lon": -75.52, "hasta_lat": 10.42,
                                                         "hasta_lon": -75.55}).status_code == 404
+
+
+def test_un_bus_varado_reportado_deja_de_contar_y_se_avisa(api, registrar):
+    token, _ = registrar()
+    # Un viajero ve el T103 en Los Ejecutivos; otro reporta que ese T103 se varó ahí.
+    assert api.post("/api/v1/sightings", json={"ruta": "T103", **LOS_EJECUTIVOS}, headers=_auth(token)).status_code == 201
+    otro, _ = registrar()
+    reporte = api.post("/api/v1/incidents/", headers=_auth(otro), json={
+        "tipo": "bus_varado", "detalles": {"ruta": "T103"}, **LOS_EJECUTIVOS})
+    assert reporte.status_code == 201, reporte.text
+
+    llegada = _llegada(api)
+    assert llegada["minutos"] is None  # el único T103 visto es el varado
+    assert llegada["varado"]["metros_antes"] > 0
+    assert llegada["varado"]["hace_min"] == 0

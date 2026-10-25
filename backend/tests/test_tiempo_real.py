@@ -2,7 +2,9 @@
 from datetime import datetime, timedelta, timezone
 
 from src.domain.models import RutaTransporte
-from src.domain.tiempo_real import Observacion, Ocupacion, estimar_llegada, pasadas, _muestreo
+from src.domain.tiempo_real import (
+    BusVarado, Observacion, Ocupacion, _muestreo, estimar_llegada, pasadas, varado_antes_de_la_parada,
+)
 
 METROS_POR_GRADO_LON = 109_400  # aprox. a la latitud de Cartagena
 AHORA = datetime(2026, 10, 27, 15, 0, tzinfo=timezone.utc)
@@ -65,3 +67,26 @@ def test_en_una_ruta_de_ida_y_vuelta_el_sentido_lo_da_la_bajada():
     # Hacia el oeste (vuelta): el bus que viene del este, visto en 4000 m, llega a 3000 en ~3 min.
     e = estimar_llegada(IDA_Y_VUELTA, _x(3000), _x(1000), [_visto(4000, 0, en_vivo=True)], AHORA)
     assert e is not None and e.minutos == 3
+
+
+def _varado(metros: float, hace_min: float = 5) -> BusVarado:
+    lon, lat = _x(metros)
+    return BusVarado(longitud=lon, latitud=lat, en=AHORA - timedelta(minutes=hace_min), confirmaciones=1,
+                     lugar="Cerca de Bazurto")
+
+
+def test_un_bus_varado_no_cuenta_como_el_que_viene():
+    # El único bus visto (a 1100 m) es el que se varó: no hay llegada que anunciar.
+    visto_en_el_varado = [_visto(1900, 0, en_vivo=True)]
+    assert estimar_llegada(RECTA, _x(3000), _x(5000), visto_en_el_varado, AHORA, [_varado(1950)]) is None
+    # Otro bus, más atrás, sí cuenta.
+    e = estimar_llegada(RECTA, _x(3000), _x(5000), visto_en_el_varado + [_visto(800, 0)], AHORA, [_varado(1950)])
+    assert e is not None and e.fuentes == 1
+
+
+def test_quien_espera_sabe_del_varado_que_viene_hacia_su_parada():
+    hallado = varado_antes_de_la_parada(RECTA, _x(3000), _x(5000), [_varado(1900)])
+    assert hallado is not None and round(hallado[1], -2) == 1100
+    # Uno que ya pasó la parada, o en el otro sentido, no afecta.
+    assert varado_antes_de_la_parada(RECTA, _x(3000), _x(5000), [_varado(3500)]) is None
+    assert varado_antes_de_la_parada(RECTA, _x(3000), _x(1000), [_varado(1900)]) is None

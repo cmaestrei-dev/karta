@@ -70,9 +70,12 @@ String _tituloABordo(EstadoDelViaje estado, Leg tramo) {
 }
 
 /// Une dos frases para el lector de pantalla sin doble puntuación: «¡Toca el timbre! Te bajas…», no «¡Toca el
-/// timbre!. Te bajas…».
-String frase(String primera, String segunda) =>
-    RegExp(r'[.!?…]$').hasMatch(primera.trim()) ? '${primera.trim()} $segunda' : '${primera.trim()}. $segunda';
+/// timbre!. Te bajas…»; y si la segunda sigue a la primera en minúscula, con una coma: «Sube al T103, en Bazurto».
+String frase(String primera, String segunda) {
+  final uno = primera.trim();
+  if (RegExp(r'[.!?…]$').hasMatch(uno)) return '$uno $segunda';
+  return RegExp(r'^\p{Ll}', unicode: true).hasMatch(segunda) ? '$uno, $segunda' : '$uno. $segunda';
+}
 
 /// «¡Toca el timbre!» en Transcaribe; «¡Grita «parada»!» en las busetas, que paran donde les pidan.
 String textoDePedirLaParada(ComoPedirLaParada como) => switch (como) {
@@ -105,17 +108,54 @@ String? _despuesDeBajarse(SeguidorDeViaje seguidor, String destino) {
   return (total: total, pasadas: (total - estado.paradasQueFaltan!).clamp(0, total));
 }
 
+/// Lo que saben los viajeros del paradero, debajo de «¡Toca el timbre!». Si allí suele parar solo, igual se pide:
+/// mejor un timbre de más que pasarse.
+String textoDeLoQueSeSabe(ComoSePideAqui sabido) {
+  final n = sabido.viajeros;
+  final viajeros = n == 1 ? '1 viajero' : '$n viajeros';
+  return switch (sabido.como) {
+    ComoSePidio.timbre => 'Así la pidieron $viajeros aquí.',
+    ComoSePidio.conductor => 'Aquí $viajeros le avisaron al conductor.',
+    ComoSePidio.paroSolo => 'Aquí suele parar solo, según $viajeros. Por si acaso, pídela.',
+  };
+}
+
+/// Cultura ciudadana mientras se espera: un recordatorio amable en el momento justo, sin regañar ni premiar
+/// (docs/plan-comunidad.md). En la estación, la fila de la ruta; cuando el bus ya llega, dejar bajar.
+String? consejoDeEspera(Leg bus, Llegada? llegada) {
+  final m = llegada?.minutos;
+  if (m != null && m <= 1 && !llegada!.sinConexion) return 'Deja bajar primero y sube en orden.';
+  if (bus.subeEnEstacion && bus.ruta != null) return 'Haz la fila del ${bus.ruta}: se sube en orden.';
+  return null;
+}
+
 /// Lo que saben los viajeros del bus que viene: «El T103 llega en unos 6 min» / «según 3 viajeros · de pie».
 /// Sin observaciones lo dice, en vez de inventar.
 ({String titulo, String detalle}) textoDeLlegada(String ruta, Llegada llegada) {
   final m = llegada.minutos;
-  if (m == null) return (titulo: 'Nadie ha visto pasar el $ruta', detalle: 'en la última media hora');
+  final varado = llegada.varado;
+  if (m == null && varado != null) {
+    return (
+      titulo: 'Un $ruta se varó antes de tu parada',
+      detalle: '${varado.lugar ?? 'En el camino'} · hace ${varado.haceMin} min · espera el siguiente',
+    );
+  }
+  if (m == null) {
+    return (
+      titulo: 'Nadie ha visto pasar el $ruta',
+      detalle: llegada.sinConexion ? 'sin conexión para volver a consultar' : 'en la última media hora',
+    );
+  }
+  // Siempre se dice de cuándo es el dato, y si no se pudo actualizar (D21).
+  final visto = llegada.vistoHaceMin;
   return (
     titulo: m <= 1 ? 'El $ruta está llegando' : 'El $ruta llega en unos $m min',
     detalle: [
+      if (llegada.sinConexion) 'sin conexión',
       llegada.fuentes == 1 ? 'según 1 viajero' : 'según ${llegada.fuentes} viajeros',
-      if ((llegada.vistoHaceMin ?? 0) >= 2) 'visto hace ${llegada.vistoHaceMin} min',
+      if (visto != null) visto < 2 ? 'visto hace un momento' : 'visto hace $visto min',
       if (llegada.ocupacion != null) llegada.ocupacion!.etiqueta.toLowerCase(),
+      if (varado != null) 'otro se varó en el camino',
     ].join(' · '),
   );
 }

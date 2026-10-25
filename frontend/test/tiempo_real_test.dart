@@ -49,12 +49,20 @@ class _Preferencia extends PreferenciaDeCompartir {
   Future<bool> compartir() async => si;
   @override
   Future<bool> avisoVisto() async => vioElAviso;
+
+  int viajesSumados = 0;
+
+  @override
+  Future<void> sumarViajeCompartido() async => viajesSumados++;
 }
 
 /// Anota cada llamada al servidor en el orden en que llegan.
 class _TiempoReal implements TiempoRealRepository {
   final llamadas = <String>[];
   var _viajes = 0;
+
+  /// Lo que el teléfono envió, sin las consultas (la llegada y cómo se pide la parada).
+  Iterable<String> get envios => llamadas.where((l) => !l.startsWith('llegada') && !l.startsWith('como se pide'));
 
   /// El servidor ya borró el viaje la próxima vez que se mueva.
   bool vencido = false;
@@ -90,6 +98,40 @@ class _TiempoReal implements TiempoRealRepository {
 
   @override
   Future<void> terminarViajeCompartido(String viaje) async => llamadas.add('terminar $viaje');
+
+  @override
+  Future<void> reportar(String tipo, Map<String, String> detalles, LatLng punto) async =>
+      llamadas.add('reporte $tipo ${detalles.values.join(',')}');
+
+  /// Lo que «saben» los viajeros del paradero de bajada.
+  ComoSePideAqui? sabido;
+
+  @override
+  Future<void> comoPediLaParada(String ruta, LatLng paradero, ComoSePidio como) async {
+    expect(paradero, _p(3000, 200));
+    llamadas.add('parada $ruta ${como.api}');
+  }
+
+  @override
+  Future<ComoSePideAqui?> comoSePide(String ruta, LatLng paradero) async {
+    expect(paradero, _p(3000, 200));
+    llamadas.add('como se pide $ruta');
+    return sabido;
+  }
+}
+
+/// El mismo servidor, hasta que el teléfono se queda sin red.
+class _TiempoRealSinRed extends _TiempoReal {
+  final _TiempoReal otro;
+  bool sinRed = false;
+
+  _TiempoRealSinRed(this.otro);
+
+  @override
+  Future<Llegada> llegada(String ruta, {required LatLng desde, required LatLng hasta}) async {
+    if (sinRed) throw ApiException('Sin conexión');
+    return otro.llegada(ruta, desde: desde, hasta: hasta);
+  }
 }
 
 Future<void> _pasa() => Future<void>.delayed(Duration.zero);
@@ -158,7 +200,7 @@ void main() {
       expect(c.state.compartiendo, isFalse);
       await c.close();
     }
-    expect(servidor.llamadas.where((l) => !l.startsWith('llegada')), isEmpty);
+    expect(servidor.envios, isEmpty);
   });
 
   test('por defecto comparte al subir, cada 30 s, reinicia si venció y termina al bajarse', () async {
@@ -171,7 +213,7 @@ void main() {
     servidor.vencido = true;
     await en(_p(2100, 200), despues: const Duration(seconds: 30)); // el servidor lo había borrado
     await en(_p(2990, 200), despues: const Duration(seconds: 30)); // se bajó
-    expect(servidor.llamadas.where((l) => !l.startsWith('llegada')), [
+    expect(servidor.envios, [
       'iniciar T103',
       'mover v1',
       'mover v1',
@@ -180,6 +222,8 @@ void main() {
     ]);
     expect(c.state.compartiendo, isFalse);
     expect(c.state.estado.fase, Fase.caminandoAlDestino);
+    // «Buses compartidos» en «Tu impacto»: uno, aunque el viaje compartido se haya reiniciado al vencer.
+    expect((c.preferencia as _Preferencia).viajesSumados, 1);
     await c.close();
   });
 
@@ -199,7 +243,7 @@ void main() {
     await en(_p(0, 195));
     await en(_p(300, 200));
     await compartiendo.contarOcupacion(Ocupacion.muyLleno);
-    expect(servidor.llamadas.where((l) => !l.startsWith('llegada')), [
+    expect(servidor.envios, [
       'avistamiento T103 muy_lleno',
       'avistamiento T103 de_pie',
       'iniciar T103',
@@ -215,7 +259,7 @@ void main() {
     await en(_p(300, 200));
     expect(c.puedeContar, isFalse);
     await c.contarOcupacion(Ocupacion.dePie);
-    expect(servidor.llamadas.where((l) => !l.startsWith('llegada')), isEmpty);
+    expect(servidor.envios, isEmpty);
     await c.close();
   });
 
@@ -223,9 +267,113 @@ void main() {
     expect(textoDeLlegada('T103', const Llegada(minutos: 6, fuentes: 3, ocupacion: Ocupacion.dePie, vistoHaceMin: 4)),
         (titulo: 'El T103 llega en unos 6 min', detalle: 'según 3 viajeros · visto hace 4 min · de pie'));
     expect(textoDeLlegada('T103', const Llegada(minutos: 1, fuentes: 1, vistoHaceMin: 0)),
-        (titulo: 'El T103 está llegando', detalle: 'según 1 viajero'));
+        (titulo: 'El T103 está llegando', detalle: 'según 1 viajero · visto hace un momento'));
+    // Sin conexión: el dato envejece, el bus se acerca y se dice.
+    const dato = Llegada(minutos: 6, fuentes: 3, vistoHaceMin: 1);
+    expect(textoDeLlegada('T103', dato.sinConexionDesde(const Duration(minutes: 2, seconds: 40))),
+        (titulo: 'El T103 llega en unos 4 min', detalle: 'sin conexión · según 3 viajeros · visto hace 3 min'));
+    expect(dato.sinConexionDesde(const Duration(minutes: 9)).minutos, 0);
     expect(textoDeLlegada('X104', const Llegada()),
         (titulo: 'Nadie ha visto pasar el X104', detalle: 'en la última media hora'));
+  });
+
+  test('al esperar: la fila en la estación y dejar bajar cuando el bus llega, sin regañar', () {
+    final paradero = _viaje().tramos[1]; // sin estaciones: sube en un paradero de la vía
+    final enEstacion = Leg(modo: 'bus', desde: 'Estación Bazurto', hasta: 'Estación La Bodeguita', distanciaM: 3000,
+        duracionMin: 10, esperaMin: 5, ruta: 'T103', tipoRuta: 'troncal', puntos: [_p(0, 200), _p(3000, 200)],
+        paradas: [(nombre: 'Bazurto', punto: _p(0, 210)), (nombre: 'La Bodeguita', punto: _p(3000, 200))]);
+    expect(consejoDeEspera(paradero, null), isNull);
+    expect(consejoDeEspera(enEstacion, null), 'Haz la fila del T103: se sube en orden.');
+    expect(consejoDeEspera(enEstacion, const Llegada(minutos: 6, fuentes: 1)), 'Haz la fila del T103: se sube en orden.');
+    expect(consejoDeEspera(paradero, const Llegada(minutos: 1, fuentes: 1)), 'Deja bajar primero y sube en orden.');
+    // Un dato viejo no sirve para decir que el bus ya está llegando.
+    expect(consejoDeEspera(paradero, const Llegada(minutos: 1, fuentes: 1, sinConexion: true)), isNull);
+  });
+
+  group('cómo pediste la parada', () {
+    test('antes de subir sabe cómo se pide en la bajada; ya abajo pregunta una vez y se puede responder', () async {
+      servidor.sabido = const ComoSePideAqui(como: ComoSePidio.timbre, viajeros: 4);
+      final c = cubit(compartir: false);
+      await c.iniciar();
+      await _pasa();
+      expect(c.state.comoSePideAqui, servidor.sabido);
+      expect(servidor.llamadas.where((l) => l.startsWith('como se pide')), ['como se pide T103']);
+      await en(_p(0, 195));
+      await en(_p(300, 200));
+      await en(_p(2990, 200)); // se bajó en el paradero
+      expect(c.state.preguntarComoPediste, 'Estación La Bodeguita');
+      expect(c.state.comoSePideAqui, isNull);
+      await c.respondiComoPedi(ComoSePidio.timbre);
+      expect(c.state.preguntarComoPediste, isNull);
+      expect(servidor.llamadas.last, 'parada T103 timbre');
+      await c.close();
+    });
+
+    test('no pregunta si ya preguntó por un varado, ni sin sesión; y se puede saltar', () async {
+      final varado = cubit(compartir: false);
+      await varado.iniciar();
+      await en(_p(0, 195));
+      await en(_p(300, 200));
+      await en(_p(1000, 200));
+      ahora = ahora.add(const Duration(minutes: 5));
+      varado.revisarSiSeVaro();
+      expect(varado.state.preguntarVarado, isTrue);
+      await en(_p(2990, 200));
+      expect(varado.state.preguntarComoPediste, isNull);
+      await varado.close();
+
+      final sinSesion = cubit(compartir: false, sesion: false);
+      await sinSesion.iniciar();
+      await en(_p(0, 195));
+      await en(_p(300, 200));
+      await en(_p(2990, 200));
+      expect(sinSesion.state.preguntarComoPediste, isNull);
+      await sinSesion.close();
+
+      final salta = cubit(compartir: false);
+      await salta.iniciar();
+      await en(_p(0, 195));
+      await en(_p(300, 200));
+      await en(_p(2990, 200));
+      salta.saltarComoPedi();
+      expect(salta.state.preguntarComoPediste, isNull);
+      expect(servidor.llamadas.where((l) => l.startsWith('parada')), isEmpty);
+      await salta.close();
+    });
+
+    test('debajo de «¡Toca el timbre!» se dice lo que hicieron los demás', () {
+      expect(textoDeLoQueSeSabe(const ComoSePideAqui(como: ComoSePidio.timbre, viajeros: 4)),
+          'Así la pidieron 4 viajeros aquí.');
+      expect(textoDeLoQueSeSabe(const ComoSePideAqui(como: ComoSePidio.paroSolo, viajeros: 3)),
+          'Aquí suele parar solo, según 3 viajeros. Por si acaso, pídela.');
+    });
+  });
+
+  test('sin conexión mantiene la última llegada unos minutos, envejecida; después no dice nada', () async {
+    final falla = _TiempoRealSinRed(servidor);
+    final c = ViajeCubit(
+      opcion: _viaje(),
+      avisos: _Avisos(),
+      fuente: (_) => gps.stream,
+      tiempoReal: falla,
+      preferencia: _Preferencia(si: false, vioElAviso: true),
+      haySesion: () => true,
+      cadaCuanto: const Duration(milliseconds: 20),
+      reloj: () => ahora,
+    );
+    await c.iniciar();
+    await _pasa();
+    expect(c.state.llegada!.sinConexion, isFalse);
+
+    falla.sinRed = true;
+    ahora = ahora.add(const Duration(minutes: 2));
+    await Future<void>.delayed(const Duration(milliseconds: 30));
+    expect(c.state.llegada, const Llegada(minutos: 4, fuentes: 2, ocupacion: Ocupacion.dePie, sinConexion: true));
+
+    ahora = ahora.add(ViajeCubit.vigenciaSinConexion);
+    await Future<void>.delayed(const Duration(milliseconds: 30));
+    expect(c.state.llegada, isNull);
+    await c.close();
   });
 
   test('compartir viene activado, pero nada sale sin haber visto el aviso', () async {
@@ -238,4 +386,92 @@ void main() {
     expect(await preferencia.avisoVisto(), isTrue);
     expect(await preferencia.compartir(), isFalse);
   });
+
+  group('bus varado', () {
+    test('a bordo, cuatro minutos quieto lejos de la bajada pregunta y se puede reportar', () async {
+      final c = cubit(compartir: false);
+      await c.iniciar();
+      await en(_p(0, 195));
+      await en(_p(300, 200)); // subió
+      await en(_p(1500, 200), despues: const Duration(minutes: 1));
+      ahora = ahora.add(const Duration(minutes: 3));
+      c.revisarSiSeVaro();
+      expect(c.state.preguntarVarado, isFalse); // tres minutos: todavía no
+      ahora = ahora.add(const Duration(minutes: 1, seconds: 10));
+      c.revisarSiSeVaro();
+      expect(c.state.preguntarVarado, isTrue);
+
+      await c.seVaro();
+      expect((c.state.preguntarVarado, c.state.varadoReportado), (false, true));
+      expect(servidor.llamadas.last, 'reporte bus_varado T103');
+      await c.close();
+    });
+
+    test('si el bus vuelve a andar, la pregunta se quita; y no se pregunta dos veces en el mismo bus', () async {
+      final c = cubit(compartir: false);
+      await c.iniciar();
+      await en(_p(0, 195));
+      await en(_p(300, 200));
+      await en(_p(1500, 200));
+      ahora = ahora.add(const Duration(minutes: 5));
+      c.revisarSiSeVaro();
+      expect(c.state.preguntarVarado, isTrue);
+      await en(_p(1600, 200)); // arrancó
+      expect(c.state.preguntarVarado, isFalse);
+      ahora = ahora.add(const Duration(minutes: 6));
+      c.revisarSiSeVaro();
+      expect(c.state.preguntarVarado, isFalse);
+      await c.close();
+    });
+
+    test('quieto en una estación o llegando a la bajada no es un bus varado', () async {
+      final c = ViajeCubit(
+        opcion: _viajeConEstacion(),
+        avisos: _Avisos(),
+        fuente: (_) => gps.stream,
+        tiempoReal: servidor,
+        preferencia: _Preferencia(si: false, vioElAviso: true),
+        haySesion: () => true,
+        reloj: () => ahora,
+      );
+      await c.iniciar();
+      await en(_p(0, 195));
+      await en(_p(300, 200));
+      await en(_p(1000, 205)); // en la estación de la mitad
+      ahora = ahora.add(const Duration(minutes: 8));
+      c.revisarSiSeVaro();
+      expect(c.state.preguntarVarado, isFalse);
+      await en(_p(2850, 200)); // a 150 m de bajarse
+      ahora = ahora.add(const Duration(minutes: 8));
+      c.revisarSiSeVaro();
+      expect(c.state.preguntarVarado, isFalse);
+      await c.close();
+    });
+
+    test('quien espera ve que un bus se varó antes de su parada', () {
+      const llegada = Llegada(varado: Varado(lugar: 'Cerca de Bazurto', metrosAntes: 900, haceMin: 6));
+      expect(textoDeLlegada('T103', llegada),
+          (titulo: 'Un T103 se varó antes de tu parada', detalle: 'Cerca de Bazurto · hace 6 min · espera el siguiente'));
+    });
+  });
+}
+
+/// El mismo viaje, con una estación a mitad del tramo en bus.
+RouteOption _viajeConEstacion() {
+  final base = _viaje();
+  final bus = base.tramos[1];
+  return RouteOption(
+    resumen: base.resumen,
+    tiempoTotalMin: base.tiempoTotalMin,
+    distanciaCaminataM: base.distanciaCaminataM,
+    tramos: [
+      base.tramos[0],
+      Leg(modo: 'bus', desde: bus.desde, hasta: bus.hasta, distanciaM: bus.distanciaM, duracionMin: bus.duracionMin,
+          esperaMin: bus.esperaMin, ruta: bus.ruta, tipoRuta: bus.tipoRuta, puntos: bus.puntos,
+          paradas: [(nombre: 'Bazurto', punto: _p(0, 200)), (nombre: 'La Popa', punto: _p(1000, 200)),
+            (nombre: 'La Bodeguita', punto: _p(3000, 200))]),
+      base.tramos[2],
+    ],
+    riesgo: base.riesgo,
+  );
 }

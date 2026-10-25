@@ -145,8 +145,8 @@ class _PlaceSearchViewState extends State<_PlaceSearchView> {
                   return switch (state.status) {
                     PlaceSearchStatus.sinResultados => _Mensaje(
                         titulo: 'No encontramos «${state.consulta}» en Cartagena',
-                        detalle: 'Prueba con un barrio, una estación de Transcaribe o un sitio conocido, o marca el '
-                            'punto en el mapa.',
+                        detalle: 'Prueba con un barrio, una estación de Transcaribe, un sitio conocido o una dirección '
+                            'como «Calle 30 # 17-50», o marca el punto en el mapa.',
                         accion: FilledButton.icon(
                           onPressed: _elegirEnMapa,
                           icon: const Icon(Icons.map_outlined),
@@ -275,7 +275,7 @@ class _FilaDeResultado extends StatelessWidget {
     final distancia = desde == null ? null : metros(const Distance().as(LengthUnit.Meter, desde!, lugar.punto));
     final fila = Semantics(
       button: true,
-      label: '${lugar.nombre}, ${lugar.tipo}${distancia != null ? ', a $distancia' : ''}',
+      label: '${lugar.nombre}, ${lugar.subtitulo}${distancia != null ? ', a $distancia' : ''}',
       excludeSemantics: true,
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
@@ -307,7 +307,7 @@ class _FilaDeResultado extends StatelessWidget {
                       ]),
                       style: texto.bodyLarge,
                     ),
-                    Text(lugar.tipo, style: texto.bodySmall?.copyWith(color: b.textoSuave)),
+                    Text(lugar.subtitulo, style: texto.bodySmall?.copyWith(color: b.textoSuave)),
                   ],
                 ),
               ),

@@ -1,3 +1,4 @@
+import 'package:latlong2/latlong.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:karta/core/format.dart';
@@ -147,6 +148,26 @@ void main() {
       expect(usuario.faltaParaSubir, isNull);
       expect(Usuario.fromJson(usuario.toJson()), usuario);
     });
+
+    test('el marco sale del nivel; las insignias y la siguiente vienen del servidor y se guardan', () {
+      final usuario = Usuario.fromJson({
+        'id': '1', 'email': 'a@b.co', 'nombre': 'Ana', 'tipo_viajero': 'Residente', 'reputacion': 210,
+        'alias': 'Ana', 'nivel': 3,
+        'insignias': [
+          {'clave': 'primer_aviso', 'nombre': 'Primer aviso', 'descripcion': 'Alguien confirmó uno de tus reportes'},
+        ],
+        'siguiente_insignia': {
+          'insignia': {'clave': 'ojo_de_halcon', 'nombre': 'Ojo de halcón', 'descripcion': '…'},
+          'llevas': 3, 'meta': 10, 'unidad': 'confirmaciones',
+        },
+      });
+      expect(usuario.marco, 'Bahía');
+      expect(usuario.insignias.single.nombre, 'Primer aviso');
+      expect(usuario.siguienteInsignia!.fraccion, closeTo(0.3, 1e-9));
+      expect(Usuario.fromJson(usuario.toJson()), usuario);
+      expect(Usuario.fromJson({'id': '2', 'reputacion': 100}).marco, isNull);
+      expect(Usuario.fromJson({'id': '2', 'reputacion': 100}).insignias, isEmpty);
+    });
   });
 
   test('Stop.fromJson usa la caminata estimada por el backend', () {
@@ -184,5 +205,16 @@ void main() {
     expect(horaLegible('21:00'), '9:00${nbsp}p.${nbsp}m.');
     expect(horaLegible('12:15'), '12:15${nbsp}p.${nbsp}m.');
     expect(horaLegible('00:05'), '12:05${nbsp}a.${nbsp}m.');
+  });
+
+  test('una dirección del buscador muestra su detalle y su ícono', () {
+    final lugar = Place.fromJson({
+      'id': null, 'nombre': 'Calle 9 # 3-50', 'tipo': 'Dirección', 'latitud': 10.4043, 'longitud': -75.5524,
+      'detalle': 'Dirección aproximada · Bocagrande',
+    });
+    expect(lugar.subtitulo, 'Dirección aproximada · Bocagrande');
+    expect(lugar.icono, Icons.signpost_outlined);
+    const barrio = Place(nombre: 'Bocagrande', tipo: 'Barrio', punto: LatLng(10.399, -75.554));
+    expect(barrio.subtitulo, 'Barrio'); // sin detalle, el tipo
   });
 }

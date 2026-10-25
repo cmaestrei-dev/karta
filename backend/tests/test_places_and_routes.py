@@ -23,6 +23,13 @@ def test_buscador_ignora_tildes_y_busca_por_prefijo(api):
     assert estaciones[0]["tipo"] == "Estación Transcaribe"
 
 
+def test_buscador_entiende_los_nombres_populares(api):
+    # En OpenStreetMap es «Puerta del Reloj»; en la calle, la Torre del Reloj. También mientras se escribe.
+    for consulta in ("Torre del Reloj", "torre del re"):
+        assert api.get("/api/v1/places/search", params={"q": consulta}).json()[0]["nombre"] == "Puerta del Reloj"
+    assert api.get("/api/v1/places/search", params={"q": "plaza de bolivar"}).json()[0]["nombre"] == "Parque de Bolívar"
+
+
 def test_buscador_valida_la_consulta(api):
     assert api.get("/api/v1/places/search", params={"q": "a"}).status_code == 422
     assert api.get("/api/v1/places/search", params={"q": ".*"}).json() == []  # sin palabras: sin resultados

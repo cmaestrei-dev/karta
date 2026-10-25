@@ -9,23 +9,31 @@ class Place extends Equatable {
   final String tipo;
   final LatLng punto;
 
-  const Place({this.id, required this.nombre, required this.tipo, required this.punto});
+  /// Para distinguir resultados con el mismo nombre: «Dirección aproximada · Bocagrande».
+  final String? detalle;
+
+  const Place({this.id, required this.nombre, required this.tipo, required this.punto, this.detalle});
 
   factory Place.fromJson(Map<String, dynamic> json) => Place(
         id: json['id'] as String?,
         nombre: json['nombre'] as String,
         tipo: json['tipo'] as String,
         punto: LatLng((json['latitud'] as num).toDouble(), (json['longitud'] as num).toDouble()),
+        detalle: json['detalle'] as String?,
       );
 
   IconData get icono => iconoDeTipo(tipo);
 
+  /// Lo que se muestra bajo el nombre.
+  String get subtitulo => detalle ?? tipo;
+
   @override
-  List<Object?> get props => [id, nombre, tipo, punto];
+  List<Object?> get props => [id, nombre, tipo, punto, detalle];
 }
 
 IconData iconoDeTipo(String tipo) => switch (tipo) {
       'Estación Transcaribe' => Icons.directions_bus,
+      'Dirección' => Icons.signpost_outlined,
       'Barrio' => Icons.home_work_outlined,
       'Sitio turístico' => Icons.castle_outlined,
       'Sitio histórico' || 'Entidad pública' => Icons.account_balance_outlined,

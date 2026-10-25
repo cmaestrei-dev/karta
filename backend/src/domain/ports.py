@@ -3,6 +3,8 @@ from datetime import datetime, timedelta
 from typing import Protocol
 
 from src.domain.horarios import HorarioRuta
+from src.domain.conocimiento import ComoSePidio, RespuestaDeParada
+from src.domain.direcciones import Cruce
 from src.domain.models import (
     Estacion, IconoLugar, Incidente, Lugar, LugarGuardado, RutaTransporte, TipoViajero, Usuario,
 )
@@ -20,6 +22,10 @@ class UserRepository(Protocol):
 
     def ajustar_reputacion(self, user_id: str, delta: int) -> None:
         """Suma (o resta) puntos de reputación de forma atómica."""
+        ...
+
+    def sumar_impacto(self, user_id: str, campo: str, cantidad: int = 1) -> None:
+        """Suma al contador de impacto del viajero («reportes», «confirmaciones», «gracias», «vistas»)."""
         ...
 
     def add_invisible(self, *, huella: str, creado_en: datetime) -> Usuario:
@@ -41,13 +47,17 @@ class UserRepository(Protocol):
 class IncidentRepository(Protocol):
     def add(self, *, reportado_por: str, tipo: TipoReporte, detalles: dict[str, str], latitud: float,
             longitud: float, lugar: str | None, creado_en: datetime, expira_en: datetime,
-            sin_cuenta: bool = False) -> Incidente: ...
+            sin_cuenta: bool = False, nivel_autor: int = 1) -> Incidente: ...
 
     def get_active(self, incidente_id: str, ahora: datetime) -> Incidente | None: ...
 
     def list_active(self, ahora: datetime, limite: int, caja: tuple[float, float, float, float] | None = None
                     ) -> list[Incidente]:
         """Vigentes, los más recientes primero; `caja` = (lon_min, lat_min, lon_max, lat_max)."""
+        ...
+
+    def active_for_route(self, tipo: str, ruta: str, ahora: datetime) -> list[Incidente]:
+        """Reportes vigentes de un tipo sobre una ruta («bus_varado» del T103)."""
         ...
 
     def find_active_within(self, area: dict, ahora: datetime) -> list[Incidente]:
@@ -70,6 +80,20 @@ class IncidentRepository(Protocol):
         """Lo da por vencido ya: deja de verse y el índice TTL lo elimina."""
         ...
 
+    def reward_voters(self, incidente_id: str, sigue: bool, excepto: str | None = None) -> list[str]:
+        """Quienes votaron [sigue] y aún no recibieron su punto (salvo [excepto]); quedan marcados como premiados."""
+        ...
+
+    def register_thanks(self, incidente_id: str, usuario_id: str, ahora: datetime) -> Incidente:
+        """Un «Gracias» por viajero y reporte. Lanza GraciasRepetidas si ya lo dio."""
+        ...
+
+    def thanks_of(self, incidente_id: str, usuario_id: str) -> bool: ...
+
+    def register_view(self, incidente_id: str, usuario_id: str, ahora: datetime) -> bool:
+        """Anota que el viajero abrió el reporte. True si es la primera vez."""
+        ...
+
     def vote_of(self, incidente_id: str, usuario_id: str) -> bool | None:
         """El voto de ese usuario en ese reporte (True = sigue ahí), o None si no ha votado."""
         ...
@@ -80,8 +104,12 @@ class PlaceRepository(Protocol):
         """Lugares cuyo nombre tiene palabras que empiezan por cada token."""
         ...
 
-    def nearest(self, lon: float, lat: float, radio_m: float) -> tuple[Lugar, float] | None:
-        """Lugar más cercano dentro del radio y su distancia en metros."""
+    def nearest(self, lon: float, lat: float, radio_m: float, tipo: str | None = None) -> tuple[Lugar, float] | None:
+        """Lugar más cercano dentro del radio (opcionalmente, de un tipo) y su distancia en metros."""
+        ...
+
+    def crossings_on(self, via_clave: str) -> list[Cruce]:
+        """Los cruces de una vía numerada («calle:9»), para ubicar direcciones."""
         ...
 
 
@@ -165,4 +193,11 @@ class RealtimeRepository(Protocol):
 
     def observations(self, ruta: str, desde: datetime) -> list[Observacion]:
         """Avistamientos y viajes compartidos de la ruta desde ese momento."""
+        ...
+
+    def add_stop_answer(self, ruta: str, longitud: float, latitud: float, como: ComoSePidio, en: datetime) -> None:
+        """«¿Cómo pediste la parada?»: la respuesta, sin quién la dio."""
+        ...
+
+    def stop_answers(self, ruta: str, longitud: float, latitud: float, radio_m: float) -> list[RespuestaDeParada]:
         ...

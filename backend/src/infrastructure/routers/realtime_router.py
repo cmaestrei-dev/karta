@@ -2,9 +2,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Path, Response, status
 
 from src.application.realtime_service import RealtimeService, RutaDesconocida, ViajeTerminado
+from src.domain.conocimiento import ComoSePidio
 from src.domain.models import Usuario
 from src.domain.schemas.realtime_schema import (
-    AvistamientoRequest, PosicionRequest, ViajeCompartidoRequest, ViajeCompartidoResponse,
+    AvistamientoRequest, ComoPediLaParadaRequest, PosicionRequest, ViajeCompartidoRequest, ViajeCompartidoResponse,
 )
 from src.domain.tiempo_real import Ocupacion
 from src.infrastructure.dependencies import get_current_user, get_realtime_service
@@ -36,6 +37,23 @@ def report_sighting(request: AvistamientoRequest,
     except RutaDesconocida:
         raise RUTA_DESCONOCIDA
     return {"mensaje": "Gracias: lo verán quienes esperan ese bus."}
+
+
+@router.post("/stop-requests", status_code=status.HTTP_201_CREATED, summary="Cómo pedí la parada",
+             responses={**SIN_SESION, **FUERA_DE_COBERTURA, **DEMASIADOS})
+def answer_stop_request(request: ComoPediLaParadaRequest,
+                        usuario: Usuario = Depends(por_viajero("parada", "LIMITE_RESPUESTAS_PARADA")),
+                        service: RealtimeService = Depends(get_realtime_service)):
+    """
+    Al bajarse en un paradero, el viajero cuenta cómo pidió la parada: tocó el timbre, el bus paró solo o le avisó
+    al conductor. No se guarda quién respondió. Con suficientes respuestas que coinciden, el aviso de pedir la
+    parada dice lo que funciona allí.
+    """
+    try:
+        service.answer_stop_request(request.ruta, request.latitud, request.longitud, ComoSePidio(request.como))
+    except RutaDesconocida:
+        raise RUTA_DESCONOCIDA
+    return {"mensaje": "Gracias: así sabremos cómo se pide la parada aquí."}
 
 
 @router.post("/trips", status_code=status.HTTP_201_CREATED, response_model=ViajeCompartidoResponse,

@@ -39,6 +39,14 @@ class FakeIncidentRepository implements IncidentRepository {
     final votos = detalle.incidente.votosSi + (sigue ? 1 : 0);
     return (Incident.fromJson(incidenteJson(votosSi: votos)), retirarAlVotar);
   }
+
+  int graciasDadas = 0;
+
+  @override
+  Future<Incident> thank(String id) async {
+    graciasDadas++;
+    return Incident.fromJson({...incidenteJson(), 'gracias': detalle.incidente.gracias + 1});
+  }
 }
 
 void main() {
@@ -127,12 +135,25 @@ void main() {
       expect(retirado, '665f1c2b9a1e4b0012345678');
     });
 
-    test('en un reporte propio no se vota', () async {
+    test('en un reporte propio no se vota ni se dan las gracias', () async {
       repositorio.detalle = IncidentDetail.fromJson({...incidenteJson(), 'reportado_por_alias': 'Yo', 'es_mio': true});
       final cubit = IncidentDetailCubit(repository: repositorio);
       await cubit.cargar('x');
       await cubit.votar(sigue: true);
+      await cubit.darGracias();
       expect(cubit.state.detalle!.miVoto, isNull);
+      expect(repositorio.graciasDadas, 0);
+    });
+
+    test('las gracias se dan una sola vez y no cambian el voto', () async {
+      final cubit = IncidentDetailCubit(repository: repositorio);
+      await cubit.cargar('x');
+      await cubit.darGracias();
+      await cubit.darGracias();
+      expect(repositorio.graciasDadas, 1);
+      expect(cubit.state.detalle!.misGracias, isTrue);
+      expect(cubit.state.detalle!.incidente.gracias, 1);
+      expect(cubit.state.detalle!.puedeVotar, isTrue);
     });
   });
 }

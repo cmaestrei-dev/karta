@@ -19,6 +19,7 @@ class DetalleDeIncidente:
     alias_autor: str
     es_mio: bool
     mi_voto: bool | None
+    mis_gracias: bool = False
 
 
 @dataclass(frozen=True)
@@ -51,49 +52,72 @@ class IncidentService:
             raise DetallesInvalidos("Ese tipo de reporte no existe.")
         limpios = validar_detalles(tipo_reporte, detalles, self.transit.route_codes())
         ahora = datetime.now(timezone.utc)
-        return self.incidents.add(
+        creado = self.incidents.add(
             reportado_por=usuario.id, tipo=tipo_reporte, detalles=limpios, latitud=latitud, longitud=longitud,
             lugar=self._nombrar(latitud, longitud), creado_en=ahora, expira_en=ahora + tipo_reporte.vigencia,
-            sin_cuenta=usuario.sin_cuenta,
+            sin_cuenta=usuario.sin_cuenta, nivel_autor=usuario.nivel,
         )
+        self.users.sumar_impacto(usuario.id, "reportes")
+        return creado
 
     def list_active(self, caja: tuple[float, float, float, float] | None = None) -> list[Incidente]:
         """Caso de Uso #6: Ver los reportes vigentes en el mapa (opcionalmente solo el área visible)."""
         return self.incidents.list_active(datetime.now(timezone.utc), self.MAX_INCIDENTES_EN_MAPA, caja)
 
     def detail(self, incidente_id: str, usuario: Usuario | None) -> DetalleDeIncidente:
+        """El reporte con su autor. Si lo abre otro viajero, cuenta como una persona más que lo vio (una vez)."""
         incidente = self._vigente(incidente_id)
         autor = self.users.get_by_id(incidente.reportado_por)
+        es_mio = usuario is not None and usuario.id == incidente.reportado_por
+        if usuario and not es_mio and self.incidents.register_view(incidente_id, usuario.id, datetime.now(timezone.utc)):
+            self.users.sumar_impacto(incidente.reportado_por, "vistas")
         return DetalleDeIncidente(
             incidente=incidente,
             alias_autor=autor.alias if autor else "Un viajero",
-            es_mio=usuario is not None and usuario.id == incidente.reportado_por,
+            es_mio=es_mio,
             mi_voto=self.incidents.vote_of(incidente_id, usuario.id) if usuario else None,
+            mis_gracias=self.incidents.thanks_of(incidente_id, usuario.id) if usuario else False,
         )
+
+    def thank(self, usuario: Usuario, incidente_id: str) -> Incidente:
+        """«Gracias»: quien usó el reporte se lo agradece a quien lo hizo (una vez; nunca al propio)."""
+        incidente = self._vigente(incidente_id)
+        if incidente.reportado_por == usuario.id:
+            raise VotoPropio()
+        actualizado = self.incidents.register_thanks(incidente_id, usuario.id, datetime.now(timezone.utc))
+        self.users.sumar_impacto(incidente.reportado_por, "gracias")
+        return actualizado
 
     def vote(self, usuario: Usuario, incidente_id: str, sigue: bool) -> ResultadoDeVoto:
         """
         Caso de Uso #9: Validar un reporte («¿Sigue ahí?»).
         Un voto por viajero y reporte, nunca sobre el propio. Confirmar renueva la vigencia y da reputación
-        a quien reportó; dos «ya no está» seguidos lo retiran y le restan reputación.
+        a quien reportó; dos «ya no está» seguidos (o uno de alguien con nivel de confianza) lo retiran y le
+        restan reputación. Quien vota gana su punto cuando la comunidad le da la razón, no por votar.
         """
         ahora = datetime.now(timezone.utc)
         incidente = self._vigente(incidente_id)
         if incidente.reportado_por == usuario.id:
             raise VotoPropio()
         self.incidents.register_vote(incidente_id, usuario.id, sigue, ahora)  # VotoRepetido si ya votó
-        self.users.ajustar_reputacion(usuario.id, REPUTACION_POR_VOTAR)
 
         if sigue:
             nueva = expiracion_al_confirmar(CATALOGO[incidente.tipo], incidente.expira_en, ahora)
             actualizado = self.incidents.apply_confirmation(incidente_id, nueva)
             self.users.ajustar_reputacion(incidente.reportado_por, REPUTACION_POR_CONFIRMACION)
+            self.users.sumar_impacto(incidente.reportado_por, "confirmaciones")
+            # Este «sigue ahí» les da la razón a quienes lo dijeron antes.
+            for votante in self.incidents.reward_voters(incidente_id, True, excepto=usuario.id):
+                self.users.ajustar_reputacion(votante, REPUTACION_POR_VOTAR)
             return ResultadoDeVoto(actualizado, retirado=False)
 
         actualizado, racha = self.incidents.apply_denial(incidente_id)
-        if debe_retirarse(racha):
+        if debe_retirarse(racha, usuario.nivel):
             self.incidents.retire(incidente_id, ahora)
             self.users.ajustar_reputacion(incidente.reportado_por, REPUTACION_POR_RETIRO)
+            # El reporte salió: todos los que dijeron «ya no está», incluido este, tenían razón.
+            for votante in self.incidents.reward_voters(incidente_id, False):
+                self.users.ajustar_reputacion(votante, REPUTACION_POR_VOTAR)
             return ResultadoDeVoto(actualizado, retirado=True)
         return ResultadoDeVoto(actualizado, retirado=False)
 
