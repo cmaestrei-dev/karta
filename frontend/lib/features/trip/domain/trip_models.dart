@@ -281,6 +281,41 @@ const nombreDeDia = {
 };
 
 /// Estación de Transcaribe cercana.
+/// Una ruta que pasa cerca y dónde tomarla fuera de las estaciones («Paradero Av. Kennedy con Calle 18»).
+/// Los paraderos oficiales no tienen coordenadas: es el punto de la vía más cercano donde la ruta recoge.
+class RutaCercana extends Equatable {
+  final String ruta;
+  final String nombre;
+  final String tipo;
+  final String paradero;
+  final LatLng punto;
+  final int caminataM;
+  final int caminataMin;
+
+  const RutaCercana({
+    required this.ruta,
+    required this.nombre,
+    required this.tipo,
+    required this.paradero,
+    required this.punto,
+    required this.caminataM,
+    required this.caminataMin,
+  });
+
+  factory RutaCercana.fromJson(Map<String, dynamic> json) => RutaCercana(
+        ruta: json['ruta'] as String,
+        nombre: json['nombre'] as String,
+        tipo: json['tipo'] as String,
+        paradero: json['paradero'] as String,
+        punto: LatLng((json['latitud'] as num).toDouble(), (json['longitud'] as num).toDouble()),
+        caminataM: json['caminata_m'] as int,
+        caminataMin: json['caminata_min'] as int,
+      );
+
+  @override
+  List<Object?> get props => [ruta, nombre, tipo, paradero, punto, caminataM, caminataMin];
+}
+
 class Stop extends Equatable {
   final String id;
   final String nombre;

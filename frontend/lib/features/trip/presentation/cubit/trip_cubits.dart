@@ -69,10 +69,13 @@ class NearbyStopsLoading extends NearbyStopsState {
 class NearbyStopsLoaded extends NearbyStopsState {
   final List<Stop> estaciones;
 
-  const NearbyStopsLoaded(this.estaciones);
+  /// Las rutas que pasan cerca, fuera de las estaciones (D16). Vacía si no hay o si no se pudieron consultar.
+  final List<RutaCercana> rutas;
+
+  const NearbyStopsLoaded(this.estaciones, {this.rutas = const []});
 
   @override
-  List<Object?> get props => [estaciones];
+  List<Object?> get props => [estaciones, rutas];
 }
 
 class NearbyStopsFailed extends NearbyStopsState {
@@ -95,8 +98,12 @@ class NearbyStopsCubit extends Cubit<NearbyStopsState> {
     _ultimoPunto = punto;
     emit(const NearbyStopsLoading());
     try {
-      final estaciones = await repository.nearbyStops(punto);
-      if (!isClosed) emit(NearbyStopsLoaded(estaciones));
+      // Las rutas son un extra: si fallan, igual se muestran las estaciones.
+      final (estaciones, rutas) = await (
+        repository.nearbyStops(punto),
+        repository.nearbyRoutes(punto).catchError((Object _) => const <RutaCercana>[]),
+      ).wait;
+      if (!isClosed) emit(NearbyStopsLoaded(estaciones, rutas: rutas));
     } catch (e) {
       if (!isClosed) emit(NearbyStopsFailed(e.toString()));
     }

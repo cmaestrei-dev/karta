@@ -208,3 +208,20 @@ def test_pagina_de_ruta_inexistente_o_mal_escrita(api):
     assert api.get("/api/v1/routes/hola").status_code == 422
     sin_horario = api.get("/api/v1/routes/C018").json()
     assert sin_horario["horario"] is None and sin_horario["opera_ahora"] is None
+
+
+def test_rutas_que_pasan_cerca_y_donde_tomarlas(api):
+    # En Blas de Lezo, sobre el recorrido de la A107, lejos de toda estación.
+    from scripts.analizar_transbordos import cargar, origenes
+    rutas, estaciones = cargar()
+    a107 = next(r for r in rutas if r.id == "A107")
+    lon, lat = origenes(a107, [e for e in estaciones if any(r.startswith(("T", "X")) for r in e.rutas)])[0]
+    cercanas = api.get("/api/v1/routes/nearby", params={"lat": lat, "lon": lon}).json()
+    a107 = next(r for r in cercanas if r["ruta"] == "A107")
+    assert a107["distancia_m"] <= 30 and a107["paradero"].startswith("Paradero")
+    assert a107["caminata_min"] >= 1
+    assert [r["distancia_m"] for r in cercanas] == sorted(r["distancia_m"] for r in cercanas)
+    # Junto a la estación Madre Bernarda, sobre el carril de la troncal, las T no se toman en la vía.
+    junto_a_la_troncal = api.get("/api/v1/routes/nearby", params={"lat": 10.39514, "lon": -75.47861, "radio_m": 100})
+    assert not any(r["ruta"].startswith("T") for r in junto_a_la_troncal.json())
+    assert api.get("/api/v1/routes/nearby", params={"lat": 11.24, "lon": -74.2}).status_code == 422

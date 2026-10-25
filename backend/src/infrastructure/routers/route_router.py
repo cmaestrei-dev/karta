@@ -1,3 +1,4 @@
+import math
 from datetime import datetime, timezone
 from typing import List, Literal
 
@@ -11,7 +12,9 @@ from src.domain.schemas.route_schema import (
     RouteGeometryResponse, RouteOptionResponse, RoutePageResponse, RouteRiskRequest, RouteRiskResponse,
     RouteSuggestRequest, RouteSuggestResponse, TramoResponse,
 )
-from src.domain.trip_planning import OpcionViaje
+from src.domain.geo import MENSAJE_FUERA_DE_COBERTURA, en_cobertura
+from src.domain.schemas.place_schema import RutaCercanaResponse
+from src.domain.trip_planning import FACTOR_RODEO, OpcionViaje, minutos_caminando
 from src.domain.schemas.realtime_schema import ComoSePideResponse, LlegadaResponse, VaradoResponse
 from src.infrastructure.dependencies import get_incident_service, get_realtime_service, get_trip_service
 
@@ -29,6 +32,25 @@ def list_routes(tipo: Literal["troncal", "pretroncal", "alimentadora", "compleme
     return [RouteGeometryResponse(codigo=r.id, nombre=r.nombre, tipo=r.tipo,
                                   geometria={"type": "LineString", "coordinates": [list(c) for c in r.coordenadas]})
             for r in service.routes(tipo)]
+
+@router.get("/nearby", summary="Rutas que pasan cerca", response_model=List[RutaCercanaResponse],
+            responses={422: {"description": "Fuera de la cobertura de Cartagena"}})
+def nearby_routes(lat: float = Query(..., ge=-90, le=90), lon: float = Query(..., ge=-180, le=180),
+                  radio_m: int = Query(500, ge=100, le=1000), limite: int = Query(8, ge=1, le=20),
+                  service: TripService = Depends(get_trip_service)):
+    """
+    Las rutas que pasan a menos de `radio_m` y el punto de la vía donde se toman, nombrado por el cruce de calles.
+    No incluye las estaciones (para eso, `/stops/nearby`) ni el carril de la troncal, donde las T y X no paran.
+    """
+    if not en_cobertura(lat, lon):
+        raise HTTPException(status_code=422, detail=MENSAJE_FUERA_DE_COBERTURA)
+    return [
+        RutaCercanaResponse(ruta=p.ruta.id, nombre=p.ruta.nombre, tipo=p.ruta.tipo, paradero=paradero,
+                            latitud=round(p.latitud, 6), longitud=round(p.longitud, 6),
+                            distancia_m=round(p.distancia_m), caminata_m=round(p.distancia_m * FACTOR_RODEO),
+                            caminata_min=max(1, math.ceil(minutos_caminando(p.distancia_m))))
+        for p, paradero in service.nearby_routes(lat, lon, radio_m, limite)
+    ]
 
 @router.get("/{codigo}", summary="Página de una ruta", response_model=RoutePageResponse,
             responses={404: {"description": "No existe esa ruta"}})

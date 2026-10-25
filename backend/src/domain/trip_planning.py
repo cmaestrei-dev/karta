@@ -297,6 +297,32 @@ def _directa(m: RutaMuestreada, origen, destino, a_origen, a_destino) -> OpcionV
     ))
 
 
+@dataclass(frozen=True)
+class PasoCercano:
+    """Por dónde pasa una ruta cerca de alguien: el punto de la vía donde se toma, fuera de las estaciones."""
+    ruta: RutaTransporte
+    longitud: float
+    latitud: float
+    distancia_m: float
+
+
+def donde_pasa_cerca(ruta: RutaTransporte, estaciones: list[Estacion], punto: tuple[float, float],
+                     radio_m: float) -> PasoCercano | None:
+    """
+    El punto más cercano de la vía donde se puede tomar la ruta, si está a menos de [radio_m]. No cuenta las
+    estaciones (ya salen en la lista de estaciones) ni el carril de la troncal, donde las rutas T y X no paran.
+    """
+    m = muestrear(ruta, estaciones)
+    if m is None:
+        return None
+    distancias = np.where(m.abordable & (m.estacion == ""), _distancias(m, punto), np.inf)
+    k = int(np.argmin(distancias))
+    if not np.isfinite(distancias[k]) or distancias[k] > radio_m:
+        return None
+    lon, lat = m.lonlat(k)
+    return PasoCercano(ruta, lon, lat, float(distancias[k]))
+
+
 def mejor_opcion_en_ruta(ruta: RutaTransporte, estaciones: list[Estacion],
                          origen: tuple[float, float], destino: tuple[float, float]) -> OpcionViaje | None:
     """Dónde subirse y bajarse de una sola ruta para llegar lo antes posible."""

@@ -50,4 +50,14 @@ class TripRepository {
     }) as List<dynamic>;
     return data.map((json) => Stop.fromJson(json)).toList();
   }
+
+  /// Las rutas que pasan a menos de 500 m y dónde tomarlas, fuera de las estaciones.
+  Future<List<RutaCercana>> nearbyRoutes(LatLng punto) async {
+    final data = await api.get('/routes/nearby', query: {
+      'lat': punto.latitude.toStringAsFixed(6),
+      'lon': punto.longitude.toStringAsFixed(6),
+      'limite': '6',
+    }) as List<dynamic>;
+    return [for (final json in data) RutaCercana.fromJson(json as Map<String, dynamic>)];
+  }
 }

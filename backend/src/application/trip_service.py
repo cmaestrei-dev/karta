@@ -8,8 +8,8 @@ from src.domain.models import Estacion, RutaTransporte
 from src.domain.ports import IncidentRepository, PlaceRepository, TransitRepository
 from src.domain.route_risk import PENALIZACION_RIESGO_MIN, RADIO_BUSQUEDA_M, ResultadoRiesgo, evaluar_riesgo
 from src.domain.trip_planning import (
-    CAMINATA_MAXIMA_DE_ACCESO_M, OpcionViaje, caminata_entre, costo_percibido, estaciones_en_orden, paradas_del_tramo,
-    planificar,
+    CAMINATA_MAXIMA_DE_ACCESO_M, MAX_CORTES_CONFIABLES, OpcionViaje, PasoCercano, caminata_entre, costo_percibido,
+    donde_pasa_cerca, estaciones_en_orden, paradas_del_tramo, planificar,
 )
 
 Criterio = Literal["rapida", "segura", "sin_transbordo"]
@@ -128,6 +128,19 @@ class TripService:
     def nearby_stations(self, lat: float, lon: float, radio_m: float, limite: int) -> list[tuple[Estacion, float]]:
         """Caso de Uso: Ver estaciones de Transcaribe cercanas, de la más cercana a la más lejana."""
         return self.transit.stations_near(lon, lat, radio_m, limite)
+
+    def nearby_routes(self, lat: float, lon: float, radio_m: float, limite: int) -> list[tuple[PasoCercano, str]]:
+        """
+        Caso de Uso: Ver las rutas que pasan cerca y por dónde tomarlas («Paradero Av. Kennedy con Calle 18»).
+        Los paraderos oficiales no tienen coordenadas publicadas: es el punto de la vía más cercano donde la ruta
+        recoge pasajeros, nombrado por el cruce de calles.
+        """
+        estaciones = self.transit.list_stations()
+        cercanas = self.transit.routes_intersecting_any([circulo(lon, lat, radio_m)])
+        pasos = sorted((p for r in cercanas if r.cortes_en_osm <= MAX_CORTES_CONFIABLES
+                        if (p := donde_pasa_cerca(r, estaciones, (lon, lat), radio_m))),
+                       key=lambda p: p.distancia_m)[:limite]
+        return [(p, self._parada((p.longitud, p.latitud), p.ruta, estaciones)[0]) for p in pasos]
 
     def _etiquetar(self, opcion: OpcionViaje, estaciones: list[Estacion],
                    nombre_origen: str | None, nombre_destino: str | None) -> OpcionViaje:
