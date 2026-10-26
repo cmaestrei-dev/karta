@@ -22,9 +22,29 @@ from src.domain.reportes import GraciasRepetidas, TipoReporte, VotoRepetido, ali
 from src.domain.tiempo_real import Observacion, Ocupacion
 
 
+# Quien borró su cuenta: lo que aportó al mapa común queda a nombre de nadie.
+ANONIMO = ObjectId("000000000000000000000000")
+
+
 class MongoUserRepository:
     def __init__(self, db: Database):
+        self._db = db
         self._users = db.users
+
+    def erase(self, user_id: str) -> None:
+        uid = ObjectId(user_id)
+        db = self._db
+        # Lo comunitario queda, desligado: los reportes y las marcas de paraderos, con sus votos.
+        db.incidents.update_many({"reportado_por": uid}, {"$set": {"reportado_por": ANONIMO}})
+        db.stop_marks.update_many({"propuesto_por": uid}, {"$set": {"propuesto_por": ANONIMO}})
+        db.stop_marks.update_many({"votos.usuario": uid}, {"$set": {"votos.$[voto].usuario": ANONIMO}},
+                                  array_filters=[{"voto.usuario": uid}])
+        # Lo que solo sirve para esa persona se borra: sus votos, «Gracias», vistas y límites de peticiones.
+        for coleccion in (db.incident_votes, db.incident_thanks, db.incident_views):
+            coleccion.delete_many({"usuario": uid})
+        db.rate_limits.delete_many({"_id": {"$regex": f"^[^:]+:usuario:{re.escape(user_id)}:"}})
+        # Y la cuenta, con sus lugares guardados, su reputación y su impacto.
+        self._users.delete_one({"_id": uid})
 
     def add(self, *, email: str, password_hash: str, nombre: str, alias: str, tipo_viajero: TipoViajero,
             creado_en: datetime, terminos_aceptados_en: datetime) -> Usuario:

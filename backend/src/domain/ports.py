@@ -36,6 +36,13 @@ class UserRepository(Protocol):
 
     def get_by_secret(self, huella: str) -> Usuario | None: ...
 
+    def erase(self, user_id: str) -> None:
+        """
+        Borra la cuenta y todo lo que la identifica (derecho de supresión, Ley 1581). Lo que aportó al mapa común
+        (reportes y marcas de paraderos) queda, sin nada que lo ligue a la persona.
+        """
+        ...
+
     def touch(self, user_id: str, ahora: datetime) -> None:
         """Marca que la cuenta invisible sigue en uso (las abandonadas se borran solas)."""
         ...

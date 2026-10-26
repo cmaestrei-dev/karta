@@ -122,6 +122,22 @@ class AuthRepository {
     return usuario;
   }
 
+  /// Borra la cuenta en el servidor (derecho de supresión, Ley 1581) y lo que este teléfono guarda de ella, el secreto
+  /// incluido: la próxima cuenta invisible es otra, sin nada que la ligue a la borrada. Lanza [SesionVencida] si la
+  /// sesión ya no sirve.
+  Future<void> borrarCuenta() async {
+    final token = _token;
+    if (token == null) throw const SesionVencida();
+    final response = await _send(() => http.delete(
+          Uri.parse('$apiBaseUrl/users/me'),
+          headers: {'Authorization': 'Bearer $token'},
+        ));
+    if (response.statusCode == 401) throw const SesionVencida();
+    if (response.statusCode != 204) throw Exception(apiErrorMessage(response));
+    await logout();
+    await _storage.delete(key: _secretoKey);
+  }
+
   /// Cierra la sesión; el secreto del teléfono se queda para volver a su cuenta invisible.
   Future<void> logout() async {
     _token = null;

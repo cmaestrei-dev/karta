@@ -51,6 +51,10 @@ class AuthService:
         )
         return usuario, self.tokens.issue(usuario.id)
 
+    def borrar_cuenta(self, usuario: Usuario) -> None:
+        """Caso de Uso: Borrar mi cuenta y mis datos (supresión, Ley 1581 art. 8). No se puede deshacer."""
+        self.users.erase(usuario.id)
+
     def login(self, *, email: str, password: str) -> tuple[Usuario, str]:
         """Caso de Uso: Iniciar sesión. Lanza CredencialesInvalidas sin revelar cuál dato falló."""
         usuario = self.users.get_by_email(email.strip().lower())

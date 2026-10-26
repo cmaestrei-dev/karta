@@ -3,7 +3,8 @@ from src.application.place_service import PlaceService
 from src.domain.models import LimiteLugaresGuardados, LugarGuardadoNoEncontrado, MAX_LUGARES_GUARDADOS, Usuario
 from src.domain.schemas.place_schema import SavedPlaceCreate, SavedPlaceResponse, SavedPlaceUpdate
 from src.domain.schemas.user_schema import UserResponse
-from src.infrastructure.dependencies import get_current_user, get_place_service
+from src.application.auth_service import AuthService
+from src.infrastructure.dependencies import get_auth_service, get_current_user, get_place_service
 from src.infrastructure.routers.respuestas import FUERA_DE_COBERTURA, SIN_SESION, error
 from typing import List
 
@@ -17,6 +18,18 @@ def read_current_user(usuario: Usuario = Depends(get_current_user)):
     Perfil del viajero autenticado. La app lo usa al abrir para validar la sesión guardada.
     """
     return usuario
+
+@router.delete("/me", summary="Borrar mi cuenta y mis datos", status_code=status.HTTP_204_NO_CONTENT,
+               responses=SIN_SESION)
+def delete_current_user(usuario: Usuario = Depends(get_current_user),
+                        auth: AuthService = Depends(get_auth_service)):
+    """
+    Borra la cuenta y todo lo que la identifica: correo, nombre, contraseña, lugares guardados, reputación, votos y
+    «Gracias». Los reportes y las marcas de paraderos que aportó quedan en el mapa común, sin su nombre ni nada que
+    los ligue a la cuenta. No se puede deshacer (derecho de supresión, Ley 1581 art. 8).
+    """
+    auth.borrar_cuenta(usuario)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 @router.get("/me/places", summary="Mis lugares guardados", response_model=List[SavedPlaceResponse], responses=SIN_SESION)
 def list_saved_places(usuario: Usuario = Depends(get_current_user),

@@ -48,8 +48,17 @@ void showProfileSheet(BuildContext context) {
               const SizedBox(height: 20),
               const _Apariencia(),
               BlocBuilder<AuthBloc, AuthState>(
-                builder: (context, state) => state is AuthAuthenticated
-                    ? const Padding(padding: EdgeInsets.only(top: 20), child: _Privacidad())
+                builder: (_, state) => state is AuthAuthenticated
+                    ? Padding(
+                        padding: const EdgeInsets.only(top: 20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const _Privacidad(),
+                            _BorrarCuenta(hoja: hoja, raiz: context, auth: auth, conCorreo: !state.usuario.sinCuenta),
+                          ],
+                        ),
+                      )
                     : const SizedBox.shrink(),
               ),
               const SizedBox(height: 8),
@@ -129,6 +138,54 @@ class _CerrarSesion extends StatelessWidget {
         if (confirmar == true && raiz.mounted) {
           raiz.read<SavedPlacesCubit>().clear();
           auth.add(const LogoutRequested());
+        }
+      },
+    );
+  }
+}
+
+/// «Borrar mi cuenta y mis datos» (derecho de supresión, Ley 1581): se borra lo que identifica al viajero y lo que
+/// aportó al mapa queda sin su nombre. [raiz] es el contexto del inicio, que sigue vivo cuando la hoja ya se cerró.
+class _BorrarCuenta extends StatelessWidget {
+  final BuildContext hoja;
+  final BuildContext raiz;
+  final AuthBloc auth;
+  final bool conCorreo;
+
+  const _BorrarCuenta({required this.hoja, required this.raiz, required this.auth, required this.conCorreo});
+
+  @override
+  Widget build(BuildContext context) {
+    final b = Bahia.de(context);
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+      leading: Icon(Icons.delete_forever_outlined, color: b.seguridad),
+      title: Text('Borrar mi cuenta y mis datos', style: TextStyle(color: b.seguridad)),
+      onTap: () async {
+        Navigator.of(hoja).pop();
+        final esquema = Theme.of(raiz).colorScheme;
+        final confirmar = await showDialog<bool>(
+          context: raiz,
+          builder: (dialogo) => AlertDialog(
+            title: const Text('¿Borrar tu cuenta y tus datos?'),
+            content: Text(
+              'Se borran tu cuenta${conCorreo ? ', tu correo' : ''}, tus lugares guardados, tu reputación, tus '
+              'insignias y tus votos. Tus reportes y los paraderos que marcaste se quedan en el mapa para los demás, '
+              'pero ya sin nada que los ligue a ti.\n\nNo se puede deshacer.',
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.of(dialogo).pop(false), child: const Text('Cancelar')),
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: esquema.error, foregroundColor: esquema.onError),
+                onPressed: () => Navigator.of(dialogo).pop(true),
+                child: const Text('Borrar todo'),
+              ),
+            ],
+          ),
+        );
+        if (confirmar == true && raiz.mounted) {
+          raiz.read<SavedPlacesCubit>().clear();
+          auth.add(const AccountDeletionRequested());
         }
       },
     );

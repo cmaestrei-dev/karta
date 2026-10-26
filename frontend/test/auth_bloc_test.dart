@@ -83,6 +83,21 @@ class FakeAuthRepository implements AuthRepository {
     cerroSesion = true;
     sesionGuardada = null;
   }
+
+  /// Cuentas borradas en el servidor; con [borrarFalla], el servidor no respondió.
+  final borradas = <String>[];
+  bool borrarFalla = false;
+
+  @override
+  Future<void> borrarCuenta() async {
+    if (sesionVencida) {
+      sesionVencida = false; // la renovación da una sesión nueva
+      throw const SesionVencida();
+    }
+    if (borrarFalla) throw Exception('No se pudo conectar con el servidor de Karta.');
+    borradas.add(sesionGuardada!.id);
+    sesionGuardada = null;
+  }
 }
 
 void main() {
@@ -180,5 +195,32 @@ void main() {
       expect(repository.cerroSesion, isTrue);
       expect(bloc.state, const AuthAuthenticated(_invisible));
     });
+  });
+
+  test('borrar la cuenta sigue con una cuenta invisible nueva y lo avisa', () async {
+    await entrar(_usuario);
+    bloc.add(const AccountDeletionRequested());
+    await expectLater(bloc.stream, emitsInOrder([
+      const AuthInProgress(_usuario),
+      const AuthAuthenticated(_invisible, aviso: AuthBloc.cuentaBorrada),
+    ]));
+    expect(repository.borradas, [_usuario.id]);
+  });
+
+  test('si la sesión invisible venció, la renueva y borra igual', () async {
+    await entrar(_invisible);
+    repository.sesionVencida = true;
+    bloc.add(const AccountDeletionRequested());
+    await expectLater(bloc.stream, emitsThrough(const AuthAuthenticated(_invisible, aviso: AuthBloc.cuentaBorrada)));
+    expect(repository.borradas, [_invisible.id]);
+  });
+
+  test('si no se pudo borrar, lo dice y la cuenta sigue igual', () async {
+    await entrar(_usuario);
+    repository.borrarFalla = true;
+    bloc.add(const AccountDeletionRequested());
+    await expectLater(bloc.stream, emitsThrough(const AuthAuthenticated(_usuario,
+        aviso: 'No pudimos borrar tu cuenta: No se pudo conectar con el servidor de Karta.')));
+    expect(repository.borradas, isEmpty);
   });
 }
