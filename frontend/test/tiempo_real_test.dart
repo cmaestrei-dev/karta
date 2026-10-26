@@ -113,10 +113,27 @@ class _TiempoReal implements TiempoRealRepository {
   }
 
   @override
+  Future<void> subida(String ruta, LatLng punto, {String? modulo}) async =>
+      llamadas.add(modulo == null ? 'subida $ruta' : 'subida $ruta $modulo');
+
+  @override
   Future<ComoSePideAqui?> comoSePide(String ruta, LatLng paradero) async {
     expect(paradero, _p(3000, 200));
     llamadas.add('como se pide $ruta');
     return sabido;
+  }
+}
+
+/// Cada ruta llega a su hora: para «el que pase primero».
+class _TiempoRealPorRuta extends _TiempoReal {
+  final Map<String, int?> minutos;
+
+  _TiempoRealPorRuta(this.minutos);
+
+  @override
+  Future<Llegada> llegada(String ruta, {required LatLng desde, required LatLng hasta}) async {
+    llamadas.add('llegada $ruta');
+    return Llegada(minutos: minutos[ruta], fuentes: minutos[ruta] == null ? 0 : 1);
   }
 }
 
@@ -215,6 +232,7 @@ void main() {
     await en(_p(2990, 200), despues: const Duration(seconds: 30)); // se bajó
     expect(servidor.envios, [
       'iniciar T103',
+      'subida T103', // subió en la calle: el punto (sin su nombre) es una pista para ubicar el paradero
       'mover v1',
       'mover v1',
       'iniciar T103',
@@ -247,6 +265,7 @@ void main() {
       'avistamiento T103 muy_lleno',
       'avistamiento T103 de_pie',
       'iniciar T103',
+      'subida T103',
       'mover v1 muy_lleno',
     ]);
     await compartiendo.close();
@@ -284,10 +303,51 @@ void main() {
         paradas: [(nombre: 'Bazurto', punto: _p(0, 210)), (nombre: 'La Bodeguita', punto: _p(3000, 200))]);
     expect(consejoDeEspera(paradero, null), isNull);
     expect(consejoDeEspera(enEstacion, null), 'Haz la fila del T103: se sube en orden.');
+    final conModulo = Leg(modo: 'bus', desde: 'Estación Bazurto', hasta: 'Estación La Bodeguita', distanciaM: 3000,
+        duracionMin: 10, esperaMin: 5, ruta: 'T103', tipoRuta: 'troncal', puntos: [_p(0, 200), _p(3000, 200)],
+        paradas: [(nombre: 'Bazurto', punto: _p(0, 210)), (nombre: 'La Bodeguita', punto: _p(3000, 200))], modulo: 'A1');
+    expect(consejoDeEspera(conModulo, null), 'Haz la fila del T103 en el módulo A1: se sube en orden.');
     expect(consejoDeEspera(enEstacion, const Llegada(minutos: 6, fuentes: 1)), 'Haz la fila del T103: se sube en orden.');
     expect(consejoDeEspera(paradero, const Llegada(minutos: 1, fuentes: 1)), 'Deja bajar primero y sube en orden.');
     // Un dato viejo no sirve para decir que el bus ya está llegando.
     expect(consejoDeEspera(paradero, const Llegada(minutos: 1, fuentes: 1, sinConexion: true)), isNull);
+  });
+
+  test('camino a Madre Bernarda advierte que Santa Lucía, la de enfrente, es de alimentadoras', () {
+    final bus = Leg.fromJson({
+      'modo': 'bus', 'desde': 'Estación Madre Bernarda', 'hasta': 'Estación La Bodeguita', 'distancia_m': 9000,
+      'duracion_min': 20, 'ruta': 'T103', 'tipo_ruta': 'troncal', 'modulo': 'A1',
+      'advertencia': 'Ojo: Santa Lucía, la estación de enfrente, es solo de alimentadoras. Entra a Madre Bernarda.',
+      'geometria': {'type': 'LineString', 'coordinates': [[-75.4786, 10.3951], [-75.5514, 10.4200]]},
+    });
+    expect(consejoAlCaminar(bus), startsWith('Ojo: Santa Lucía'));
+    expect(consejoAlCaminar(null), isNull);
+  });
+
+  test('cuando los viajeros ya enseñaron el lado del vagón, la fila lo dice', () {
+    final bus = Leg(modo: 'bus', desde: 'Estación Bazurto', hasta: 'Estación La Bodeguita', distanciaM: 3000,
+        duracionMin: 10, esperaMin: 5, ruta: 'T103', tipoRuta: 'troncal', puntos: [_p(0, 200), _p(3000, 200)],
+        paradas: [(nombre: 'Bazurto', punto: _p(0, 210)), (nombre: 'La Bodeguita', punto: _p(3000, 200))],
+        modulo: 'A1', hacia: 'Bocagrande', ladoDelModulo: 'el Centro', ladoSegun: 4);
+    expect(bus.comoAbordar, 'módulo A1 (extremo hacia el Centro), hacia Bocagrande');
+    expect(consejoDeEspera(bus, null),
+        'Haz la fila del T103 en el módulo A1, en el extremo hacia el Centro (según 4 viajeros): se sube en orden.');
+  });
+
+  test('al subir en una estación con viaje compartido, el punto va con el módulo del bus', () async {
+    final c = ViajeCubit(
+      opcion: _viajeConEstacion(modulo: 'A1'),
+      avisos: _Avisos(),
+      fuente: (_) => gps.stream,
+      tiempoReal: servidor,
+      preferencia: _Preferencia(si: true, vioElAviso: true),
+      haySesion: () => true,
+    );
+    await c.iniciar();
+    await en(_p(0, 195));
+    await en(_p(300, 200)); // subió en Bazurto
+    expect(servidor.envios, containsAllInOrder(['iniciar T103', 'subida T103 A1']));
+    await c.close();
   });
 
   group('cómo pediste la parada', () {
@@ -347,6 +407,44 @@ void main() {
       expect(textoDeLoQueSeSabe(const ComoSePideAqui(como: ComoSePidio.paroSolo, viajeros: 3)),
           'Aquí suele parar solo, según 3 viajeros. Por si acaso, pídela.');
     });
+  });
+
+  test('el que pase primero: muestra la ruta que llega antes y, a bordo, se cuenta en la que dijo que va', () async {
+    final servidorPorRuta = _TiempoRealPorRuta({'T103': 6, 'T101': 2});
+    final base = _viaje();
+    final bus = base.tramos[1];
+    final opcion = RouteOption(
+      resumen: 'T103 o T101', tiempoTotalMin: base.tiempoTotalMin, distanciaCaminataM: base.distanciaCaminataM,
+      riesgo: base.riesgo,
+      tramos: [
+        base.tramos[0],
+        Leg(modo: 'bus', desde: bus.desde, hasta: bus.hasta, distanciaM: bus.distanciaM, duracionMin: bus.duracionMin,
+            esperaMin: 2, ruta: 'T103', tipoRuta: 'troncal', puntos: bus.puntos, alternativas: const ['T101']),
+        base.tramos[2],
+      ],
+    );
+    final c = ViajeCubit(
+      opcion: opcion,
+      avisos: _Avisos(),
+      fuente: (_) => gps.stream,
+      tiempoReal: servidorPorRuta,
+      preferencia: _Preferencia(si: false, vioElAviso: true),
+      haySesion: () => true,
+      reloj: () => ahora,
+    );
+    await c.iniciar();
+    await _pasa();
+    expect(c.state.rutaQueLlega, 'T101');
+    expect(c.state.llegada!.minutos, 2);
+    expect(servidorPorRuta.llamadas.where((l) => l.startsWith('llegada')).toSet(), {'llegada T103', 'llegada T101'});
+
+    await en(_p(0, 195));
+    await en(_p(300, 200)); // subió: se supone el que llegaba primero
+    expect(c.rutaDelBus, 'T101');
+    c.voyEn('T103'); // pero dice que va en el T103
+    await c.contarOcupacion(Ocupacion.dePie);
+    expect(servidorPorRuta.llamadas.last, 'avistamiento T103 de_pie');
+    await c.close();
   });
 
   test('sin conexión mantiene la última llegada unos minutos, envejecida; después no dice nada', () async {
@@ -457,7 +555,7 @@ void main() {
 }
 
 /// El mismo viaje, con una estación a mitad del tramo en bus.
-RouteOption _viajeConEstacion() {
+RouteOption _viajeConEstacion({String? modulo}) {
   final base = _viaje();
   final bus = base.tramos[1];
   return RouteOption(
@@ -469,7 +567,8 @@ RouteOption _viajeConEstacion() {
       Leg(modo: 'bus', desde: bus.desde, hasta: bus.hasta, distanciaM: bus.distanciaM, duracionMin: bus.duracionMin,
           esperaMin: bus.esperaMin, ruta: bus.ruta, tipoRuta: bus.tipoRuta, puntos: bus.puntos,
           paradas: [(nombre: 'Bazurto', punto: _p(0, 200)), (nombre: 'La Popa', punto: _p(1000, 200)),
-            (nombre: 'La Bodeguita', punto: _p(3000, 200))]),
+            (nombre: 'La Bodeguita', punto: _p(3000, 200))],
+          modulo: modulo),
       base.tramos[2],
     ],
     riesgo: base.riesgo,

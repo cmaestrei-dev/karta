@@ -27,7 +27,7 @@ class TripRepository {
   /// Formas de llegar ordenadas por [criterio]. Sin [salida] se sale ahora; con ella, solo cuentan las rutas
   /// que operan a esa hora.
   Future<RouteSuggestions> suggest(TripPoint origen, TripPoint destino,
-      {CriterioDeRuta criterio = CriterioDeRuta.rapida, DateTime? salida}) async {
+      {CriterioDeRuta criterio = CriterioDeRuta.rapida, DateTime? salida, int? caminataMaximaM}) async {
     Map<String, Object> coordenada(TripPoint p) =>
         {'lat': p.punto.latitude, 'lon': p.punto.longitude, 'nombre': p.nombre};
     final data = await api.post('/routes/suggest', {
@@ -35,6 +35,7 @@ class TripRepository {
       'destino': coordenada(destino),
       'criterio': criterio.api,
       if (salida != null) 'salida': salida.toUtc().toIso8601String(),
+      'caminata_maxima_m': ?caminataMaximaM,
     });
     return RouteSuggestions.fromJson(data);
   }
@@ -49,5 +50,15 @@ class TripRepository {
       'limite': '4',
     }) as List<dynamic>;
     return data.map((json) => Stop.fromJson(json)).toList();
+  }
+
+  /// Las rutas que pasan a menos de 500 m y dónde tomarlas, fuera de las estaciones.
+  Future<List<RutaCercana>> nearbyRoutes(LatLng punto) async {
+    final data = await api.get('/routes/nearby', query: {
+      'lat': punto.latitude.toStringAsFixed(6),
+      'lon': punto.longitude.toStringAsFixed(6),
+      'limite': '6',
+    }) as List<dynamic>;
+    return [for (final json in data) RutaCercana.fromJson(json as Map<String, dynamic>)];
   }
 }

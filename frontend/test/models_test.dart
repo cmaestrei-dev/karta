@@ -30,6 +30,26 @@ void main() {
     });
   });
 
+  test('la caminata de un transbordo integrado trae cómo hacerlo, y la franja usa la primera frase', () {
+    final cambio = Leg.fromJson({
+      'modo': 'caminata', 'desde': 'Estación Santa Lucía', 'hasta': 'Estación Madre Bernarda', 'distancia_m': 40,
+      'duracion_min': 2, 'espera_min': 0,
+      'indicacion': 'Sal de Santa Lucía y cruza por la cebra hasta Madre Bernarda: 40 m. Al entrar vuelves a pasar '
+          'la tarjeta, pero no te cobra si cambias en menos de 90 minutos.',
+      'geometria': {'type': 'LineString', 'coordinates': [[-75.478, 10.3952], [-75.4786, 10.3951]]},
+    });
+    expect(cambio.indicacionCorta, 'Sal de Santa Lucía y cruza por la cebra hasta Madre Bernarda: 40 m');
+    expect(cambio.comoAbordar, isNull);
+    final t101 = Leg.fromJson({
+      'modo': 'bus', 'desde': 'Estación Madre Bernarda', 'hasta': 'Estación La Bodeguita', 'distancia_m': 9000,
+      'duracion_min': 26, 'espera_min': 5, 'ruta': 'T101', 'modulo': 'A1', 'hacia': 'Centro',
+      'geometria': {'type': 'LineString', 'coordinates': [[-75.4786, 10.3951], [-75.5514, 10.42]]},
+    });
+    expect(t101.comoAbordar, 'módulo A1, hacia Centro');
+    expect(const Leg(modo: 'caminata', desde: 'a', hasta: 'b', distanciaM: 1, duracionMin: 1, esperaMin: 0, puntos: [])
+        .indicacionCorta, isNull);
+  });
+
   test('RouteSuggestions.fromJson lee los tramos y convierte GeoJSON [lon, lat]', () {
     final sugerencias = RouteSuggestions.fromJson({
       'opciones': [
@@ -203,6 +223,12 @@ void main() {
   test('horas del horario en formato de Colombia', () {
     expect(horaLegible('05:30'), '5:30${nbsp}a.${nbsp}m.');
     expect(horaLegible('21:00'), '9:00${nbsp}p.${nbsp}m.');
+    // El día de salida: hoy, mañana o el día con su fecha.
+    final domingo = DateTime(2026, 10, 25, 14, 50);
+    expect(cuandoSale(DateTime(2026, 10, 25, 18, 30), ahora: domingo), 'Hoy 6:30 p. m.');
+    expect(cuandoSale(DateTime(2026, 10, 26, 8, 0), ahora: domingo), 'Mañana 8:00 a. m.');
+    expect(cuandoSale(DateTime(2026, 10, 30, 0, 15), ahora: domingo), 'Vie 30 oct 12:15 a. m.');
+    expect(cuandoSale(DateTime(2026, 11, 3, 12, 5), ahora: domingo), 'Mar 3 nov 12:05 p. m.');
     expect(horaLegible('12:15'), '12:15${nbsp}p.${nbsp}m.');
     expect(horaLegible('00:05'), '12:05${nbsp}a.${nbsp}m.');
   });

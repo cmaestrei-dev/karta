@@ -19,6 +19,9 @@ class RiskSummary extends Equatable {
   List<Object?> get props => [score, nivel, totalIncidentes];
 }
 
+/// Un vagón de una estación doble: su letra («A»), hacia dónde queda («el Centro») y dónde esperan sus viajeros.
+typedef Vagon = ({String letra, String hacia, LatLng punto});
+
 /// Tramo de un viaje: una caminata o un recorrido en una ruta de Transcaribe.
 class Leg extends Equatable {
   final String modo; // "caminata" | "bus"
@@ -36,6 +39,29 @@ class Leg extends Equatable {
   /// Vacía fuera de la troncal: ahí el bus para en paraderos sin coordenadas publicadas.
   final List<({String nombre, LatLng punto})> paradas;
 
+  /// En la caminata de un transbordo integrado, cómo hacer el cambio
+  /// («Sal de Santa Lucía y cruza por la cebra hasta Madre Bernarda: 40 m. …»).
+  final String? indicacion;
+
+  /// En qué módulo de la estación para el bus en este sentido («A1») y hacia dónde va («Bocagrande»).
+  final String? modulo;
+  final String? hacia;
+
+  /// Al subir en una estación que se confunde con la de enfrente: «Ojo: Santa Lucía, la estación de enfrente, es
+  /// solo de alimentadoras».
+  final String? advertencia;
+
+  /// De qué lado de la estación queda el vagón del módulo («el Centro» o «el Portal»), según cuántos viajeros.
+  final String? ladoDelModulo;
+  final int ladoSegun;
+
+  /// En una estación doble, los dos vagones según los viajeros, el del bus primero: hacia dónde queda cada uno y
+  /// dónde esperan en promedio quienes suben en él. Para el plano de la estación; vacía si aún no se sabe.
+  final List<Vagon> vagones;
+
+  /// Otras rutas igual de buenas en este tramo: se toma la que pase primero (D19).
+  final List<String> alternativas;
+
   const Leg({
     required this.modo,
     required this.desde,
@@ -48,7 +74,42 @@ class Leg extends Equatable {
     this.nombreRuta,
     this.tipoRuta,
     this.paradas = const [],
+    this.indicacion,
+    this.modulo,
+    this.hacia,
+    this.advertencia,
+    this.ladoDelModulo,
+    this.ladoSegun = 0,
+    this.vagones = const [],
+    this.alternativas = const [],
   });
+
+  /// Todas las rutas que sirven en este tramo, la principal primero.
+  List<String> get rutas => [?ruta, ...alternativas];
+
+  /// «T103 o T101».
+  String get rutasEnTexto => rutas.join(' o ');
+
+  /// «módulo A1 (extremo hacia el Centro), hacia Bocagrande»: dónde hacer la fila y en qué sentido. Null si no se
+  /// sabe.
+  String? get comoAbordar {
+    final partes = [
+      if (modulo != null) 'módulo $modulo${lado == null ? '' : ' ($lado)'}',
+      if (hacia != null) 'hacia $hacia',
+    ];
+    return partes.isEmpty ? null : partes.join(', ');
+  }
+
+  /// «extremo hacia el Centro»: de qué lado de la estación queda el vagón, si los viajeros ya lo enseñaron.
+  String? get lado => ladoDelModulo == null ? null : 'extremo hacia $ladoDelModulo';
+
+  /// La primera frase de la indicación, para la franja del viaje: «Sal de Santa Lucía y cruza por la cebra…».
+  String? get indicacionCorta {
+    final texto = indicacion;
+    if (texto == null) return null;
+    final fin = texto.indexOf('. ');
+    return fin < 0 ? texto.replaceAll(RegExp(r'\.$'), '') : texto.substring(0, fin);
+  }
 
   bool get esCaminata => modo == 'caminata';
 
@@ -71,6 +132,21 @@ class Leg extends Equatable {
         ruta: json['ruta'] as String?,
         nombreRuta: json['nombre_ruta'] as String?,
         tipoRuta: json['tipo_ruta'] as String?,
+        indicacion: json['indicacion'] as String?,
+        modulo: json['modulo'] as String?,
+        advertencia: json['advertencia'] as String?,
+        ladoDelModulo: json['lado_del_modulo'] as String?,
+        ladoSegun: json['lado_segun'] as int? ?? 0,
+        vagones: [
+          for (final v in json['vagones'] as List<dynamic>? ?? const [])
+            (
+              letra: v['letra'] as String,
+              hacia: v['hacia'] as String,
+              punto: LatLng((v['latitud'] as num).toDouble(), (v['longitud'] as num).toDouble()),
+            ),
+        ],
+        hacia: json['hacia'] as String?,
+        alternativas: [for (final r in json['alternativas'] as List? ?? const []) r as String],
         paradas: [
           for (final p in json['paradas'] as List<dynamic>? ?? const [])
             (nombre: p['nombre'] as String, punto: LatLng((p['latitud'] as num).toDouble(), (p['longitud'] as num).toDouble())),
@@ -145,8 +221,12 @@ class RouteSuggestions extends Equatable {
   final CriterioDeRuta criterio;
   final DateTime? salida;
 
-  /// Por qué no hay opciones en bus cuando es por el horario («La primera sale mañana a las 5:30 a. m.»).
+  /// Por qué no hay opciones en bus («La primera sale mañana a las 5:30 a. m.»), o qué tienen de raro las que hay.
   final String? aviso;
+
+  /// `horario`: no opera a esa hora; `caminata`: no hay rutas con el límite de caminata elegido; `caminata_larga`:
+  /// ninguna ruta pasa cerca y las opciones caminan más de lo normal.
+  final String? motivoDelAviso;
   final String nota;
   final String fuente;
 
@@ -155,6 +235,7 @@ class RouteSuggestions extends Equatable {
     this.criterio = CriterioDeRuta.rapida,
     this.salida,
     this.aviso,
+    this.motivoDelAviso,
     required this.nota,
     required this.fuente,
   });
@@ -164,12 +245,13 @@ class RouteSuggestions extends Equatable {
         criterio: CriterioDeRuta.deApi(json['criterio'] as String?),
         salida: DateTime.tryParse(json['salida'] as String? ?? ''),
         aviso: json['aviso'] as String?,
+        motivoDelAviso: json['motivo_del_aviso'] as String?,
         nota: json['nota'] as String,
         fuente: json['fuente'] as String,
       );
 
   @override
-  List<Object?> get props => [opciones, criterio, salida, aviso, nota, fuente];
+  List<Object?> get props => [opciones, criterio, salida, aviso, motivoDelAviso, nota, fuente];
 }
 
 /// Una ruta de Transcaribe con su trazado, para dibujarla sobre el mapa.
@@ -267,6 +349,41 @@ const nombreDeDia = {
 };
 
 /// Estación de Transcaribe cercana.
+/// Una ruta que pasa cerca y dónde tomarla fuera de las estaciones («Paradero Av. Kennedy con Calle 18»).
+/// Los paraderos oficiales no tienen coordenadas: es el punto de la vía más cercano donde la ruta recoge.
+class RutaCercana extends Equatable {
+  final String ruta;
+  final String nombre;
+  final String tipo;
+  final String paradero;
+  final LatLng punto;
+  final int caminataM;
+  final int caminataMin;
+
+  const RutaCercana({
+    required this.ruta,
+    required this.nombre,
+    required this.tipo,
+    required this.paradero,
+    required this.punto,
+    required this.caminataM,
+    required this.caminataMin,
+  });
+
+  factory RutaCercana.fromJson(Map<String, dynamic> json) => RutaCercana(
+        ruta: json['ruta'] as String,
+        nombre: json['nombre'] as String,
+        tipo: json['tipo'] as String,
+        paradero: json['paradero'] as String,
+        punto: LatLng((json['latitud'] as num).toDouble(), (json['longitud'] as num).toDouble()),
+        caminataM: json['caminata_m'] as int,
+        caminataMin: json['caminata_min'] as int,
+      );
+
+  @override
+  List<Object?> get props => [ruta, nombre, tipo, paradero, punto, caminataM, caminataMin];
+}
+
 class Stop extends Equatable {
   final String id;
   final String nombre;

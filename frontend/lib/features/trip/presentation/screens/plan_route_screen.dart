@@ -7,6 +7,7 @@ import 'package:latlong2/latlong.dart';
 
 import '../../../../core/design/bahia.dart';
 import '../../../../core/design/movimiento.dart';
+import '../../../../core/format.dart';
 import '../../../../core/location_service.dart';
 import '../../../../core/map/capa_bahia.dart';
 import '../../../../core/widgets/karta_map.dart';
@@ -17,6 +18,7 @@ import '../../../incidents/presentation/widgets/pin_de_reporte.dart';
 import '../../../places/domain/place_models.dart';
 import '../../../places/presentation/screens/place_search_screen.dart';
 import '../../../viaje/presentation/viaje_screen.dart';
+import '../../data/preferencia_de_caminata.dart';
 import '../../data/trip_repository.dart';
 import '../../domain/trip_models.dart';
 import '../cubit/trip_cubits.dart';
@@ -83,12 +85,21 @@ class _PlanRouteViewState extends State<_PlanRouteView> {
   String? _errorOrigen;
   CriterioDeRuta _criterio = CriterioDeRuta.rapida;
   DateTime? _salida; // null: ahora
+  int? _caminataMaxima; // null: lo normal, hasta 1 km
+  final _preferenciaDeCaminata = PreferenciaDeCaminata();
   int _elegida = 0;
   double? _hoja; // fracción de pantalla que ocupa la hoja; null hasta que se mueve
 
   @override
   void initState() {
     super.initState();
+    _empezar();
+  }
+
+  Future<void> _empezar() async {
+    final caminata = await _preferenciaDeCaminata.leer();
+    if (!mounted) return;
+    _caminataMaxima = caminata;
     if (_origen == null) {
       _ubicarOrigen();
     } else {
@@ -112,7 +123,8 @@ class _PlanRouteViewState extends State<_PlanRouteView> {
     final origen = _origen;
     if (origen == null) return;
     setState(() => _elegida = 0);
-    context.read<TripPlanCubit>().plan(origen, _destino, criterio: _criterio, salida: _salida);
+    context.read<TripPlanCubit>()
+        .plan(origen, _destino, criterio: _criterio, salida: _salida, caminataMaximaM: _caminataMaxima);
   }
 
   Future<void> _cambiarOrigen() async {
@@ -153,14 +165,56 @@ class _PlanRouteViewState extends State<_PlanRouteView> {
     _planear();
   }
 
-  /// Salir ahora o a una hora: si la hora ya pasó hoy, es la de mañana.
+  /// Cuánto quiere caminar hasta la ruta y desde ella; se recuerda para la próxima vez.
+  Future<void> _elegirCaminata() async {
+    final eleccion = await showModalBottomSheet<int>(
+      context: context,
+      builder: (hoja) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const ListTile(title: Text('¿Cuánto quieres caminar?'), subtitle: Text('Hasta la ruta y desde ella')),
+            for (final metros in PreferenciaDeCaminata.opciones)
+              ListTile(
+                leading: const Icon(Icons.directions_walk),
+                title: Text('Hasta $metros m'),
+                selected: _caminataMaxima == metros,
+                onTap: () => Navigator.of(hoja).pop(metros),
+              ),
+            ListTile(
+              leading: const Icon(Icons.directions_walk),
+              title: const Text('Lo normal, hasta 1 km'),
+              selected: _caminataMaxima == null,
+              onTap: () => Navigator.of(hoja).pop(0),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || eleccion == null) return;
+    final metros = eleccion == 0 ? null : eleccion;
+    if (metros == _caminataMaxima) return;
+    setState(() => _caminataMaxima = metros);
+    _preferenciaDeCaminata.guardar(metros);
+    _planear();
+  }
+
+  /// Salir ahora, hoy a otra hora, mañana u otro día del próximo mes: los domingos y festivos operan menos rutas.
   Future<void> _elegirSalida() async {
+    final ahora = DateTime.now();
+    final hoy = DateUtils.dateOnly(ahora);
+    final manana = DateUtils.addDaysToDate(hoy, 1);
+    final diaElegido = _salida == null ? null : DateUtils.dateOnly(_salida!);
     final eleccion = await showModalBottomSheet<String>(
       context: context,
       builder: (hoja) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            const ListTile(
+              title: Text('¿Cuándo sales?'),
+              subtitle: Text('Solo cuentan las rutas que operan ese día y a esa hora'),
+            ),
             ListTile(
               leading: const Icon(Icons.near_me_outlined),
               title: const Text('Salir ahora'),
@@ -169,10 +223,21 @@ class _PlanRouteViewState extends State<_PlanRouteView> {
             ),
             ListTile(
               leading: const Icon(Icons.schedule),
-              title: const Text('Elegir la hora de salida'),
-              subtitle: const Text('Solo cuentan las rutas que operan a esa hora'),
-              selected: _salida != null,
-              onTap: () => Navigator.of(hoja).pop('hora'),
+              title: const Text('Hoy, a otra hora'),
+              selected: diaElegido == hoy,
+              onTap: () => Navigator.of(hoja).pop('hoy'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.wb_twilight_outlined),
+              title: const Text('Mañana'),
+              selected: diaElegido == manana,
+              onTap: () => Navigator.of(hoja).pop('mañana'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.calendar_month_outlined),
+              title: const Text('Otro día'),
+              selected: diaElegido != null && diaElegido != hoy && diaElegido != manana,
+              onTap: () => Navigator.of(hoja).pop('otro'),
             ),
           ],
         ),
@@ -185,16 +250,35 @@ class _PlanRouteViewState extends State<_PlanRouteView> {
       _planear();
       return;
     }
-    final inicial = _salida ?? DateTime.now();
+    var dia = eleccion == 'hoy' ? hoy : manana;
+    if (eleccion == 'otro') {
+      final otro = await showDatePicker(
+        context: context,
+        initialDate: diaElegido != null && diaElegido.isAfter(manana) ? diaElegido : DateUtils.addDaysToDate(hoy, 2),
+        firstDate: hoy,
+        lastDate: DateUtils.addDaysToDate(hoy, 31),
+        helpText: 'Día de salida',
+      );
+      if (!mounted || otro == null) return;
+      dia = otro;
+    }
     final hora = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.fromDateTime(inicial),
+      initialTime: TimeOfDay.fromDateTime(_salida ?? ahora),
       helpText: 'Hora de salida',
+      // En español el selector muestra 24 horas, pero al escribir la hora Flutter la lee en 12 si el teléfono no
+      // pide 24: «08» con la hora inicial de la tarde quedaba en las 8 p. m. Así se ve y se lee igual.
+      builder: (context, child) =>
+          MediaQuery(data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true), child: child!),
     );
     if (!mounted || hora == null) return;
-    final ahora = DateTime.now();
-    var salida = DateTime(ahora.year, ahora.month, ahora.day, hora.hour, hora.minute);
-    if (salida.isBefore(ahora.subtract(const Duration(minutes: 5)))) salida = salida.add(const Duration(days: 1));
+    final salida = DateTime(dia.year, dia.month, dia.day, hora.hour, hora.minute);
+    if (salida.isBefore(DateTime.now().subtract(const Duration(minutes: 5)))) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('Esa hora ya pasó: elige una más tarde u otro día.')));
+      return;
+    }
     setState(() => _salida = salida);
     _planear();
   }
@@ -320,6 +404,8 @@ class _PlanRouteViewState extends State<_PlanRouteView> {
       destino: _destino,
       criterio: _criterio,
       salida: _salida,
+      caminataMaxima: _caminataMaxima,
+      onCaminata: _elegirCaminata,
       onVolver: () => Navigator.of(context).pop(),
       onOrigen: _cambiarOrigen,
       onDestino: _cambiarDestino,
@@ -367,6 +453,7 @@ class _PlanRouteViewState extends State<_PlanRouteView> {
                 onElegir: (k) => setState(() => _elegida = k),
                 onVerRecorrido: _verRecorrido,
                 onOtraHora: _elegirSalida,
+                onCaminata: _elegirCaminata,
               ),
             },
           );
@@ -435,6 +522,16 @@ class _PlanRouteViewState extends State<_PlanRouteView> {
   }
 
   Widget _sinOpciones(ScrollController controlador, RouteSuggestions sugerencias, {bool conAsa = true}) {
+    if (sugerencias.aviso != null && sugerencias.motivoDelAviso == 'caminata') {
+      return _Aviso(
+        controlador: controlador,
+        conAsa: conAsa,
+        icono: Icons.directions_walk,
+        titulo: 'Hay que caminar un poco más',
+        detalle: sugerencias.aviso!,
+        acciones: [FilledButton(onPressed: _elegirCaminata, child: const Text('Cambiar la caminata'))],
+      );
+    }
     if (sugerencias.aviso != null) {
       return _Aviso(
         controlador: controlador,
@@ -481,6 +578,8 @@ class _Cabecera extends StatelessWidget {
   final TripPoint destino;
   final CriterioDeRuta criterio;
   final DateTime? salida;
+  final int? caminataMaxima;
+  final VoidCallback onCaminata;
   final VoidCallback onVolver;
   final VoidCallback onOrigen;
   final VoidCallback onDestino;
@@ -495,6 +594,8 @@ class _Cabecera extends StatelessWidget {
     required this.destino,
     required this.criterio,
     required this.salida,
+    required this.caminataMaxima,
+    required this.onCaminata,
     required this.onVolver,
     required this.onOrigen,
     required this.onDestino,
@@ -543,10 +644,19 @@ class _Cabecera extends StatelessWidget {
                 children: [
                   _Ficha(
                     icono: Icons.schedule,
-                    etiqueta: salida == null ? 'Ahora' : _horaDeSalida(salida!),
+                    etiqueta: salida == null ? 'Ahora' : cuandoSale(salida!),
                     elegida: false,
                     onTap: onSalida,
                     semantica: salida == null ? 'Salida: ahora. Toca para elegir otra hora' : null,
+                  ),
+                  const SizedBox(width: 6),
+                  _Ficha(
+                    icono: Icons.directions_walk,
+                    etiqueta: caminataMaxima == null ? 'Hasta 1 km' : 'Hasta $caminataMaxima m',
+                    elegida: caminataMaxima != null,
+                    onTap: onCaminata,
+                    semantica: 'Caminar ${caminataMaxima == null ? 'hasta 1 km, lo normal' : 'hasta $caminataMaxima m'}. '
+                        'Toca para cambiarlo',
                   ),
                   const SizedBox(width: 6),
                   for (final c in CriterioDeRuta.values) ...[
@@ -571,13 +681,6 @@ class _Cabecera extends StatelessWidget {
     );
   }
 
-  /// «Hoy 6:30 p. m.» o «Mañana 5:30 a. m.».
-  static String _horaDeSalida(DateTime salida) {
-    final hoy = DateTime.now();
-    final dia = DateUtils.isSameDay(salida, hoy) ? 'Hoy' : 'Mañana';
-    final hora = salida.hour % 12 == 0 ? 12 : salida.hour % 12;
-    return '$dia $hora:${salida.minute.toString().padLeft(2, '0')} ${salida.hour < 12 ? 'a. m.' : 'p. m.'}';
-  }
 }
 
 class _BotonRedondo extends StatelessWidget {
@@ -934,6 +1037,7 @@ class _Opciones extends StatelessWidget {
   final ValueChanged<int> onElegir;
   final ValueChanged<RouteOption> onVerRecorrido;
   final VoidCallback onOtraHora;
+  final VoidCallback onCaminata;
 
   const _Opciones({
     required this.controlador,
@@ -943,6 +1047,7 @@ class _Opciones extends StatelessWidget {
     required this.onElegir,
     required this.onVerRecorrido,
     required this.onOtraHora,
+    required this.onCaminata,
   });
 
   @override
@@ -963,7 +1068,11 @@ class _Opciones extends StatelessWidget {
                 children: [
                   if (conAsa) const _Asa(),
                   if (sugerencias.aviso != null) ...[
-                    _AvisoEnLinea(texto: sugerencias.aviso!, accion: 'Otra hora', onAccion: onOtraHora),
+                    if (sugerencias.motivoDelAviso == 'caminata_larga')
+                      _AvisoEnLinea(
+                          icono: Icons.directions_walk, texto: sugerencias.aviso!, accion: 'Caminata', onAccion: onCaminata)
+                    else
+                      _AvisoEnLinea(texto: sugerencias.aviso!, accion: 'Otra hora', onAccion: onOtraHora),
                     const SizedBox(height: 10),
                   ],
                   for (final (k, opcion) in opciones.indexed) ...[
@@ -1007,11 +1116,13 @@ class _Opciones extends StatelessWidget {
 }
 
 class _AvisoEnLinea extends StatelessWidget {
+  final IconData icono;
   final String texto;
   final String accion;
   final VoidCallback onAccion;
 
-  const _AvisoEnLinea({required this.texto, required this.accion, required this.onAccion});
+  const _AvisoEnLinea(
+      {this.icono = Icons.nights_stay_outlined, required this.texto, required this.accion, required this.onAccion});
 
   @override
   Widget build(BuildContext context) {
@@ -1021,7 +1132,7 @@ class _AvisoEnLinea extends StatelessWidget {
       decoration: BoxDecoration(color: b.viaSuave, borderRadius: BorderRadius.circular(16)),
       child: Row(
         children: [
-          Icon(Icons.nights_stay_outlined, color: b.texto),
+          Icon(icono, color: b.texto),
           const SizedBox(width: 10),
           Expanded(child: Text(texto, style: Theme.of(context).textTheme.bodySmall)),
           TextButton(onPressed: onAccion, child: Text(accion)),

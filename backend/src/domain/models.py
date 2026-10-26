@@ -22,6 +22,7 @@ class Impacto:
     confirmaciones: int = 0    # veces que otros confirmaron sus reportes
     gracias: int = 0           # «Gracias» recibidos
     vistas: int = 0            # personas que abrieron sus reportes
+    paraderos: int = 0         # paraderos que marcó y la comunidad confirmó (Kartógrafo)
 
 
 @dataclass(frozen=True)

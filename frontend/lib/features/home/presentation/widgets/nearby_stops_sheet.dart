@@ -8,6 +8,7 @@ import '../../../places/domain/place_models.dart';
 import '../../../trip/domain/trip_models.dart';
 import '../../../trip/presentation/cubit/trip_cubits.dart';
 import '../../../trip/presentation/screens/plan_route_screen.dart';
+import '../../../trip/presentation/screens/route_page_screen.dart';
 
 /// Contenido de la hoja inferior del inicio: lo que va arriba ([encabezado]) y las estaciones cerca.
 class NearbyStopsSheet extends StatelessWidget {
@@ -52,19 +53,84 @@ class NearbyStopsSheet extends StatelessWidget {
                   FilledButton.tonal(onPressed: onReintentar, child: const Text('Reintentar')),
                 ],
               ),
-            NearbyStopsLoaded(:final estaciones) when estaciones.isEmpty => Text(
+            NearbyStopsLoaded(:final estaciones, :final rutas) when estaciones.isEmpty && rutas.isEmpty => Text(
                 'No hay estaciones de Transcaribe a menos de 1,5 km. Busca tu destino arriba para ver otras rutas.',
                 style: texto.bodyMedium?.copyWith(color: b.textoSuave),
               ),
-            NearbyStopsLoaded(:final estaciones) => Column(
+            NearbyStopsLoaded(:final estaciones, :final rutas) => Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   for (final estacion in estaciones)
                     Padding(padding: const EdgeInsets.only(bottom: 8), child: _TarjetaDeEstacion(estacion: estacion)),
+                  if (rutas.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Semantics(header: true, child: Text('Rutas que pasan cerca', style: texto.titleMedium)),
+                    const SizedBox(height: 8),
+                    for (final ruta in rutas)
+                      Padding(padding: const EdgeInsets.only(bottom: 6), child: _FilaDeRutaCercana(ruta: ruta)),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        'Es el punto de la calle por donde pasa la ruta: el paradero puede estar a unos metros.',
+                        style: texto.bodySmall?.copyWith(color: b.textoSuave),
+                      ),
+                    ),
+                  ],
                 ],
               ),
           },
         ),
       ],
+    );
+  }
+}
+
+/// «A107 · Paradero Av. Kennedy con Calle 18 · 120 m»: tocarla abre la ruta con su horario y estaciones.
+class _FilaDeRutaCercana extends StatelessWidget {
+  final RutaCercana ruta;
+
+  const _FilaDeRutaCercana({required this.ruta});
+
+  @override
+  Widget build(BuildContext context) {
+    final b = Bahia.de(context);
+    final texto = Theme.of(context).textTheme;
+    final aPie = '${metros(ruta.caminataM)} · ${minutos(ruta.caminataMin)} a pie';
+    final radio = BorderRadius.circular(14);
+    return Semantics(
+      button: true,
+      label: 'Ruta ${ruta.ruta}, se toma en ${ruta.paradero}, $aPie. Toca para ver su horario y estaciones',
+      excludeSemantics: true,
+      child: Material(
+        color: b.tarjeta,
+        borderRadius: radio,
+        child: InkWell(
+          borderRadius: radio,
+          onTap: () => RoutePageScreen.open(context, ruta.ruta),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 56),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+              child: Row(
+                children: [
+                  SizedBox(width: 64, child: RouteCapsule(codigo: ruta.ruta, tipo: ruta.tipo)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(ruta.paradero.replaceFirst('Paradero ', ''), style: texto.titleSmall, maxLines: 2),
+                        Text(aPie, style: texto.bodySmall?.copyWith(color: b.textoSuave, fontFeatures: tabularFigures)),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, color: b.textoSuave),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

@@ -450,6 +450,8 @@ class _TuImpacto extends StatelessWidget {
                 ),
               ],
             ),
+            if (impacto.paraderos > 0)
+              Row(children: [dato(impacto.paraderos, 'paraderos que ubicaste'), const Spacer()]),
           ],
         ),
       ),
@@ -464,6 +466,8 @@ const medallas = {
   'gracias_a_ti': (Color(0xFFFF5E7E), Icons.volunteer_activism_outlined),
   'faro_de_la_bahia': (Color(0xFFE0B84F), Icons.flare),
   'viajero_solidario': (Color(0xFF2EC4B6), Icons.directions_bus_outlined),
+  'kartografo': (Color(0xFFB39DFF), Icons.where_to_vote_outlined),
+  'gran_kartografo': (Color(0xFF7FD4FF), Icons.map_outlined),
 };
 const tintaDeMedalla = Color(0xFF14181F);
 

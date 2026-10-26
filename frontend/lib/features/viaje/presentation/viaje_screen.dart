@@ -21,7 +21,9 @@ import '../data/avisos.dart';
 import '../data/preferencia_de_compartir.dart';
 import '../data/rastreo.dart';
 import '../data/tiempo_real_repository.dart';
+import '../domain/plano_de_estacion.dart';
 import '../domain/seguidor_de_viaje.dart';
+import 'dibujo_del_plano.dart';
 import 'instrucciones.dart';
 import 'viaje_cubit.dart';
 
@@ -182,28 +184,43 @@ class _ViajeViewState extends State<_ViajeView> {
             final llegada = state.llegada;
             final Widget? enVivo = state.estado.fase == Fase.aBordo && cubit.puedeContar
                 ? _ComoVa(
-                    ruta: seguidor.tramoActual.ruta!,
+                    ruta: cubit.rutaDelBus!,
+                    alternativas: state.rutaABordo == null ? seguidor.tramoActual.rutas : const [],
+                    onVoyEn: cubit.voyEn,
                     contada: state.ocupacion,
                     compartiendo: state.compartiendo,
                     onContar: _contar,
                   )
                 : bus?.ruta != null && llegada != null
                     ? _EnVivo(
-                        ruta: bus!.ruta!,
+                        // Sin datos de ninguna, «Nadie ha visto pasar el T103 ni el T101».
+                        ruta: state.rutaQueLlega ?? bus!.rutas.join(' ni el '),
                         llegada: llegada,
                         onPasoLleno: state.estado.fase == Fase.esperando && cubit.haySesion()
-                            ? () => _pasoLleno(bus.ruta!)
+                            ? () => _pasoLleno(state.rutaQueLlega ?? bus!.ruta!)
                             : null,
                       )
                     : null;
-            final consejo =
-                state.estado.fase == Fase.esperando ? consejoDeEspera(seguidor.tramoActual, llegada) : null;
-            final arriba = consejo == null
+            final caminando = state.estado.fase == Fase.caminandoALaParada;
+            final consejo = switch (state.estado.fase) {
+              Fase.esperando => consejoDeEspera(seguidor.tramoActual, llegada),
+              Fase.caminandoALaParada => consejoAlCaminar(seguidor.tramoSiguiente),
+              _ => null,
+            };
+            final plano = state.estado.fase == Fase.esperando
+                ? PlanoDeEstacion.de(seguidor.tramoActual, state.posicion)
+                : null;
+            final debajo = [
+              if (plano != null) DibujoDelPlano(plano: plano, bus: seguidor.tramoActual),
+              if (consejo != null)
+                _Consejo(
+                    texto: consejo,
+                    solo: enVivo == null && plano == null,
+                    icono: caminando ? Icons.info_outline : Icons.people_alt_outlined),
+            ];
+            final arriba = debajo.isEmpty
                 ? enVivo
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [?enVivo, _Consejo(texto: consejo, solo: enVivo == null)],
-                  );
+                : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [?enVivo, ...debajo]);
             return Stack(
               children: [
                 FlutterMap(
@@ -305,13 +322,13 @@ class _ViajeViewState extends State<_ViajeView> {
                           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                           child: state.preguntarVarado
                               ? _VaradoDelBus(
-                                  ruta: seguidor.tramoActual.ruta ?? 'bus',
+                                  ruta: cubit.rutaDelBus ?? 'bus',
                                   onSeVaro: () => _accionDeVarado(cubit.seVaro),
                                   onTrancon: () => _accionDeVarado(cubit.esTrancon),
                                   onMeBaje: _recalcular,
                                 )
                               : _VaradoReportado(
-                                  ruta: seguidor.tramoActual.ruta ?? 'bus',
+                                  ruta: cubit.rutaDelBus ?? 'bus',
                                   onOtraRuta: _recalcular,
                                   onCerrar: cubit.cerrarVarado,
                                 ),
@@ -331,9 +348,9 @@ class _ViajeViewState extends State<_ViajeView> {
                           child: state.estado.fase != Fase.aBordo
                               ? _Desvio(onRecalcular: _recalcular)
                               : state.desvioDelBus
-                                  ? _BusDesviado(ruta: seguidor.tramoActual.ruta ?? 'bus')
+                                  ? _BusDesviado(ruta: cubit.rutaDelBus ?? 'bus')
                                   : _DesvioDelBus(
-                                      ruta: seguidor.tramoActual.ruta ?? 'bus',
+                                      ruta: cubit.rutaDelBus ?? 'bus',
                                       onSi: cubit.elBusSeDesvio,
                                       onMeBaje: _recalcular,
                                     ),
@@ -830,7 +847,9 @@ class _Consejo extends StatelessWidget {
   /// Sin la llegada encima, necesita su propio margen arriba.
   final bool solo;
 
-  const _Consejo({required this.texto, required this.solo});
+  final IconData icono;
+
+  const _Consejo({required this.texto, required this.solo, this.icono = Icons.people_alt_outlined});
 
   @override
   Widget build(BuildContext context) {
@@ -839,7 +858,7 @@ class _Consejo extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(20, solo ? 14 : 0, 20, 14),
       child: Row(
         children: [
-          Icon(Icons.people_alt_outlined, size: 20, color: b.textoSuave),
+          Icon(icono, size: 20, color: b.textoSuave),
           const SizedBox(width: 12),
           Expanded(
             child: Text(texto, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: b.textoSuave)),
@@ -908,7 +927,18 @@ class _ComoVa extends StatelessWidget {
   final bool compartiendo;
   final ValueChanged<Ocupacion> onContar;
 
-  const _ComoVa({required this.ruta, required this.contada, required this.compartiendo, required this.onContar});
+  /// Con «el que pase primero», las rutas entre las que puede ir, hasta que diga en cuál va.
+  final List<String> alternativas;
+  final ValueChanged<String> onVoyEn;
+
+  const _ComoVa({
+    required this.ruta,
+    required this.contada,
+    required this.compartiendo,
+    required this.onContar,
+    this.alternativas = const [],
+    required this.onVoyEn,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -919,6 +949,23 @@ class _ComoVa extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (alternativas.length > 1) ...[
+            Text('¿En cuál vas?', style: texto.titleSmall),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.only(right: 8, bottom: 12),
+              child: Row(
+                children: [
+                  for (final (k, alternativa) in alternativas.indexed) ...[
+                    if (k > 0) const SizedBox(width: 8),
+                    Expanded(
+                      child: _Pildora(etiqueta: alternativa, elegida: alternativa == ruta, onTap: () => onVoyEn(alternativa)),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
           Text(
             contada == null ? '¿Cómo va el $ruta?' : 'Gracias: lo verán quienes esperan el $ruta',
             style: texto.titleSmall,

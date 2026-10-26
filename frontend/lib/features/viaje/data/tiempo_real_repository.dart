@@ -152,6 +152,12 @@ class TiempoRealRepository {
 
   Future<void> terminarViajeCompartido(String viaje) => api.delete('/trips/$viaje', auth: true);
 
+  /// Se subió a la ruta: solo la ruta y el punto, sin quién. Fuera de una estación es una pista para ubicar los
+  /// paraderos que no tienen coordenadas («Marca este paradero»); en una estación, con el [modulo] del bus, enseña de
+  /// qué lado queda cada vagón.
+  Future<void> subida(String ruta, LatLng punto, {String? modulo}) => api.post('/stops/boardings',
+      {'ruta': ruta, 'latitud': punto.latitude, 'longitud': punto.longitude, 'modulo': ?modulo}, auth: true);
+
   /// Al bajarse en un paradero: cómo pidió la parada. Se envía el paradero, no el recorrido.
   Future<void> comoPediLaParada(String ruta, LatLng paradero, ComoSePidio como) => api.post('/stop-requests', {
         'ruta': ruta,

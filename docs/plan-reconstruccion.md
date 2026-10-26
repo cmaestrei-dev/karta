@@ -177,6 +177,20 @@ Con eso el servidor estima «sale en ~6 min, según 3 viajeros». Todo vence sol
   - los que la comunidad confirme (D12: donde el bus se detiene a menudo).
 
   Se muestran con «según N viajeros» hasta estar confirmados.
+- **Hecho en la fase 3c (25 de octubre):** en el inicio, debajo de las estaciones, «Rutas que pasan cerca» con el punto de la calle donde se toma cada una, nombrado por el cruce («Av. John F. Kennedy con Calle 18»), y una nota de que el paradero puede estar a unos metros.
+- **Paraderos oficiales ubicados (fase 3c):** 224 de 948 con `scripts/importar_paraderos.py`: 185 son estaciones, 25 direcciones con el cruce en OpenStreetMap («Kr 68 entre Cl 16 y 17») y 14 estimadas sobre la misma calle cuando a OSM le falta el cruce (se reparte en proporción al número de la calle; la app dice «ubicación estimada por la dirección»). En «Rutas que pasan cerca» se usa su nombre oficial cuando hay uno a menos de 150 m. Se probó ubicar los demás por el nombre de un lugar y repartiéndolos entre sus vecinos, y no sirvió: el lugar era el barrio entero o uno equivocado, y los repartidos quedaban, uno de cada cinco, a más de 1,4 km (validado contra el GTFS comunitario de 2019, sin copiar sus coordenadas por su licencia CC BY-SA). Esos 724 los tiene que ubicar la comunidad (Kartógrafos, D12).
+- **«Marca este paradero» (fase 3c):** en la página de cada ruta, sus paraderos por sentido y en orden: los que están en el mapa, los que esperan confirmación y los que faltan, con «Marcar».
+  - **Marcar:** el mapa arranca sobre el recorrido, a mitad de camino entre los dos vecinos ya ubicados y con ambos a la vista; se mueve hasta el paradero. La marca debe quedar a menos de 80 m del recorrido y se lleva a la calle.
+  - **Confirmar:** «¿Está aquí?» se responde estando allí (a menos de 300 m). Con apoyo 3 (la marca y dos confirmaciones; un Guardián cuenta doble) queda en el mapa; con −2 se descarta y se puede marcar otra vez.
+  - **Reconocimiento:** +5 de reputación al que lo marcó y +1 a quien acertó; insignias Kartógrafo (1 paradero) y Gran Kartógrafo (10).
+  - **Pistas:** las subidas anónimas fuera de estaciones (solo ruta y punto, se borran a los 180 días) se muestran agrupadas, desde 3 en 30 m.
+  - **Mapear desde el bus (viaje de mapeo):**
+    - El viajero va en la ruta con la lista oficial del sentido. En cada paradero toca «Paró aquí» o «No paró», y la app le avisa cuando el bus está detenido.
+    - Al terminar se envía todo junto (`POST /api/v1/routes/{codigo}/mapping-rides`). Cada paradero sin ubicar queda marcado.
+    - Si ya tenía una marca, el punto del viaje la confirma (el bus paró a menos de 40 m) o dice que no está ahí (a más de 150 m).
+    - Tres viajes que coinciden lo dejan en el mapa. Los datos son de Karta, sin problemas de licencia y aportables a OpenStreetMap.
+- **Fuente oficial:** derecho de petición a Transcaribe pidiendo el GTFS, los paraderos con coordenadas, el significado de los módulos y una licencia CC BY 4.0 ([borrador y notas](legal/derecho-de-peticion-transcaribe.md)). Camilo lo firma y lo radica. Qué fuentes se revisaron y por qué no sirven todavía: [fuentes-de-paraderos.md](fuentes-de-paraderos.md).
+- **El archivo de paraderos:** el archivo de datos abiertos «Paradero_Transcaribe 2025» (Cartagena, CC BY) trae 948 paraderos en orden por ruta y sentido, pero sin coordenadas y casi todos con nombres de referencia («Iglesia Pozón», «Central de Abastos»); solo unos 30 tienen la forma «Kr 68 entre Cl 16 y 17». Ubicarlos exige cruzar fuentes: los cruces de calles, los paraderos de OSM, el GTFS comunitario de 2019 (CC BY-SA) y los lugares, midiendo cuántos quedan bien ubicados.
 
 **D17 · Aprender de los demás y medirnos.** Google Maps es un competidor directo: muy completo, pero con quejas por su navegación y por las rutas y los tiempos de transporte.
 - **Estudio de las reseñas** de las tiendas (Google Play y App Store) de Google Maps, Moovit, Waze, MiBus y las apps de Transcaribe y TransMilenio: los dolores más frecuentes, lo que se valora y qué adoptar y evitar (en curso).
@@ -187,6 +201,7 @@ Con eso el servidor estima «sale en ~6 min, según 3 viajeros». Todo vence sol
     - la distancia a la que suena cada aviso de bajarse;
     - cuántos toques hacen falta para empezar un viaje;
     - batería y datos móviles por hora de viaje.
+- **Primera comparación (25 de octubre):** 10 trayectos en Karta, Google Maps y Moovit el lunes a las 8:00; ver [comparacion-apps.md](comparacion-apps.md). Karta llega primero, o a menos de 6 minutos de la mejor, en 7 de 10. De ahí salieron tres arreglos: la caminata larga cuando ninguna ruta pasa cerca, las X fuera del carril de la troncal y el motivo de cada aviso.
 - **Trazas para pruebas:** con permiso expreso de quienes hagan el piloto, se graban los recorridos GPS reales. Se usan para reproducir viajes en las pruebas automáticas y para afinar el seguidor. Nunca salen del equipo de desarrollo y se borran al terminar.
 
 **D18 · Estaciones por dentro: plataformas, sentido y estaciones confusas** (propuesto el 25 de octubre).
@@ -214,6 +229,29 @@ Con eso el servidor estima «sale en ~6 min, según 3 viajeros». Todo vence sol
   - **Guardianes de estación** (niveles 4 y 5): corrigen el plano.
   - **Fuente oficial:** pedirle a Transcaribe los planos de módulos de sus estaciones.
 - **Primer paso, sin depender de la comunidad:** importar Patio Portal, Santa Lucía y las plataformas por ruta desde OpenStreetMap.
+- **Hecho en la fase 3c (25 de octubre):**
+  - Santa Lucía (alimentadoras A103, A104, A105, A107, A108 y A111) y el Patio Portal ya son estaciones.
+  - **Recorridos completos (26 de octubre):**
+    - La A104 y la C017 no se sugerían nunca, porque su recorrido en OSM salía con 10 y 4 «cortes».
+    - No eran huecos de verdad, sino cómo se unían las vías: dos vías a 8 m que no comparten nodo, ida y vuelta por las mismas calles, una glorieta, un cruce en T y una vía repetida por error.
+    - El encadenado nuevo (`scripts/importar_osm.py --solo-recorridos`) deja las 24 rutas sin cortes.
+    - Validado contra la capa de rutas de la Alcaldía (solo para medir; sin licencia, no se copia): el 95 % de cada recorrido queda a menos de 7 m, salvo la T102.
+    - Las longitudes coinciden: la A104 pasó de 17,2 a 13,1 km (Alcaldía: 13,0 km) y la C017 de 34,7 a 33,6 km (33,4 km).
+  - El planificador trata como transbordos integrados el cambio dentro de una estación y el de Santa Lucía a Madre Bernarda (40 m por la cebra; el pasaje no se cobra otra vez dentro de 90 minutos).
+  - Entrar desde la calle a una estación troncal suma 2 minutos por cruzar la avenida.
+  - Sobre la troncal, las rutas X solo paran en estaciones.
+  - El análisis de toda la red está en [analisis-transbordos.md](analisis-transbordos.md): los transbordos de más de 200 m caminando pasaron de 25 a 0 (con el modelo de velocidad con paradas).
+  - Del archivo oficial de paraderos salen el módulo de cada ruta en cada estación y su sentido. Por ejemplo, la T101 hacia el Centro para en el módulo A1 de Madre Bernarda y la de vuelta en el A2. La app ya dice «Sube al T101 en Estación Madre Bernarda · módulo A1, hacia el Centro» y «Haz la fila del T101 en el módulo A1». Falta saber cuál mitad física de cada plataforma es la A y cuál la B: Camilo tampoco lo sabe, así que se pidió a Transcaribe en el derecho de petición (D16). Mientras tanto, la app dice el módulo sin decir el costado hasta que los viajeros lo enseñan (abajo).
+  - **Estaciones enfrentadas (26 de octubre):** al subir desde la calle a una troncal en Madre Bernarda, Karta advierte «Ojo: Santa Lucía, la estación de enfrente, es solo de alimentadoras», y lo contrario para las alimentadoras en Santa Lucía. Sale en el detalle del viaje y como consejo mientras se camina a la estación. En un transbordo entre las dos no sale, porque ya hay una indicación para cruzar.
+  - **El lado de cada vagón, aprendido de las subidas (26 de octubre):**
+    - Con el viaje compartido, al subir en una estación se guarda, sin quién, el punto donde se esperó y el módulo del bus (`POST /stops/boardings` con `modulo`). Vence a los 180 días y no se usa como pista de paraderos.
+    - Con al menos 3 subidas en cada vagón (A y B) y una separación clara, el vagón más cerca de la estación vecina hacia el Centro es el extremo hacia el Centro.
+    - La app dice entonces «módulo A1 (extremo hacia el Centro)» y «Haz la fila del T103 en el módulo A1, en el extremo hacia el Centro (según 5 viajeros)».
+    - Funciona solo en las siete estaciones dobles: en el Patio Portal las letras A a D son plataformas distintas, no mitades. El piloto dará las primeras subidas.
+  - **El plano pequeño de la estación (26 de octubre):**
+    - Mientras se espera en una estación doble cuyo lado ya se conoce, la barra de abajo muestra los dos vagones como en el mapa, con el norte arriba: el del bus en el color de su ruta, «hacia el Centro» y «hacia el Portal» en los extremos, y un punto donde está el viajero.
+    - Si parece estar en el otro vagón, lo dice: «Parece que estás en el vagón B: el A queda en el extremo hacia el Centro». A menos de 8 m de la mitad, o a más de 40 m de la estación, no dice nada: el GPS no alcanza.
+    - El eje del plano va del punto donde esperan, en promedio, los viajeros de un vagón al del otro; la API los manda en `vagones`, el del bus primero.
 - **Lo que se sabe por experiencia** (Camilo, 25 de octubre):
   - **Patio Portal:** dos plataformas unidas por un puente. Cada una tiene dos mitades donde paran rutas distintas, y en cada mitad se hace la fila. Los letreros dicen el código de cada ruta (X103, T101, T100E).
   - **De Santa Lucía a Madre Bernarda** hay que salir de la estación y cruzar por la cebra. El aviso lo dice así: «Sal de Santa Lucía y cruza por la cebra hasta Madre Bernarda».
@@ -228,6 +266,10 @@ Con eso el servidor estima «sale en ~6 min, según 3 viajeros». Todo vence sol
   - Karta distingue «Pasa primero» de «Llegas primero».
 - **En el viaje:** Karta detecta en cuál se subió cuando las rutas se separan. Solo pregunta si cambia algo.
 - **Honestidad:** «Calculado con 3 viajeros en la última media hora», o «Sin datos: estimado con la frecuencia habitual».
+- **Hecho en la fase 3c (25 de octubre):**
+  - las rutas que paran en las mismas dos estaciones y tardan casi lo mismo a bordo salen juntas, «T103 o T101, el que pase primero», con la espera de las dos juntas (también el segundo bus de un transbordo);
+  - el expreso queda aparte: el planificador ahora cuenta 0,6 min por estación en que para cada ruta, así que la T100E llega antes;
+  - mientras se espera se consulta la llegada de cada ruta y se muestra la que pasa primero, y a bordo «¿En cuál vas?» deja decir cuál se tomó.
 
 **D20 · Identidad y comunidad.**
 - **Tono:** cercano, con identidad propia y diciendo siempre para qué sirve cada aporte («Esta llegada es precisa gracias a 3 viajeros»).
@@ -239,7 +281,7 @@ Con eso el servidor estima «sale en ~6 min, según 3 viajeros». Todo vence sol
 - mostrar **hace cuánto** se actualizó cada llegada;
 - reportar «no paró en el paradero»;
 - el sentido en cada bus (D18);
-- un límite de caminata elegible;
+- un límite de caminata elegible (hecho en la fase 3c: 300, 500 u 800 m, o lo normal, hasta 1 km);
 - una consulta de un vistazo (notificación con el próximo bus);
 - planificar sin conexión;
 - reportar «ruta o paradero desactualizado».

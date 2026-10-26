@@ -64,6 +64,23 @@ def test_fuera_del_corredor_la_troncal_para_en_la_via():
     assert subida[0] == pytest.approx(-75.549, abs=0.001)
 
 
+def test_la_pretroncal_para_en_la_calle_cuando_sale_del_carril_de_la_troncal():
+    from src.domain.trip_planning import carril_de_la_troncal, muestrear
+    # La X999 va por una calle paralela, a 150 m de la troncal y de sus estaciones (como el X103 por Zaragocilla).
+    paralela = [(-75.55, 10.40 + 150 / METROS_POR_GRADO_LAT), (-75.50, 10.40 + 150 / METROS_POR_GRADO_LAT)]
+    pretroncal = RutaTransporte(id="X999", nombre="X", tipo="pretroncal", coordenadas=paralela, cortes_en_osm=0)
+    estaciones = [Estacion(id=e.id, nombre=e.nombre, latitud=e.latitud, longitud=e.longitud, rutas=["T999", "X999"])
+                  for e in ESTACIONES]
+    carril = carril_de_la_troncal([_ruta("troncal", "T999")])
+    # Sin saber dónde va el carril, se cree que está en él: solo sube cerca de las estaciones.
+    assert not muestrear(pretroncal, estaciones).abordable.all()
+    # Sabiéndolo, se sube en cualquier punto de la calle.
+    assert muestrear(pretroncal, estaciones, carril).abordable.all()
+    # Y sobre el carril mismo, solo en las estaciones.
+    sobre = RutaTransporte(id="X999", nombre="X", tipo="pretroncal", coordenadas=RECTA, cortes_en_osm=0)
+    assert not muestrear(sobre, estaciones, carril).abordable.all()
+
+
 def test_troncal_sin_estaciones_no_sirve():
     assert mejor_opcion_en_ruta(_ruta("troncal", "T999"), [], _al_norte(-75.545, 100), _al_norte(-75.505, 100)) is None
 
@@ -166,3 +183,71 @@ def test_las_estaciones_de_una_ruta_de_ida_y_vuelta_salen_en_el_orden_de_la_ida(
     estaciones = [Estacion(id=str(k), nombre=f"E{k}", latitud=10.40, longitud=lon, rutas=["T999"])
                   for k, lon in enumerate([-75.51, -75.54, -75.525])]
     assert [e.nombre for e in estaciones_en_orden(ida_y_vuelta, estaciones)] == ["E1", "E2", "E0"]
+
+
+def test_de_la_a107_al_centro_se_cambia_en_santa_lucia_y_se_cruza_a_madre_bernarda():
+    # Con los datos reales, a lo largo del recorrido de la A107 (Blas de Lezo), lejos de la troncal.
+    from scripts.analizar_transbordos import cargar, origenes
+    from src.domain.trip_planning import costo_percibido
+    rutas, estaciones = cargar()
+    a107 = next(r for r in rutas if r.id == "A107")
+    troncales = [e for e in estaciones if any(r.startswith(("T", "X")) for r in e.rutas)]
+    bodeguita = next(e for e in estaciones if e.id == "la-bodeguita")
+    por_la_a107 = 0
+    for origen in origenes(a107, troncales):
+        opciones = [o for o in planificar(rutas, estaciones, origen, (bodeguita.longitud, bodeguita.latitud)) if o.rutas]
+        # Ninguna opción hace caminar más de 200 m entre un bus y otro.
+        assert all(t.distancia_m <= 200 for o in opciones for k, t in enumerate(o.tramos)
+                   if t.modo == "caminata" and 0 < k < len(o.tramos) - 1)
+        mejor = min(opciones, key=costo_percibido)
+        if mejor.rutas[0].id == "A107" and mejor.transbordos == 1:
+            por_la_a107 += 1
+            cambio = mejor.tramos[2]
+            assert cambio.integrado and cambio.distancia_m == 40
+            assert "cruza por la cebra hasta Madre Bernarda" in cambio.indicacion
+    assert por_la_a107 > 0
+
+
+def test_con_un_limite_de_caminata_nadie_camina_mas_que_eso_hasta_la_ruta():
+    # La ruta pasa a 400 m en línea recta del origen: unos 520 m a pie con el rodeo.
+    from src.domain.trip_planning import FACTOR_RODEO
+    ruta = _ruta()
+    origen, destino = _al_norte(-75.545, 400), _al_norte(-75.505, 0)
+    con_ruta = [o for o in planificar([ruta], [], origen, destino) if o.rutas]
+    assert con_ruta and con_ruta[0].tramos[0].distancia_m == pytest.approx(400 * FACTOR_RODEO, rel=0.05)
+    assert not [o for o in planificar([ruta], [], origen, destino, caminata_maxima_m=500) if o.rutas]
+    assert [o for o in planificar([ruta], [], origen, destino, caminata_maxima_m=600) if o.rutas]
+
+
+def test_el_que_pase_primero_junta_las_rutas_iguales_y_deja_aparte_el_expreso():
+    from scripts.analizar_transbordos import cargar
+    from src.domain.trip_planning import el_que_pase_primero
+    rutas, estaciones = cargar()
+    madre_bernarda = next(e for e in estaciones if e.id == "madre-bernarda")
+    bodeguita = next(e for e in estaciones if e.id == "la-bodeguita")
+    troncales = [r for r in rutas if r.id in ("T100E", "T101", "T103")]
+    opciones = planificar(troncales, estaciones, (madre_bernarda.longitud, madre_bernarda.latitud),
+                          (bodeguita.longitud, bodeguita.latitud), con_transbordos=False)
+    juntas = el_que_pase_primero([o for o in opciones if o.rutas], estaciones)
+    buses = [next(t for t in o.tramos if t.modo == "bus") for o in juntas]
+    por_ruta = {b.ruta.id: b for b in buses}
+    # T101 y T103 en una sola opción, con la mitad de la espera; la T100E, expresa, aparte.
+    juntada = next(b for b in buses if b.alternativas)
+    assert {juntada.ruta.id, *(r.id for r in juntada.alternativas)} == {"T101", "T103"}
+    assert juntada.espera_min == pytest.approx(ESPERA_ESTIMADA_MIN["troncal"] / 2)
+    assert "T100E" in por_ruta and not por_ruta["T100E"].alternativas
+
+
+def test_en_un_transbordo_el_segundo_bus_tambien_puede_ser_el_que_pase_primero():
+    from scripts.analizar_transbordos import cargar
+    from src.domain.trip_planning import con_alternativas, muestrear
+    rutas, estaciones = cargar()
+    bazurto = next(e for e in estaciones if e.id == "bazurto")
+    bodeguita = next(e for e in estaciones if e.id == "la-bodeguita")
+    t103 = next(r for r in rutas if r.id == "T103")
+    tramo = next(o for o in planificar([t103], estaciones, (bazurto.longitud, bazurto.latitud),
+                                       (bodeguita.longitud, bodeguita.latitud)) if o.rutas)
+    muestras = [m for r in rutas if r.cortes_en_osm <= 2 if (m := muestrear(r, estaciones))]
+    bus = next(t for t in con_alternativas(tramo, muestras, estaciones).tramos if t.modo == "bus")
+    assert [r.id for r in bus.alternativas] == ["T101"]
+    assert bus.espera_min == pytest.approx(ESPERA_ESTIMADA_MIN["troncal"] / 2)
