@@ -5,7 +5,7 @@ from typing import Literal
 from src.domain.geo import circulo, corredor_de_ruta, distancia_m
 from src.domain.horarios import HorarioRuta, cuando, en_colombia, opera, proximo_servicio, tipo_de_dia
 from src.domain.models import Estacion, RutaTransporte
-from src.domain.modulos import LadoDeModulo, lados_de_la_estacion
+from src.domain.modulos import ESTACIONES_DOBLES, LadoDeModulo, lados_de_la_estacion
 from src.domain.paraderos import abordaje
 from src.domain.ports import IncidentRepository, PlaceRepository, StopMappingRepository, TransitRepository
 from src.domain.route_risk import PENALIZACION_RIESGO_MIN, RADIO_BUSQUEDA_M, ResultadoRiesgo, evaluar_riesgo
@@ -226,10 +226,10 @@ class TripService:
             advertencia = (advertencia_de_estacion(estacion_subida.id, ruta.tipo)
                            if estacion_subida and not tramos[k - 1].integrado else None)
             modulo = modulos.pop() if len(modulos) == 1 else None
-            lado = self._lado_del_modulo(estacion_subida, modulo, estaciones) if estacion_subida and modulo else None
+            vagones = self._vagones(estacion_subida, modulo, estaciones) if estacion_subida and modulo else ()
             tramos[k] = replace(tramos[k], desde=subida, hasta=bajada, paradas=paradas_del_tramo(tramos[k], estaciones),
                                 modulo=modulo, hacia=" o ".join(destinos) if destinos else None, advertencia=advertencia,
-                                lado_del_modulo=lado.hacia if lado else None, lado_segun=lado.viajeros if lado else 0)
+                                vagones=vagones)
 
         # Cada caminata va del punto anterior al siguiente: el origen, una bajada, una subida o el destino.
         for k, tramo in enumerate(tramos):
@@ -239,18 +239,22 @@ class TripService:
                 tramos[k] = replace(tramo, desde=desde, hasta=hasta)
         return OpcionViaje(tramos=tuple(tramos))
 
-    def _lado_del_modulo(self, estacion: Estacion, modulo: str, estaciones: list[Estacion]) -> LadoDeModulo | None:
-        """De qué lado de la estación queda el vagón del módulo, según las subidas de los viajeros (D18)."""
-        if self.subidas is None:
-            return None
+    def _vagones(self, estacion: Estacion, modulo: str, estaciones: list[Estacion]) -> tuple[LadoDeModulo, ...]:
+        """De qué lado de la estación queda el vagón del módulo, y el otro, según las subidas de los viajeros (D18).
+        Vacío si los viajeros aún no lo enseñaron."""
+        if self.subidas is None or estacion.id not in ESTACIONES_DOBLES:
+            return ()
         hacia_el_centro = self._hacia_el_centro(estacion, estaciones)
         if hacia_el_centro is None:
-            return None
+            return ()
         if self._subidas_por_vagon is None:
             self._subidas_por_vagon = self.subidas.station_boardings()
         por_vagon = {letra: puntos for (id_estacion, letra), puntos in self._subidas_por_vagon.items()
                      if id_estacion == estacion.id}
-        return lados_de_la_estacion(por_vagon, hacia_el_centro).get(modulo[0])
+        lados = lados_de_la_estacion(por_vagon, hacia_el_centro)
+        if modulo[0] not in lados:
+            return ()
+        return lados[modulo[0]], *(lado for letra, lado in lados.items() if letra != modulo[0])
 
     def _hacia_el_centro(self, estacion: Estacion, estaciones: list[Estacion]) -> tuple[float, float] | None:
         """Un punto hacia el Centro desde la estación: la estación siguiente por la que pasa la T101 en su ida (del

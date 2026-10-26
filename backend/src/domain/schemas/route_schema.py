@@ -58,6 +58,13 @@ class ParadaDelTramo(BaseModel):
     longitud: float
 
 
+class VagonResponse(BaseModel):
+    letra: str = Field(description="«A» o «B»")
+    hacia: str = Field(description="El vagón queda en el extremo hacia «el Centro» o «el Portal»")
+    latitud: float = Field(description="Dónde esperan, en promedio, los viajeros que suben en ese vagón")
+    longitud: float
+
+
 class TramoResponse(BaseModel):
     modo: Literal["caminata", "bus"]
     desde: str
@@ -80,6 +87,9 @@ class TramoResponse(BaseModel):
     lado_del_modulo: str | None = Field(
         None, description="El vagón del módulo queda en el extremo hacia «el Centro» o «el Portal», según los viajeros")
     lado_segun: int = Field(0, description="Cuántas subidas de viajeros lo enseñaron")
+    vagones: List[VagonResponse] = Field(
+        default_factory=list,
+        description="En una estación doble, los dos vagones según los viajeros, el del bus primero (para el plano)")
     indicacion: str | None = Field(
         None, description="En la caminata de un transbordo integrado, cómo hacer el cambio "
                           "(«Sal de Santa Lucía y cruza por la cebra hasta Madre Bernarda…»)")

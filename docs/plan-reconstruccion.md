@@ -247,7 +247,11 @@ Con eso el servidor estima «sale en ~6 min, según 3 viajeros». Todo vence sol
     - Con el viaje compartido, al subir en una estación se guarda, sin quién, el punto donde se esperó y el módulo del bus (`POST /stops/boardings` con `modulo`). Vence a los 180 días y no se usa como pista de paraderos.
     - Con al menos 3 subidas en cada vagón (A y B) y una separación clara, el vagón más cerca de la estación vecina hacia el Centro es el extremo hacia el Centro.
     - La app dice entonces «módulo A1 (extremo hacia el Centro)» y «Haz la fila del T103 en el módulo A1, en el extremo hacia el Centro (según 5 viajeros)».
-    - Funciona en las siete estaciones dobles. El piloto dará las primeras subidas.
+    - Funciona solo en las siete estaciones dobles: en el Patio Portal las letras A a D son plataformas distintas, no mitades. El piloto dará las primeras subidas.
+  - **El plano pequeño de la estación (26 de octubre):**
+    - Mientras se espera en una estación doble cuyo lado ya se conoce, la barra de abajo muestra los dos vagones como en el mapa, con el norte arriba: el del bus en el color de su ruta, «hacia el Centro» y «hacia el Portal» en los extremos, y un punto donde está el viajero.
+    - Si parece estar en el otro vagón, lo dice: «Parece que estás en el vagón B: el A queda en el extremo hacia el Centro». A menos de 8 m de la mitad, o a más de 40 m de la estación, no dice nada: el GPS no alcanza.
+    - El eje del plano va del punto donde esperan, en promedio, los viajeros de un vagón al del otro; la API los manda en `vagones`, el del bus primero.
 - **Lo que se sabe por experiencia** (Camilo, 25 de octubre):
   - **Patio Portal:** dos plataformas unidas por un puente. Cada una tiene dos mitades donde paran rutas distintas, y en cada mitad se hace la fila. Los letreros dicen el código de cada ruta (X103, T101, T100E).
   - **De Santa Lucía a Madre Bernarda** hay que salir de la estación y cruzar por la cebra. El aviso lo dice así: «Sal de Santa Lucía y cruza por la cebra hasta Madre Bernarda».

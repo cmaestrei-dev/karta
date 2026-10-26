@@ -19,6 +19,9 @@ class RiskSummary extends Equatable {
   List<Object?> get props => [score, nivel, totalIncidentes];
 }
 
+/// Un vagón de una estación doble: su letra («A»), hacia dónde queda («el Centro») y dónde esperan sus viajeros.
+typedef Vagon = ({String letra, String hacia, LatLng punto});
+
 /// Tramo de un viaje: una caminata o un recorrido en una ruta de Transcaribe.
 class Leg extends Equatable {
   final String modo; // "caminata" | "bus"
@@ -52,6 +55,10 @@ class Leg extends Equatable {
   final String? ladoDelModulo;
   final int ladoSegun;
 
+  /// En una estación doble, los dos vagones según los viajeros, el del bus primero: hacia dónde queda cada uno y
+  /// dónde esperan en promedio quienes suben en él. Para el plano de la estación; vacía si aún no se sabe.
+  final List<Vagon> vagones;
+
   /// Otras rutas igual de buenas en este tramo: se toma la que pase primero (D19).
   final List<String> alternativas;
 
@@ -73,6 +80,7 @@ class Leg extends Equatable {
     this.advertencia,
     this.ladoDelModulo,
     this.ladoSegun = 0,
+    this.vagones = const [],
     this.alternativas = const [],
   });
 
@@ -129,6 +137,14 @@ class Leg extends Equatable {
         advertencia: json['advertencia'] as String?,
         ladoDelModulo: json['lado_del_modulo'] as String?,
         ladoSegun: json['lado_segun'] as int? ?? 0,
+        vagones: [
+          for (final v in json['vagones'] as List<dynamic>? ?? const [])
+            (
+              letra: v['letra'] as String,
+              hacia: v['hacia'] as String,
+              punto: LatLng((v['latitud'] as num).toDouble(), (v['longitud'] as num).toDouble()),
+            ),
+        ],
         hacia: json['hacia'] as String?,
         alternativas: [for (final r in json['alternativas'] as List? ?? const []) r as String],
         paradas: [

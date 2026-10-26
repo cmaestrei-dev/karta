@@ -21,6 +21,7 @@ from shapely.ops import substring
 
 from src.domain.geo import a_grados, a_metros
 from src.domain.models import Estacion, RutaTransporte
+from src.domain.modulos import LadoDeModulo
 
 VELOCIDAD_CAMINATA_M_POR_MIN = 75   # 4,5 km/h
 FACTOR_RODEO = 1.3                  # las calles no van en línea recta
@@ -101,8 +102,8 @@ class Tramo:
     integrado: bool = False             # caminata de un transbordo en la misma estación o en una integración
     indicacion: str | None = None       # cómo hacer el cambio («Sal de Santa Lucía y cruza por la cebra…»)
     advertencia: str | None = None      # al subir en una estación que se confunde con la de enfrente
-    lado_del_modulo: str | None = None  # el vagón queda en el extremo hacia «el Centro» o «el Portal»
-    lado_segun: int = 0                 # cuántas subidas lo enseñaron
+    # En una estación doble, los dos vagones según los viajeros: el del bus primero, luego el otro (D18).
+    vagones: tuple[LadoDeModulo, ...] = ()
 
 
 @dataclass(frozen=True)

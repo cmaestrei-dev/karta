@@ -21,7 +21,9 @@ import '../data/avisos.dart';
 import '../data/preferencia_de_compartir.dart';
 import '../data/rastreo.dart';
 import '../data/tiempo_real_repository.dart';
+import '../domain/plano_de_estacion.dart';
 import '../domain/seguidor_de_viaje.dart';
+import 'dibujo_del_plano.dart';
 import 'instrucciones.dart';
 import 'viaje_cubit.dart';
 
@@ -205,18 +207,20 @@ class _ViajeViewState extends State<_ViajeView> {
               Fase.caminandoALaParada => consejoAlCaminar(seguidor.tramoSiguiente),
               _ => null,
             };
-            final arriba = consejo == null
+            final plano = state.estado.fase == Fase.esperando
+                ? PlanoDeEstacion.de(seguidor.tramoActual, state.posicion)
+                : null;
+            final debajo = [
+              if (plano != null) DibujoDelPlano(plano: plano, bus: seguidor.tramoActual),
+              if (consejo != null)
+                _Consejo(
+                    texto: consejo,
+                    solo: enVivo == null && plano == null,
+                    icono: caminando ? Icons.info_outline : Icons.people_alt_outlined),
+            ];
+            final arriba = debajo.isEmpty
                 ? enVivo
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      ?enVivo,
-                      _Consejo(
-                          texto: consejo,
-                          solo: enVivo == null,
-                          icono: caminando ? Icons.info_outline : Icons.people_alt_outlined),
-                    ],
-                  );
+                : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [?enVivo, ...debajo]);
             return Stack(
               children: [
                 FlutterMap(

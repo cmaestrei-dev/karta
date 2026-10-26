@@ -10,7 +10,7 @@ from src.domain.route_risk import ResultadoRiesgo
 from src.domain.schemas.route_schema import (
     EstacionDeRuta, FranjaDeServicio, HorarioDeRuta, IncidentRiskDetail, LineaGeoJSON, ParadaDelTramo, RiesgoResumen,
     RouteGeometryResponse, RouteOptionResponse, RoutePageResponse, RouteRiskRequest, RouteRiskResponse,
-    RouteSuggestRequest, RouteSuggestResponse, TramoResponse,
+    RouteSuggestRequest, RouteSuggestResponse, TramoResponse, VagonResponse,
 )
 from src.domain.geo import MENSAJE_FUERA_DE_COBERTURA, en_cobertura
 from src.domain.schemas.place_schema import RutaCercanaResponse
@@ -181,7 +181,10 @@ def _a_respuesta(opcion: OpcionViaje, riesgo: ResultadoRiesgo) -> RouteOptionRes
                 tipo_ruta=t.ruta.tipo if t.ruta else None,
                 paradas=[ParadaDelTramo(nombre=e.nombre, latitud=e.latitud, longitud=e.longitud) for e in t.paradas],
                 indicacion=t.indicacion, modulo=t.modulo, hacia=t.hacia, advertencia=t.advertencia,
-                lado_del_modulo=t.lado_del_modulo, lado_segun=t.lado_segun,
+                lado_del_modulo=t.vagones[0].hacia if t.vagones else None,
+                lado_segun=t.vagones[0].viajeros if t.vagones else 0,
+                vagones=[VagonResponse(letra=v.letra, hacia=v.hacia, latitud=v.centro[1], longitud=v.centro[0])
+                         for v in t.vagones],
                 alternativas=[r.id for r in t.alternativas],
                 geometria=LineaGeoJSON(coordinates=[[round(lon, 6), round(lat, 6)] for lon, lat in t.coordenadas]),
             )

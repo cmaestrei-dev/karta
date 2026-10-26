@@ -14,6 +14,7 @@ HACIA_EL_CENTRO = m(800)  # la estación vecina hacia el Centro, 800 m al este
 def test_el_vagon_mas_cerca_de_la_vecina_hacia_el_centro_es_el_extremo_hacia_el_centro():
     lados = lados_de_la_estacion({"A": [m(25), m(30), m(20)], "B": [m(-25), m(-20), m(-30), m(-28)]}, HACIA_EL_CENTRO)
     assert (lados["A"].hacia, lados["A"].viajeros) == ("el Centro", 3)
+    assert lados["A"].centro == m(25)
     assert (lados["B"].hacia, lados["B"].viajeros) == ("el Portal", 4)
 
 
@@ -43,5 +44,8 @@ def test_las_subidas_en_estaciones_ensenan_el_lado_y_no_son_pistas_de_paraderos(
         "salida": "2026-10-27T08:00:00-05:00", "criterio": "sin_transbordo"}).json()["opciones"]
     bus = next(t for o in opciones for t in o["tramos"] if t["modo"] == "bus" and t["modulo"] == "A1")
     assert (bus["lado_del_modulo"], bus["lado_segun"]) == ("el Centro", 3)
+    # Para el plano: el vagón del bus primero, donde esperaron en promedio sus viajeros (25 m hacia el Centro).
+    assert [(v["letra"], v["hacia"]) for v in bus["vagones"]] == [("A", "el Centro"), ("B", "el Portal")]
+    assert abs(bus["vagones"][0]["latitud"] - hacia(25)["latitud"]) < 1e-5
     # No aparecen como pistas para ubicar paraderos.
     assert api.get("/api/v1/routes/T101/stops").json()["pistas"] == []
