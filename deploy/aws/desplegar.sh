@@ -65,10 +65,12 @@ if ! aws iam get-role --role-name "$ROL" >/dev/null 2>&1; then
 fi
 
 echo "3/5 · Función $FUNCION…"
-configuracion=(--runtime python3.12 --architectures x86_64 --handler src.infrastructure.lambda_handler.handler
+configuracion=(--runtime python3.12 --handler src.infrastructure.lambda_handler.handler
                --memory-size 1769 --timeout 60)  # 1769 MB = una vCPU completa; 60 s para la primera carga de datos
+# La arquitectura va con el código (create-function y update-function-code), no con la configuración.
 if aws lambda get-function --function-name "$FUNCION" >/dev/null 2>&1; then
-  aws lambda update-function-code --function-name "$FUNCION" --zip-file "fileb://$obra/karta-api.zip" >/dev/null
+  aws lambda update-function-code --function-name "$FUNCION" --zip-file "fileb://$obra/karta-api.zip" \
+    --architectures x86_64 >/dev/null
   aws lambda wait function-updated-v2 --function-name "$FUNCION"
   [[ "${1:-}" == "--cambiar-base" ]] && pedir_cadena
   aws lambda get-function-configuration --function-name "$FUNCION" --query Environment.Variables \
@@ -79,7 +81,7 @@ if aws lambda get-function --function-name "$FUNCION" >/dev/null 2>&1; then
 else
   pedir_cadena
   escribir_entorno
-  aws lambda create-function --function-name "$FUNCION" "${configuracion[@]}" \
+  aws lambda create-function --function-name "$FUNCION" "${configuracion[@]}" --architectures x86_64 \
     --role "arn:aws:iam::$cuenta:role/$ROL" --zip-file "fileb://$obra/karta-api.zip" \
     --environment "file://$obra/entorno.json" >/dev/null
 fi
