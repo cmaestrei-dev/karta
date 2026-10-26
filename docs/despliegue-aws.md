@@ -131,6 +131,8 @@ PYTHON=backend/.venv/bin/python deploy/aws/desplegar.sh
 
 Para cambiar la cadena de conexión de Atlas, por ejemplo tras cambiar la contraseña: `deploy/aws/desplegar.sh --cambiar-base`.
 
+Para poner los datos de contacto del responsable y la fecha desde la que rige la política: `deploy/aws/desplegar.sh --responsable`. Pide el correo, el teléfono, la dirección y la fecha. Quedan en la configuración de la función, no en el repositorio, y la política deja de decir «[por definir]». Mientras la diga, no se invita a nadie al piloto.
+
 ## Permiso para desplegar desde un computador
 
 El usuario de IAM que usa la CLI en el computador no necesita ser administrador. [`deploy/aws/politica-karta.json`](../deploy/aws/politica-karta.json) solo le deja:

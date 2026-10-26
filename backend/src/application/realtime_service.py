@@ -2,7 +2,8 @@ from datetime import datetime, timedelta, timezone
 
 from src.domain.conocimiento import CERCA_DEL_PARADERO_M, ComoSePidio, LoQueSeSabe, como_se_pide
 from src.domain.geo import validar_cobertura
-from src.domain.ports import IncidentRepository, RealtimeRepository, TransitRepository
+from src.domain.indicadores import consulta_de_llegada, dia
+from src.domain.ports import Contadores, IncidentRepository, RealtimeRepository, TransitRepository
 from src.domain.precision import BusMedido, resultado
 from src.domain.tiempo_real import BusVarado, Estimacion, Ocupacion, estimar_llegada, varado_antes_de_la_parada
 
@@ -19,10 +20,17 @@ class RealtimeService:
     """Caso de Uso: el tiempo real de Transcaribe hecho por sus pasajeros."""
     VENTANA = timedelta(minutes=30)
 
-    def __init__(self, realtime: RealtimeRepository, transit: TransitRepository, incidents: IncidentRepository):
+    def __init__(self, realtime: RealtimeRepository, transit: TransitRepository, incidents: IncidentRepository,
+                 contadores: Contadores | None = None):
         self.realtime = realtime
         self.transit = transit
         self.incidents = incidents
+        self.contadores = contadores
+
+    def _contar(self, ahora: datetime, campos: dict[str, int]) -> None:
+        """Los indicadores del piloto (docs/plan-comunidad.md, §5), sin quién."""
+        if self.contadores:
+            self.contadores.sumar(dia(ahora), campos)
 
     def _ruta_valida(self, ruta: str) -> None:
         if ruta not in self.transit.route_codes():
@@ -38,7 +46,10 @@ class RealtimeService:
     def start_trip(self, ruta: str, latitud: float, longitud: float, ahora: datetime | None = None) -> str:
         self._ruta_valida(ruta)
         validar_cobertura(latitud, longitud)
-        return self.realtime.start_trip(ruta, longitud, latitud, ahora or datetime.now(timezone.utc))
+        ahora = ahora or datetime.now(timezone.utc)
+        viaje = self.realtime.start_trip(ruta, longitud, latitud, ahora)
+        self._contar(ahora, {"viajes_compartidos": 1})
+        return viaje
 
     def share_position(self, viaje: str, latitud: float, longitud: float, ocupacion: Ocupacion | None,
                        ahora: datetime | None = None) -> None:
@@ -84,4 +95,5 @@ class RealtimeService:
                    for i in self.incidents.active_for_route("bus_varado", ruta, ahora)]
         estimacion = estimar_llegada(ruta_, subida, bajada, self.realtime.observations(ruta, ahora - self.VENTANA),
                                      ahora, varados)
+        self._contar(ahora, consulta_de_llegada(ahora, ruta_.tipo == "troncal", estimacion is not None))
         return estimacion, varado_antes_de_la_parada(ruta_, subida, bajada, varados)

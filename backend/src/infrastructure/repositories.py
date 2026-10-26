@@ -164,6 +164,12 @@ class MongoIncidentRepository:
         return self._thanks.count_documents(
             {"incidente": ObjectId(incidente_id), "usuario": ObjectId(usuario_id)}, limit=1) > 0
 
+    def actions_since(self, accion: str, usuario_id: str, desde: datetime) -> int:
+        coleccion = {"vista": self._views, "gracias": self._thanks}[accion]
+        if not ObjectId.is_valid(usuario_id):
+            return 0
+        return coleccion.count_documents({"usuario": ObjectId(usuario_id), "en": {"$gte": desde}}, limit=2)
+
     def register_view(self, incidente_id: str, usuario_id: str, ahora: datetime) -> bool:
         try:
             self._views.insert_one({"incidente": ObjectId(incidente_id), "usuario": ObjectId(usuario_id),
@@ -678,3 +684,16 @@ class MongoRealtimeRepository:
         return [ResultadoDeViaje(d["estimado_min"], d["real_min"], en_colombia(d["franja"]), d["tipo_de_dia"],
                                  tuple(BusMedido(**b) for b in d["buses"]))
                 for d in self._resultados.find({"franja": {"$gte": desde}}).limit(100000)]
+
+
+class MongoContadores:
+    """`daily_counts`: un documento por día de Colombia con los conteos del piloto. Son agregados: no vencen."""
+
+    def __init__(self, db: Database):
+        self._dias = db.daily_counts
+
+    def sumar(self, dia: str, campos: dict[str, int]) -> None:
+        self._dias.update_one({"_id": dia}, {"$inc": campos}, upsert=True)
+
+    def dias(self, desde: str, hasta: str) -> list[dict]:
+        return list(self._dias.find({"_id": {"$gte": desde, "$lte": hasta}}).sort("_id", 1))

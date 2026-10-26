@@ -104,6 +104,10 @@ class IncidentRepository(Protocol):
 
     def thanks_of(self, incidente_id: str, usuario_id: str) -> bool: ...
 
+    def actions_since(self, accion: str, usuario_id: str, desde: datetime) -> int:
+        """Cuántas vistas («vista») o «Gracias» («gracias») dio el viajero desde ese momento."""
+        ...
+
     def register_view(self, incidente_id: str, usuario_id: str, ahora: datetime) -> bool:
         """Anota que el viajero abrió el reporte. True si es la primera vez."""
         ...
@@ -265,3 +269,13 @@ class RealtimeRepository(Protocol):
         ...
 
     def trip_results(self, desde: datetime) -> list[ResultadoDeViaje]: ...
+
+
+class Contadores(Protocol):
+    """Los indicadores del piloto: conteos por día de Colombia («2026-11-18»), sin cuentas ni puntos."""
+
+    def sumar(self, dia: str, campos: dict[str, int]) -> None:
+        """Suma cada campo («reportes.creados», «llegadas.troncal.consultas.7») en el día."""
+        ...
+
+    def dias(self, desde: str, hasta: str) -> list[dict]: ...

@@ -6,6 +6,7 @@
 # Todo cabe en la capa siempre gratuita de AWS. Se corre en AWS CloudShell, dentro del repositorio clonado:
 #   deploy/aws/desplegar.sh                  la primera vez, o para actualizar el código
 #   deploy/aws/desplegar.sh --cambiar-base   para poner otra cadena de conexión de MongoDB Atlas
+#   deploy/aws/desplegar.sh --responsable    para poner los datos de contacto y la fecha de vigencia de la política
 # La primera vez pide la cadena de conexión de Atlas (no se ve al pegarla) y genera el secreto de los tokens.
 # Ninguno de los dos se muestra en pantalla ni queda en el repositorio. Ver docs/despliegue-aws.md.
 set -euo pipefail
@@ -35,6 +36,23 @@ pedir_cadena() {
   printf '%s' "$cadena" > "$obra/cadena"
 }
 
+# Los datos del responsable que la política publica (Ley 1581; Decreto 1074, art. 2.2.2.25.3.1). Quedan en la
+# configuración de la función, no en el repositorio público, y no se muestran al terminar.
+pedir_responsable() {
+  local correo telefono direccion vigente
+  read -rp "Correo para consultas y reclamos sobre datos: " correo
+  read -rp "Teléfono de contacto: " telefono
+  read -rp "Dirección física (calle y número, barrio): " direccion
+  read -rp "Desde cuándo rige la política (por ejemplo, 18 de noviembre de 2026): " vigente
+  for valor in "$correo" "$telefono" "$direccion" "$vigente"; do
+    [[ -n "$valor" && "$valor" != *"["* ]] || { echo "Falta un dato: no se cambió nada." >&2; exit 1; }
+  done
+  RESPONSABLE_CORREO="$correo" RESPONSABLE_TELEFONO="$telefono" RESPONSABLE_DIRECCION="$direccion" \
+    POLITICA_VIGENTE_DESDE="$vigente" python3 -c 'import json, os, sys
+claves = ("RESPONSABLE_CORREO", "RESPONSABLE_TELEFONO", "RESPONSABLE_DIRECCION", "POLITICA_VIGENTE_DESDE")
+json.dump({k: os.environ[k] for k in claves}, open(sys.argv[1] + "/responsable.json", "w"))' "$obra"
+}
+
 # Escribe el entorno de la función: lo que ya tenía, con la cadena nueva si se pidió y un secreto si no lo había.
 escribir_entorno() {
   python3 - "$obra" <<'PY'
@@ -44,6 +62,8 @@ actual = json.load(open(f"{obra}/actual.json")) if os.path.exists(f"{obra}/actua
 variables = actual or {}
 if os.path.exists(f"{obra}/cadena"):
     variables["MONGO_URI"] = open(f"{obra}/cadena").read()
+if os.path.exists(f"{obra}/responsable.json"):
+    variables.update(json.load(open(f"{obra}/responsable.json")))
 variables.setdefault("JWT_SECRET", secrets.token_hex(32))
 variables.setdefault("MONGO_DB", "karta")
 variables.setdefault("CORS_ORIGINS", "*")
@@ -73,6 +93,7 @@ if aws lambda get-function --function-name "$FUNCION" >/dev/null 2>&1; then
     --architectures x86_64 >/dev/null
   aws lambda wait function-updated-v2 --function-name "$FUNCION"
   [[ "${1:-}" == "--cambiar-base" ]] && pedir_cadena
+  [[ "${1:-}" == "--responsable" ]] && pedir_responsable
   aws lambda get-function-configuration --function-name "$FUNCION" --query Environment.Variables \
     --output json > "$obra/actual.json"
   escribir_entorno

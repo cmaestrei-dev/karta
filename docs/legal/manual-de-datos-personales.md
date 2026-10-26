@@ -24,6 +24,7 @@ Todas las bases están en MongoDB Atlas (AWS us-east-1). Los encargados son Mong
 | `live_trips` | Código al azar, ruta, posición y ocupación, sin cuenta | Tiempo real | 5 min después de la última posición (TTL) |
 | `trip_results` | Cuánto estimó Karta y cuánto tardó el viaje: en total y, por bus, la ruta, la espera y el tiempo a bordo; la hora de salida redondeada al cuarto de hora y el tipo de día. Sin cuenta, puntos ni paraderos | Medir qué tan bien estima Karta (D17) y las estadísticas agregadas | 180 días (TTL) |
 | `stop_answers` | Ruta, punto y respuesta, sin cuenta | Base de conocimiento de cómo pedir la parada | 1 año (TTL) |
+| `daily_counts` | Ninguno: conteos por día y hora (consultas de llegada y cuántas tuvieron datos, viajes compartidos, reportes, confirmaciones, desmentidos, vistas y «Gracias», y cuántas personas distintas vieron o agradecieron ese día) | Indicadores del piloto ([plan-comunidad](../plan-comunidad.md), §5) | Sin plazo: nacen agregados |
 | `rate_limits` | IP o id del viajero, más un contador | Evitar abusos | La ventana: 1 min a 1 h (TTL) |
 | Registros de AWS Lambda (CloudWatch) | Datos técnicos de peticiones que fallaron | Corregir errores | 7 días (retención del grupo) |
 
@@ -48,7 +49,11 @@ Son la base de la analítica para entidades del [plan de sostenibilidad](../plan
   - Nunca salen cuentas, correos, alias, IP, códigos de viaje ni la secuencia de puntos de un mismo viaje (recorridos).
   - No se cruzan con otras fuentes que permitan reidentificar, ni se calculan para un grupo tan pequeño que señale a alguien (por ejemplo, un paradero con un solo usuario).
 - **Cuándo:** antes de que el TTL borre los datos de origen. Las tablas resultantes se conservan sin plazo.
-- **La primera tabla:** `python -m scripts.informe_de_precision` (en `backend/`) mide qué tan exacto es Karta con `trip_results` y ya aplica estas reglas.
+- **Las primeras tablas, en `backend/`:**
+  - `python -m scripts.informe_de_precision`, que mide qué tan exacto es Karta con `trip_results`;
+  - `python -m scripts.indicadores_del_piloto`, con `daily_counts` y las cuentas que volvieron.
+
+  Las dos ya aplican estas reglas.
 - **A quién se entregan:** con un acuerdo que prohíba intentar reidentificar a alguien y entregar la tabla a terceros sin estas reglas.
 
 ## 2. Autorización y su prueba

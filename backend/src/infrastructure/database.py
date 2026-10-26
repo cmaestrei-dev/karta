@@ -46,6 +46,7 @@ def ensure_indexes(db: Database) -> None:
     # Un «Gracias» y una vista por viajero y reporte (para «Tu impacto»); vencen solos como los votos.
     for coleccion in (db.incident_thanks, db.incident_views):
         coleccion.create_index([("incidente", ASCENDING), ("usuario", ASCENDING)], unique=True)
+        coleccion.create_index([("usuario", ASCENDING), ("en", ASCENDING)])  # personas distintas por día
         coleccion.create_index([("expira_en", ASCENDING)], expireAfterSeconds=0)
     db.rate_limits.create_index([("expira_en", ASCENDING)], expireAfterSeconds=0)
     # Tiempo real de los viajeros: vence solo (30 min los avistamientos, 5 min sin moverse los viajes compartidos).
