@@ -50,6 +50,7 @@ class KartaApp extends StatelessWidget {
       child: MultiBlocProvider(
         providers: [
           BlocProvider(create: (_) => AparienciaCubit()..cargar()),
+          BlocProvider(create: (_) => ModoLigeroCubit()..cargar()),
           BlocProvider(
             create: (context) => AuthBloc(repository: context.read<AuthRepository>())
               ..add(AuthStarted())
@@ -68,18 +69,27 @@ class KartaApp extends StatelessWidget {
           ),
         ],
         child: BlocBuilder<AparienciaCubit, ThemeMode>(
-          builder: (context, apariencia) => MaterialApp(
-            title: 'Karta',
-            debugShowCheckedModeBanner: false,
-            theme: TemaBahia.claro,
-            darkTheme: TemaBahia.oscuro,
-            themeMode: apariencia,
-            // Español de Colombia también en lo que dibuja Flutter: «Cerrar» en vez de «Dismiss» para el lector
-            // de pantalla, los nombres de los botones de atrás y los formatos de fecha.
-            locale: const Locale('es', 'CO'),
-            supportedLocales: const [Locale('es', 'CO'), Locale('es')],
-            localizationsDelegates: GlobalMaterialLocalizations.delegates,
-            home: const _AuthGate(),
+          builder: (context, apariencia) => BlocBuilder<ModoLigeroCubit, bool>(
+            builder: (context, ligero) => MaterialApp(
+              title: 'Karta',
+              debugShowCheckedModeBanner: false,
+              theme: TemaBahia.claro,
+              darkTheme: TemaBahia.oscuro,
+              themeMode: apariencia,
+              // Español de Colombia también en lo que dibuja Flutter: «Cerrar» en vez de «Dismiss» para el lector
+              // de pantalla, los nombres de los botones de atrás y los formatos de fecha.
+              locale: const Locale('es', 'CO'),
+              supportedLocales: const [Locale('es', 'CO'), Locale('es')],
+              localizationsDelegates: GlobalMaterialLocalizations.delegates,
+              // Con el modo ligero, la app se porta como si el sistema pidiera quitar las animaciones.
+              builder: (context, child) => ModoLigero(
+                activo: ligero,
+                child: ligero
+                    ? MediaQuery(data: MediaQuery.of(context).copyWith(disableAnimations: true), child: child!)
+                    : child!,
+              ),
+              home: const _AuthGate(),
+            ),
           ),
         ),
       ),

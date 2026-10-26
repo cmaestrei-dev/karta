@@ -16,13 +16,18 @@ import 'avatar_de_viajero.dart';
 void showProfileSheet(BuildContext context) {
   final auth = context.read<AuthBloc>()..add(ProfileRefreshRequested());
   final apariencia = context.read<AparienciaCubit>();
+  final ligero = context.read<ModoLigeroCubit>();
 
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
     builder: (hoja) => MultiBlocProvider(
-      providers: [BlocProvider.value(value: auth), BlocProvider.value(value: apariencia)],
+      providers: [
+        BlocProvider.value(value: auth),
+        BlocProvider.value(value: apariencia),
+        BlocProvider.value(value: ligero),
+      ],
       child: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
@@ -720,6 +725,19 @@ class _Apariencia extends StatelessWidget {
               ],
               selected: {modo},
               onSelectionChanged: (elegido) => context.read<AparienciaCubit>().elegir(elegido.first),
+            ),
+          ),
+          const SizedBox(height: 4),
+          BlocBuilder<ModoLigeroCubit, bool>(
+            builder: (context, ligero) => SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: ligero,
+              onChanged: context.read<ModoLigeroCubit>().elegir,
+              title: const Text('Modo ligero'),
+              subtitle: Text(
+                'Para teléfonos lentos: sin animaciones y un mapa más sencillo de dibujar.',
+                style: texto.bodySmall?.copyWith(color: Bahia.de(context).textoSuave),
+              ),
             ),
           ),
         ],
