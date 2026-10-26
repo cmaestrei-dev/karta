@@ -36,6 +36,10 @@ class UserRepository(Protocol):
 
     def get_by_secret(self, huella: str) -> Usuario | None: ...
 
+    def autorizar(self, user_id: str, version: str, en: datetime) -> None:
+        """Guarda que el viajero aceptó esa versión de la política de datos, y cuándo (prueba de la autorización)."""
+        ...
+
     def erase(self, user_id: str) -> None:
         """
         Borra la cuenta y todo lo que la identifica (derecho de supresión, Ley 1581). Lo que aportó al mapa común

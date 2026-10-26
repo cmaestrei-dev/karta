@@ -9,6 +9,7 @@ import '../../../auth/presentation/screens/login_screen.dart';
 import '../../../auth/presentation/screens/register_screen.dart';
 import '../../../places/presentation/cubit/saved_places_cubit.dart';
 import '../../../places/presentation/screens/saved_places_screen.dart';
+import '../../../legal/presentation/politica_screen.dart';
 import '../../../viaje/data/preferencia_de_compartir.dart';
 import 'avatar_de_viajero.dart';
 
@@ -807,6 +808,12 @@ class _PrivacidadState extends State<_Privacidad> {
               'En tus viajes, sin tu nombre y solo el tramo en bus. Se borra 5 minutos después.',
               style: texto.bodySmall?.copyWith(color: b.textoSuave),
             ),
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.policy_outlined),
+            title: const Text('Política de tratamiento de datos'),
+            onTap: () => PoliticaScreen.abrir(context),
           ),
         ],
       ),

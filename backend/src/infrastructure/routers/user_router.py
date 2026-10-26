@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from src.application.place_service import PlaceService
 from src.domain.models import LimiteLugaresGuardados, LugarGuardadoNoEncontrado, MAX_LUGARES_GUARDADOS, Usuario
 from src.domain.schemas.place_schema import SavedPlaceCreate, SavedPlaceResponse, SavedPlaceUpdate
-from src.domain.schemas.user_schema import UserResponse
+from src.domain.schemas.user_schema import AutorizacionRequest, UserResponse
 from src.application.auth_service import AuthService
 from src.infrastructure.dependencies import get_auth_service, get_current_user, get_place_service
 from src.infrastructure.routers.respuestas import FUERA_DE_COBERTURA, SIN_SESION, error
@@ -18,6 +18,20 @@ def read_current_user(usuario: Usuario = Depends(get_current_user)):
     Perfil del viajero autenticado. La app lo usa al abrir para validar la sesión guardada.
     """
     return usuario
+
+@router.post("/me/autorizacion", summary="Aceptar el aviso de privacidad", status_code=status.HTTP_204_NO_CONTENT,
+             responses={**SIN_SESION, 409: error("La política de datos cambió: hay que mostrar la nueva versión.")})
+def authorize(datos: AutorizacionRequest, usuario: Usuario = Depends(get_current_user),
+              auth: AuthService = Depends(get_auth_service)):
+    """
+    Guarda que el viajero aceptó esta versión de la política de tratamiento de datos, y cuándo: es la prueba de su
+    autorización (Ley 1581 art. 9; Decreto 1074 art. 2.2.2.25.2.5).
+    """
+    try:
+        auth.autorizar(usuario, datos.version)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 @router.delete("/me", summary="Borrar mi cuenta y mis datos", status_code=status.HTTP_204_NO_CONTENT,
                responses=SIN_SESION)

@@ -20,6 +20,13 @@ if len(JWT_SECRET) < 32:
     raise ValueError("Error Crítico: JWT_SECRET debe tener al menos 32 caracteres.")
 JWT_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", "10080"))  # 7 días
 
+# Política de tratamiento de datos: fecha de vigencia y contacto del responsable. Van en la configuración del
+# servidor, no en el repositorio público.
+POLITICA_VIGENTE_DESDE = os.getenv("POLITICA_VIGENTE_DESDE", "[por definir]")
+RESPONSABLE_CORREO = os.getenv("RESPONSABLE_CORREO", "[por definir]")
+RESPONSABLE_TELEFONO = os.getenv("RESPONSABLE_TELEFONO", "[por definir]")
+RESPONSABLE_DIRECCION = os.getenv("RESPONSABLE_DIRECCION", "[por definir]")
+
 # Orígenes permitidos separados por coma (ej: "https://karta.app,http://localhost:5173").
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
 

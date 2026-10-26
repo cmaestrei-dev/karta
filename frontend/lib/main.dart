@@ -19,6 +19,8 @@ import 'features/incidents/presentation/bloc/incident_bloc.dart';
 import 'features/places/data/places_repository.dart';
 import 'features/places/presentation/cubit/saved_places_cubit.dart';
 
+import 'features/legal/data/politica_repository.dart';
+import 'features/legal/presentation/aviso_de_privacidad.dart';
 import 'features/mapeo/data/mapeo_repository.dart';
 import 'features/trip/data/trip_repository.dart';
 
@@ -46,15 +48,14 @@ class KartaApp extends StatelessWidget {
         RepositoryProvider(create: (context) => PlacesRepository(api: context.read<ApiClient>())),
         RepositoryProvider(create: (context) => TripRepository(api: context.read<ApiClient>())),
         RepositoryProvider(create: (context) => MapeoRepository(api: context.read<ApiClient>())),
+        RepositoryProvider(create: (context) => PoliticaRepository(api: context.read<ApiClient>())),
       ],
       child: MultiBlocProvider(
         providers: [
           BlocProvider(create: (_) => AparienciaCubit()..cargar()),
           BlocProvider(create: (_) => ModoLigeroCubit()..cargar()),
-          BlocProvider(
-            create: (context) => AuthBloc(repository: context.read<AuthRepository>())
-              ..add(AuthStarted())
-          ),
+          // La sesión arranca en la puerta, después del aviso de privacidad: antes no se crea la cuenta.
+          BlocProvider(create: (context) => AuthBloc(repository: context.read<AuthRepository>())),
           BlocProvider(
             create: (context) => IncidentBloc(repository: context.read<IncidentRepository>())
               ..add(LoadIncidentsEvent())
@@ -99,13 +100,90 @@ class KartaApp extends StatelessWidget {
 
 /// Siempre el inicio: sin registrarse se entra con la cuenta invisible. Solo si la primera vez no hay conexión
 /// (aún no hay cuenta invisible) se pide reintentar.
-class _AuthGate extends StatelessWidget {
+///
+/// Antes de todo va el aviso de privacidad (Ley 1581): la primera vez, la cuenta se crea solo después de aceptarlo.
+/// Si la cuenta no tiene aceptada la versión vigente, se guarda la que se aceptó en el teléfono o, si la política
+/// cambió, se vuelve a mostrar el aviso.
+class _AuthGate extends StatefulWidget {
   const _AuthGate();
 
   @override
+  State<_AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<_AuthGate> {
+  /// null mientras se revisa el teléfono; true si hay que mostrar el aviso.
+  bool? _aviso;
+  bool _porCambio = false;
+
+  PoliticaRepository get _politica => context.read<PoliticaRepository>();
+
+  @override
+  void initState() {
+    super.initState();
+    _politica.aceptadaEnEsteTelefono().then((version) {
+      if (!mounted) return;
+      setState(() => _aviso = version == null);
+      if (version != null) context.read<AuthBloc>().add(AuthStarted());
+    });
+  }
+
+  Future<void> _aceptar(String version) async {
+    await _politica.aceptarEnEsteTelefono(version);
+    if (!mounted) return;
+    final auth = context.read<AuthBloc>();
+    setState(() => _aviso = false);
+    if (auth.state is AuthAuthenticated) {
+      await _registrar(version);
+    } else {
+      auth.add(AuthStarted()); // la autorización se registra cuando la cuenta exista (abajo)
+    }
+  }
+
+  Future<void> _registrar(String version) async {
+    try {
+      await _politica.registrar(version);
+      if (mounted) context.read<AuthBloc>().add(ProfileRefreshRequested());
+    } catch (_) {
+      // Sin señal: se vuelve a intentar la próxima vez que se abra la app.
+    }
+  }
+
+  /// La cuenta no tiene aceptada la versión vigente: si este teléfono ya la aceptó, se guarda la prueba; si no, la
+  /// política cambió y se muestra el aviso otra vez.
+  Future<void> _revisarAutorizacion(AuthAuthenticated state) async {
+    final vigente = state.usuario.politicaVigente!;
+    if (await _politica.aceptadaEnEsteTelefono() == vigente) {
+      await _registrar(vigente);
+    } else if (mounted) {
+      setState(() {
+        _aviso = true;
+        _porCambio = true;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_aviso == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator(semanticsLabel: 'Abriendo Karta')));
+    }
+    if (_aviso!) return AvisoDePrivacidad(onAceptar: _aceptar, porCambio: _porCambio);
     return MultiBlocListener(
       listeners: [
+        // Una sesión guardada por una versión anterior de la app no sabe qué política está vigente: se pide el perfil.
+        BlocListener<AuthBloc, AuthState>(
+          listenWhen: (antes, actual) =>
+              antes is! AuthAuthenticated && actual is AuthAuthenticated && actual.usuario.politicaVigente == null,
+          listener: (context, _) => context.read<AuthBloc>().add(ProfileRefreshRequested()),
+        ),
+        BlocListener<AuthBloc, AuthState>(
+          listenWhen: (antes, actual) =>
+              actual is AuthAuthenticated &&
+              actual.usuario.debeAceptarPolitica &&
+              (antes is! AuthAuthenticated || antes.usuario != actual.usuario),
+          listener: (context, state) => _revisarAutorizacion(state as AuthAuthenticated),
+        ),
         // Los lugares guardados son de la cuenta: se cargan al entrar y cada vez que cambia.
         BlocListener<AuthBloc, AuthState>(
           listenWhen: (antes, actual) =>

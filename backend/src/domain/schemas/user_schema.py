@@ -1,6 +1,7 @@
 from typing import Literal
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from src.domain.models import TipoViajero
+from src.domain.politica import VERSION_POLITICA
 
 class RegisterRequest(BaseModel):
     """Datos del formulario de registro (Caso de Uso #1)."""
@@ -11,6 +12,10 @@ class RegisterRequest(BaseModel):
     acepta_terminos: Literal[True] = Field(
         ..., description="Consentimiento para el tratamiento de datos personales (Ley 1581 de 2012)."
     )
+
+class AutorizacionRequest(BaseModel):
+    """Aceptó el aviso de privacidad de esta versión de la política de datos."""
+    version: str = Field(..., max_length=20, examples=["1.0"])
 
 class InvisibleRequest(BaseModel):
     """El secreto aleatorio que el teléfono generó la primera vez y guarda en su almacenamiento seguro."""
@@ -61,6 +66,8 @@ class UserResponse(BaseModel):
     marco: str | None = Field(None, description="Marco del avatar por nivel: Muralla, Bahía, Castillo o La Popa")
     insignias: list[InsigniaResponse] = []
     siguiente_insignia: AvanceResponse | None = Field(None, description="La insignia sin ganar más cercana")
+    autorizacion: str | None = Field(None, description="Última versión de la política de datos que aceptó")
+    politica_vigente: str = Field(VERSION_POLITICA, description="Si no es la que aceptó, la app vuelve a mostrar el aviso")
 
 class TokenResponse(BaseModel):
     access_token: str

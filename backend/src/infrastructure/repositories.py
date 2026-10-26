@@ -31,6 +31,11 @@ class MongoUserRepository:
         self._db = db
         self._users = db.users
 
+    def autorizar(self, user_id: str, version: str, en: datetime) -> None:
+        # Cada aceptación queda como prueba (Decreto 1074, art. 2.2.2.25.2.5): la versión y cuándo.
+        self._users.update_one({"_id": ObjectId(user_id)},
+                               {"$push": {"autorizaciones": {"version": version, "en": en}}})
+
     def erase(self, user_id: str) -> None:
         uid = ObjectId(user_id)
         db = self._db
@@ -439,6 +444,7 @@ def _to_usuario(doc: dict) -> Usuario:
         # Usuarios creados antes de que existiera el alias lo derivan de su nombre.
         alias=doc.get("alias") or (alias_publico(doc["nombre"]) if doc.get("nombre") else ALIAS_SIN_CUENTA),
         impacto=Impacto(**{k: v for k, v in doc.get("impacto", {}).items() if k in Impacto.__dataclass_fields__}),
+        autorizacion=doc["autorizaciones"][-1]["version"] if doc.get("autorizaciones") else None,
     )
 
 

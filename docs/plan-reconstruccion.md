@@ -369,7 +369,7 @@ Cada fase termina con una demostración en el teléfono y un PR fusionado.
 | Xiaomi cierra el viaje activo en segundo plano | Servicio en primer plano, guía de permisos en la app y prueba en el POCO desde la fase 3. |
 | Al principio no hay datos de la comunidad | Piloto con compañeros en la fase 4. Para la presentación, un modo demo **claramente etiquetado** como tal; nunca se mezcla con datos reales. |
 | Reportes falsos o abuso | Votos, reputación, vigencias cortas, límite de peticiones y un voto por usuario. |
-| Privacidad de la ubicación (Ley 1581) | Compartir por defecto con aviso claro una vez y revocable en Privacidad; solo el tramo en bus; viajes anónimos, TTL corto y sin historial. Falta la política de tratamiento de datos escrita (fase 4). |
+| Privacidad de la ubicación (Ley 1581) | Compartir por defecto con aviso claro una vez y revocable en Privacidad; solo el tramo en bus; viajes anónimos, TTL corto y sin historial. Desde la fase 4: [política de tratamiento](../backend/data/legal/politica-de-tratamiento.md) en la app y en la web, aviso de privacidad antes de recoger cualquier dato (con prueba de la autorización), «Borrar mi cuenta y mis datos» y [manual interno](legal/manual-de-datos-personales.md). |
 | Datos abiertos incompletos o desactualizados | Contrastar con OpenStreetMap y mostrar la fuente y la fecha. |
 | Falta de tiempo | Recortes en este orden: (1) posición compartida en vivo, (2) transbordos, (3) niveles de reputación. El resto es el núcleo. |
 

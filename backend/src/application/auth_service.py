@@ -2,6 +2,7 @@ import hashlib
 from datetime import datetime, timezone
 
 from src.domain.models import CredencialesInvalidas, TipoViajero, Usuario
+from src.domain.politica import VERSION_POLITICA
 from src.domain.ports import PasswordHasher, TokenIssuer, UserRepository
 from src.domain.reportes import alias_publico
 
@@ -50,6 +51,15 @@ class AuthService:
             terminos_aceptados_en=ahora,
         )
         return usuario, self.tokens.issue(usuario.id)
+
+    def autorizar(self, usuario: Usuario, version: str) -> None:
+        """
+        Caso de Uso: Aceptar el aviso de privacidad. Solo vale la versión vigente: si la política cambió, la app
+        debe mostrar la nueva antes (lanza ValueError).
+        """
+        if version != VERSION_POLITICA:
+            raise ValueError(f"La política vigente es la versión {VERSION_POLITICA}.")
+        self.users.autorizar(usuario.id, version, datetime.now(timezone.utc))
 
     def borrar_cuenta(self, usuario: Usuario) -> None:
         """Caso de Uso: Borrar mi cuenta y mis datos (supresión, Ley 1581 art. 8). No se puede deshacer."""
