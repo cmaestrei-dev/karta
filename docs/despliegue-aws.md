@@ -131,6 +131,25 @@ PYTHON=backend/.venv/bin/python deploy/aws/desplegar.sh
 
 Para cambiar la cadena de conexión de Atlas, por ejemplo tras cambiar la contraseña: `deploy/aws/desplegar.sh --cambiar-base`.
 
+## Permiso para desplegar desde un computador
+
+El usuario de IAM que usa la CLI en el computador no necesita ser administrador. [`deploy/aws/politica-karta.json`](../deploy/aws/politica-karta.json) solo le deja:
+
+- manejar la función `karta-api`, sin poder borrarla;
+- ver y configurar sus registros;
+- ver y crear el calentador;
+- ver sus dos roles y pasárselos a Lambda y a EventBridge.
+
+No puede tocar otros servicios ni otras funciones, crear usuarios o llaves, ni darse más permisos. Se crea una vez con una cuenta que sí sea administradora; `CUENTA` es el número de la cuenta:
+
+```bash
+sed "s/CUENTA/$(aws sts get-caller-identity --query Account --output text)/g" deploy/aws/politica-karta.json > /tmp/politica.json
+aws iam create-policy --policy-name karta-despliegue --policy-document file:///tmp/politica.json
+aws iam attach-user-policy --user-name <usuario> --policy-arn arn:aws:iam::<cuenta>:policy/karta-despliegue
+```
+
+Crear la función por primera vez, o apagar todo, sigue pidiendo una cuenta administradora, porque implica crear o borrar roles.
+
 ## Ver qué pasa
 
 - **Registros:** CloudWatch → *Log groups* → `/aws/lambda/karta-api`.
