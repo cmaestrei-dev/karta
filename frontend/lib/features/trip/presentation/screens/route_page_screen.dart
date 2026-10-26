@@ -266,20 +266,23 @@ class _FilaDeHorario extends StatelessWidget {
         child: Row(
           children: [
             Expanded(
-              child: Row(
+              // En un teléfono angosto «Domingos y festivos» y «Hoy» no caben junto al horario: «Hoy» baja de línea.
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   Text(nombreDeDia[dia]!, style: esHoy ? texto.titleSmall : texto.bodyMedium),
-                  if (esHoy) ...[
-                    const SizedBox(width: 8),
+                  if (esHoy)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(color: b.acentoSuave, borderRadius: BorderRadius.circular(8)),
                       child: Text('Hoy', style: texto.labelMedium?.copyWith(color: b.acento)),
                     ),
-                  ],
                 ],
               ),
             ),
+            const SizedBox(width: 12),
             Text(
               valor,
               style: (esHoy ? texto.titleSmall : texto.bodyMedium)?.copyWith(
