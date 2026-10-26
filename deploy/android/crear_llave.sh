@@ -21,6 +21,7 @@ if [[ ! -e "$almacen" ]]; then
   "$keytool" -genkeypair -keystore "$almacen" -storetype PKCS12 -alias karta -keyalg RSA -keysize 4096 \
     -validity 10000 -dname "CN=Karta, O=Karta, L=Cartagena, C=CO" \
     -storepass:env KARTA_CLAVE -keypass:env KARTA_CLAVE
+  chmod 600 "$almacen"
   umask 077
   printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=karta\nstoreFile=%s\n' \
     "$KARTA_CLAVE" "$KARTA_CLAVE" "$almacen" > "$copia"
