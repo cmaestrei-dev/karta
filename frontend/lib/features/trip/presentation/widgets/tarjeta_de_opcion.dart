@@ -86,6 +86,7 @@ class TarjetaDeOpcion extends StatelessWidget {
         resumenReportes,
       ].join(', '),
       excludeSemantics: true,
+      onTap: onTap,
       child: Material(
         color: Colors.transparent,
         child: InkWell(

@@ -732,6 +732,7 @@ class _Extremo extends StatelessWidget {
       button: true,
       label: '$etiqueta: $nombre. Toca para cambiar',
       excludeSemantics: true,
+      onTap: onTap,
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
         onTap: onTap,
@@ -783,6 +784,7 @@ class _Ficha extends StatelessWidget {
       selected: elegida,
       label: semantica ?? etiqueta,
       excludeSemantics: true,
+      onTap: onTap,
       child: Material(
         color: elegida ? b.acento : b.campo,
         borderRadius: radio,
@@ -981,6 +983,7 @@ class _BurbujaDeTiempo extends StatelessWidget {
         selected: elegida,
         label: '${opcion.tiempoTotalMin} minutos${etiqueta != null ? ', $etiqueta' : ''}. Toca para elegir esta opción',
         excludeSemantics: true,
+        onTap: onTap,
         child: GestureDetector(
           onTap: onTap,
           child: AnimatedContainer(

@@ -136,6 +136,7 @@ Marker marcadorDeReporte(BuildContext context, Incident incidente,
       button: true,
       label: '$nombre$donde$confirmado',
       excludeSemantics: true,
+      onTap: () => mostrarDetalleDeReporte(context, incidente),
       child: GestureDetector(
         onTap: () => mostrarDetalleDeReporte(context, incidente),
         child: Opacity(

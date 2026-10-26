@@ -214,6 +214,7 @@ class _HomeViewState extends State<_HomeView> {
                               button: true,
                               label: 'Tu perfil: ${state.usuario.nombre ?? 'sin cuenta'}, nivel ${state.usuario.nivel}',
                               excludeSemantics: true,
+                              onTap: () => showProfileSheet(context),
                               child: GestureDetector(
                                 onTap: () => showProfileSheet(context),
                                 child: DecoratedBox(
@@ -323,6 +324,7 @@ class _PildoraDeComunidad extends StatelessWidget {
           ? 'No pudimos cargar los reportes. Toca para reintentar'
           : (activo ? '$texto. Toca para verlos en el mapa' : texto),
       excludeSemantics: true,
+      onTap: alTocar,
       child: Material(
         color: b.hoja,
         borderRadius: BorderRadius.circular(24),
@@ -494,6 +496,7 @@ class _CampoDeDestino extends StatelessWidget {
       button: true,
       label: 'Buscar destino: ¿A dónde vas?',
       excludeSemantics: true,
+      onTap: onTap,
       child: Material(
         color: b.campo,
         borderRadius: radio,
