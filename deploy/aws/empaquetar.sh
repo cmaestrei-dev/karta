@@ -12,7 +12,9 @@ trap 'rm -rf "$obra"' EXIT
 # Las dependencias de la API, sin el servidor uvicorn (en Lambda lo reemplaza Mangum).
 grep -v '^uvicorn' "$raiz/backend/requirements.txt" > "$obra/requisitos.txt"
 cat "$raiz/backend/requirements-lambda.txt" >> "$obra/requisitos.txt"
-"${PYTHON:-python3}" -m pip install --quiet --disable-pip-version-check --target "$obra/paquete" \
+# --no-warn-conflicts: el paquete va aparte, así que no importa lo que ya tenga instalado este Python (en CloudShell,
+# aws-sam-translator pide otra versión de pydantic y pip lo reporta como «ERROR» aunque no afecta).
+"${PYTHON:-python3}" -m pip install --quiet --disable-pip-version-check --no-warn-conflicts --target "$obra/paquete" \
   --requirement "$obra/requisitos.txt" --only-binary=:all: --implementation cp --python-version 3.12 \
   --platform manylinux_2_28_x86_64 --platform manylinux_2_17_x86_64 --platform manylinux2014_x86_64
 

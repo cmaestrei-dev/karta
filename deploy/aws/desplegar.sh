@@ -27,6 +27,11 @@ pedir_cadena() {
   read -rsp "Pega la cadena de conexión de MongoDB Atlas (mongodb+srv://…) y presiona Enter: " cadena
   echo
   [[ "$cadena" == mongodb* ]] || { echo "Eso no parece una cadena de MongoDB." >&2; exit 1; }
+  # Atlas muestra «<db_password>»: hay que reemplazarlo entero, signos < > incluidos.
+  if [[ "${cadena%%@*}" == *[\<\>]* ]]; then
+    echo "La contraseña quedó entre < >: quita esos dos signos y vuelve a correr el script." >&2
+    exit 1
+  fi
   printf '%s' "$cadena" > "$obra/cadena"
 }
 
@@ -61,7 +66,7 @@ fi
 
 echo "3/5 · Función $FUNCION…"
 configuracion=(--runtime python3.12 --architectures x86_64 --handler src.infrastructure.lambda_handler.handler
-               --memory-size 1769 --timeout 30)  # 1769 MB = una vCPU completa
+               --memory-size 1769 --timeout 60)  # 1769 MB = una vCPU completa; 60 s para la primera carga de datos
 if aws lambda get-function --function-name "$FUNCION" >/dev/null 2>&1; then
   aws lambda update-function-code --function-name "$FUNCION" --zip-file "fileb://$obra/karta-api.zip" >/dev/null
   aws lambda wait function-updated-v2 --function-name "$FUNCION"

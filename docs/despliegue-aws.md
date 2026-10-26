@@ -46,13 +46,15 @@ Medido en el emulador oficial de Lambda para Python 3.12, con 1 CPU:
 
 | Momento | Tiempo |
 |---|---|
-| Primer arranque, con la base vacía (carga rutas, estaciones y lugares) | 7 s, una sola vez |
+| Primer arranque, con la base vacía (carga rutas, estaciones y lugares) | 7 s en el emulador y 29 s contra Atlas, una sola vez |
 | Arranque en frío con la base ya cargada | 3,9 s |
 | Primer viaje planificado tras arrancar | 1,8 s |
 | Viajes siguientes | 0,2 a 0,5 s |
 | Búsqueda de lugares | 0,06 s |
 
-La función usa 1.769 MB porque Lambda reparte la CPU según la memoria: ese tamaño equivale a una vCPU completa. El proceso ocupa ~210 MB.
+La función usa 1.769 MB porque Lambda reparte la CPU según la memoria: ese tamaño equivale a una vCPU completa. El proceso ocupa ~210 MB. El límite por petición es de 60 s, por la primera carga de datos; una petición normal tarda menos de 2 s.
+
+En la nube (26 de octubre, desde Cartagena hasta Virginia, ida y vuelta incluida): la salud responde en 0,4 s, la búsqueda en 0,45 s, y planificar tarda 1,9 s la primera vez y 0,8 s después.
 
 ## Seguridad
 
@@ -82,7 +84,7 @@ La función usa 1.769 MB porque Lambda reparte la CPU según la memoria: ese tam
    - usuario `karta-api`, con la contraseña que genera Atlas (*Autogenerate Secure Password*); copiarla;
    - en *Database User Privileges*, *Specific Privileges* → `readWrite` sobre la base `karta`.
 4. **Network Access** → *Add IP Address* → *Allow access from anywhere* (`0.0.0.0/0`), por lo explicado en Seguridad.
-5. **Connect** → *Drivers* → copiar la cadena `mongodb+srv://karta-api:<db_password>@…` y poner la contraseña en lugar de `<db_password>`. Guardarla para el paso siguiente; no se comparte por chat.
+5. **Connect** → *Drivers* → copiar la cadena `mongodb+srv://karta-api:<db_password>@…` y poner la contraseña en lugar de `<db_password>`, **sin los signos `<` `>`**: quedan `karta-api:Contraseña@…`. Guardarla para el paso siguiente; no se comparte por chat.
 
 ### 2. AWS
 
@@ -96,7 +98,7 @@ La función usa 1.769 MB porque Lambda reparte la CPU según la memoria: ese tam
 3. Cuando lo pida, pegar la cadena de conexión de Atlas y presionar Enter. No se ve al pegarla.
 4. Al terminar, el script prueba la API y muestra su dirección: `https://….lambda-url.us-east-1.on.aws/api/v1`.
 
-El primer arranque carga en Atlas las rutas, las estaciones y los lugares (unos 7 s).
+El primer arranque carga en Atlas las rutas, las estaciones y los lugares (unos 30 s). Si el script muestra `502` en la prueba final, la función no arrancó: el motivo está en los registros (`aws logs tail /aws/lambda/karta-api --since 30m`). Si dice `bad auth`, la contraseña de la cadena está mal; se cambia con `deploy/aws/desplegar.sh --cambiar-base`.
 
 ### 3. La app
 
