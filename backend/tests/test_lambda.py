@@ -3,7 +3,8 @@ import json
 
 
 def evento(metodo: str, ruta: str, cuerpo: dict | None = None, ip: str = "181.50.1.2") -> dict:
-    """Una petición como la manda la Function URL (formato 2.0)."""
+    """Una petición como la manda la Function URL (formato 2.0): rawPath trae la ruta tal cual, y
+    requestContext.http.path, sin la barra final."""
     return {
         "version": "2.0", "routeKey": "$default", "rawPath": ruta, "rawQueryString": "",
         "headers": {"host": "karta.lambda-url.us-east-1.on.aws", "content-type": "application/json"},
@@ -11,7 +12,8 @@ def evento(metodo: str, ruta: str, cuerpo: dict | None = None, ip: str = "181.50
             "accountId": "anonymous", "apiId": "karta", "domainName": "karta.lambda-url.us-east-1.on.aws",
             "domainPrefix": "karta", "requestId": "prueba", "routeKey": "$default", "stage": "$default",
             "time": "26/Oct/2026:06:00:00 +0000", "timeEpoch": 1792980000000,
-            "http": {"method": metodo, "path": ruta, "protocol": "HTTP/1.1", "sourceIp": ip, "userAgent": "prueba"},
+            "http": {"method": metodo, "path": ruta.rstrip("/") or "/", "protocol": "HTTP/1.1", "sourceIp": ip,
+                     "userAgent": "prueba"},
         },
         "body": json.dumps(cuerpo) if cuerpo is not None else None, "isBase64Encoded": False,
     }
@@ -27,6 +29,15 @@ def test_el_calentador_y_la_function_url_llegan_a_la_api(api):
 
     lugares = handler(evento("GET", "/api/v1/places/search") | {"rawQueryString": "q=bazurto"}, None)
     assert any(lugar["nombre"] == "Estación Bazurto" for lugar in json.loads(lugares["body"]))
+
+
+def test_las_rutas_con_barra_final_no_redirigen_en_bucle(api):
+    """En el primer despliegue, GET /api/v1/incidents/ respondía 307 hacia sí misma y la app no cargaba los reportes."""
+    from src.infrastructure.lambda_handler import handler
+
+    for ruta in ("/api/v1/incidents/", "/api/v1/routes/"):
+        respuesta = handler(evento("GET", ruta), None)
+        assert respuesta["statusCode"] == 200, ruta
 
 
 def test_los_limites_por_ip_usan_la_ip_del_viajero(api):
