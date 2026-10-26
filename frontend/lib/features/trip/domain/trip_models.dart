@@ -48,6 +48,10 @@ class Leg extends Equatable {
   /// solo de alimentadoras».
   final String? advertencia;
 
+  /// De qué lado de la estación queda el vagón del módulo («el Centro» o «el Portal»), según cuántos viajeros.
+  final String? ladoDelModulo;
+  final int ladoSegun;
+
   /// Otras rutas igual de buenas en este tramo: se toma la que pase primero (D19).
   final List<String> alternativas;
 
@@ -67,6 +71,8 @@ class Leg extends Equatable {
     this.modulo,
     this.hacia,
     this.advertencia,
+    this.ladoDelModulo,
+    this.ladoSegun = 0,
     this.alternativas = const [],
   });
 
@@ -76,11 +82,18 @@ class Leg extends Equatable {
   /// «T103 o T101».
   String get rutasEnTexto => rutas.join(' o ');
 
-  /// «módulo A1, hacia Bocagrande»: dónde hacer la fila y en qué sentido. Null si no se sabe.
+  /// «módulo A1 (extremo hacia el Centro), hacia Bocagrande»: dónde hacer la fila y en qué sentido. Null si no se
+  /// sabe.
   String? get comoAbordar {
-    final partes = [if (modulo != null) 'módulo $modulo', if (hacia != null) 'hacia $hacia'];
+    final partes = [
+      if (modulo != null) 'módulo $modulo${lado == null ? '' : ' ($lado)'}',
+      if (hacia != null) 'hacia $hacia',
+    ];
     return partes.isEmpty ? null : partes.join(', ');
   }
+
+  /// «extremo hacia el Centro»: de qué lado de la estación queda el vagón, si los viajeros ya lo enseñaron.
+  String? get lado => ladoDelModulo == null ? null : 'extremo hacia $ladoDelModulo';
 
   /// La primera frase de la indicación, para la franja del viaje: «Sal de Santa Lucía y cruza por la cebra…».
   String? get indicacionCorta {
@@ -114,6 +127,8 @@ class Leg extends Equatable {
         indicacion: json['indicacion'] as String?,
         modulo: json['modulo'] as String?,
         advertencia: json['advertencia'] as String?,
+        ladoDelModulo: json['lado_del_modulo'] as String?,
+        ladoSegun: json['lado_segun'] as int? ?? 0,
         hacia: json['hacia'] as String?,
         alternativas: [for (final r in json['alternativas'] as List? ?? const []) r as String],
         paradas: [

@@ -549,12 +549,23 @@ class MongoStopMappingRepository:
     def resolve(self, marca_id: str, estado: EstadoDeMarca, en: datetime) -> None:
         self._marcas.update_one({"_id": ObjectId(marca_id)}, {"$set": {"estado": estado.value, "resuelta_en": en}})
 
-    def add_boarding(self, ruta: str, longitud: float, latitud: float, en: datetime) -> None:
-        self._subidas.insert_one({"ruta": ruta, "ubicacion": {"type": "Point", "coordinates": [longitud, latitud]},
-                                  "en": en, "expira_en": en + self.VIGENCIA_DE_SUBIDA})
+    def add_boarding(self, ruta: str, longitud: float, latitud: float, en: datetime,
+                     estacion: str | None = None, modulo: str | None = None) -> None:
+        documento = {"ruta": ruta, "ubicacion": {"type": "Point", "coordinates": [longitud, latitud]},
+                     "en": en, "expira_en": en + self.VIGENCIA_DE_SUBIDA}
+        if estacion is not None:
+            documento |= {"estacion": estacion, "modulo": modulo}
+        self._subidas.insert_one(documento)
 
     def boardings(self, ruta: str) -> list[tuple[float, float]]:
-        return [tuple(d["ubicacion"]["coordinates"]) for d in self._subidas.find({"ruta": ruta}).limit(5000)]
+        return [tuple(d["ubicacion"]["coordinates"])
+                for d in self._subidas.find({"ruta": ruta, "estacion": None}).limit(5000)]
+
+    def station_boardings(self) -> dict[tuple[str, str], list[tuple[float, float]]]:
+        grupos: dict[tuple[str, str], list[tuple[float, float]]] = {}
+        for d in self._subidas.find({"estacion": {"$ne": None}}, {"estacion": 1, "modulo": 1, "ubicacion": 1}).limit(20000):
+            grupos.setdefault((d["estacion"], d["modulo"][0]), []).append(tuple(d["ubicacion"]["coordinates"]))
+        return grupos
 
 
 class MongoRealtimeRepository:

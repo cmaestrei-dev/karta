@@ -135,9 +135,11 @@ String? consejoDeEspera(Leg bus, Llegada? llegada) {
   final m = llegada?.minutos;
   if (m != null && m <= 1 && !llegada!.sinConexion) return 'Deja bajar primero y sube en orden.';
   if (bus.subeEnEstacion && bus.ruta != null) {
-    return bus.modulo != null
-        ? 'Haz la fila del ${bus.ruta} en el módulo ${bus.modulo}: se sube en orden.'
-        : 'Haz la fila del ${bus.ruta}: se sube en orden.';
+    if (bus.modulo == null) return 'Haz la fila del ${bus.ruta}: se sube en orden.';
+    final lado = bus.lado == null
+        ? ''
+        : ', en el ${bus.lado} (según ${bus.ladoSegun} ${bus.ladoSegun == 1 ? 'viajero' : 'viajeros'})';
+    return 'Haz la fila del ${bus.ruta} en el módulo ${bus.modulo}$lado: se sube en orden.';
   }
   return null;
 }

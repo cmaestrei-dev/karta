@@ -77,6 +77,9 @@ class TramoResponse(BaseModel):
     hacia: str | None = Field(None, description="Hacia dónde va el bus («Bocagrande»)")
     advertencia: str | None = Field(
         None, description="Al subir en una estación que se confunde con la de enfrente (Madre Bernarda y Santa Lucía)")
+    lado_del_modulo: str | None = Field(
+        None, description="El vagón del módulo queda en el extremo hacia «el Centro» o «el Portal», según los viajeros")
+    lado_segun: int = Field(0, description="Cuántas subidas de viajeros lo enseñaron")
     indicacion: str | None = Field(
         None, description="En la caminata de un transbordo integrado, cómo hacer el cambio "
                           "(«Sal de Santa Lucía y cruza por la cebra hasta Madre Bernarda…»)")

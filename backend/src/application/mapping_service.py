@@ -12,6 +12,7 @@ from src.domain.mapeo import (
     peso, pistas, respuesta_del_viaje,
 )
 from src.domain.models import Usuario
+from src.domain.modulos import CERCA_DE_LA_ESTACION_M
 from src.domain.paraderos import ParaderoOficial
 from src.domain.ports import StopMappingRepository, TransitRepository, UserRepository
 
@@ -146,9 +147,21 @@ class MappingService:
             resultados.append((paradero.id, Resultado.CONFIRMADO if esta_aqui else Resultado.CONTRADICHO))
         return resultados
 
-    def boarding(self, ruta: str, latitud: float, longitud: float, ahora: datetime | None = None) -> None:
-        """Una subida a la ruta fuera de una estación: solo la ruta y el punto, sin quién."""
+    def boarding(self, ruta: str, latitud: float, longitud: float, modulo: str | None = None,
+                 ahora: datetime | None = None) -> None:
+        """
+        Una subida a la ruta: solo la ruta y el punto, sin quién. Fuera de las estaciones es una pista para ubicar
+        el paradero; en una estación, con el módulo del bus, enseña de qué lado queda cada vagón.
+        """
         validar_cobertura(latitud, longitud)
         if self.transit.route(ruta) is None:
             raise ParaderoNoEncontrado(ruta)
-        self.mapeo.add_boarding(ruta, longitud, latitud, ahora or datetime.now(timezone.utc))
+        en = ahora or datetime.now(timezone.utc)
+        if modulo is None:
+            self.mapeo.add_boarding(ruta, longitud, latitud, en)
+            return
+        cercanas = [(distancia_m((longitud, latitud), (e.longitud, e.latitud)), e)
+                    for e in self.transit.list_stations() if ruta in e.rutas]
+        distancia, estacion = min(cercanas, key=lambda par: par[0], default=(None, None))
+        if estacion is not None and distancia <= CERCA_DE_LA_ESTACION_M:
+            self.mapeo.add_boarding(ruta, longitud, latitud, en, estacion=estacion.id, modulo=modulo)

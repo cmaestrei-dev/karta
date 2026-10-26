@@ -113,7 +113,8 @@ class _TiempoReal implements TiempoRealRepository {
   }
 
   @override
-  Future<void> subida(String ruta, LatLng punto) async => llamadas.add('subida $ruta');
+  Future<void> subida(String ruta, LatLng punto, {String? modulo}) async =>
+      llamadas.add(modulo == null ? 'subida $ruta' : 'subida $ruta $modulo');
 
   @override
   Future<ComoSePideAqui?> comoSePide(String ruta, LatLng paradero) async {
@@ -323,6 +324,32 @@ void main() {
     expect(consejoAlCaminar(null), isNull);
   });
 
+  test('cuando los viajeros ya enseñaron el lado del vagón, la fila lo dice', () {
+    final bus = Leg(modo: 'bus', desde: 'Estación Bazurto', hasta: 'Estación La Bodeguita', distanciaM: 3000,
+        duracionMin: 10, esperaMin: 5, ruta: 'T103', tipoRuta: 'troncal', puntos: [_p(0, 200), _p(3000, 200)],
+        paradas: [(nombre: 'Bazurto', punto: _p(0, 210)), (nombre: 'La Bodeguita', punto: _p(3000, 200))],
+        modulo: 'A1', hacia: 'Bocagrande', ladoDelModulo: 'el Centro', ladoSegun: 4);
+    expect(bus.comoAbordar, 'módulo A1 (extremo hacia el Centro), hacia Bocagrande');
+    expect(consejoDeEspera(bus, null),
+        'Haz la fila del T103 en el módulo A1, en el extremo hacia el Centro (según 4 viajeros): se sube en orden.');
+  });
+
+  test('al subir en una estación con viaje compartido, el punto va con el módulo del bus', () async {
+    final c = ViajeCubit(
+      opcion: _viajeConEstacion(modulo: 'A1'),
+      avisos: _Avisos(),
+      fuente: (_) => gps.stream,
+      tiempoReal: servidor,
+      preferencia: _Preferencia(si: true, vioElAviso: true),
+      haySesion: () => true,
+    );
+    await c.iniciar();
+    await en(_p(0, 195));
+    await en(_p(300, 200)); // subió en Bazurto
+    expect(servidor.envios, containsAllInOrder(['iniciar T103', 'subida T103 A1']));
+    await c.close();
+  });
+
   group('cómo pediste la parada', () {
     test('antes de subir sabe cómo se pide en la bajada; ya abajo pregunta una vez y se puede responder', () async {
       servidor.sabido = const ComoSePideAqui(como: ComoSePidio.timbre, viajeros: 4);
@@ -528,7 +555,7 @@ void main() {
 }
 
 /// El mismo viaje, con una estación a mitad del tramo en bus.
-RouteOption _viajeConEstacion() {
+RouteOption _viajeConEstacion({String? modulo}) {
   final base = _viaje();
   final bus = base.tramos[1];
   return RouteOption(
@@ -540,7 +567,8 @@ RouteOption _viajeConEstacion() {
       Leg(modo: 'bus', desde: bus.desde, hasta: bus.hasta, distanciaM: bus.distanciaM, duracionMin: bus.duracionMin,
           esperaMin: bus.esperaMin, ruta: bus.ruta, tipoRuta: bus.tipoRuta, puntos: bus.puntos,
           paradas: [(nombre: 'Bazurto', punto: _p(0, 200)), (nombre: 'La Popa', punto: _p(1000, 200)),
-            (nombre: 'La Bodeguita', punto: _p(3000, 200))]),
+            (nombre: 'La Bodeguita', punto: _p(3000, 200))],
+          modulo: modulo),
       base.tramos[2],
     ],
     riesgo: base.riesgo,

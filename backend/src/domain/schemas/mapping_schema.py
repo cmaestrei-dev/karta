@@ -85,3 +85,5 @@ class ViajeDeMapeoResponse(BaseModel):
 
 class SubidaRequest(_EnCartagena):
     ruta: str = Field(..., pattern=PATRON_RUTA, examples=["A107"])
+    modulo: str | None = Field(None, pattern=r"^[A-D][1-6]$", examples=["A1"],
+                               description="Si subió en una estación, el módulo donde para el bus")

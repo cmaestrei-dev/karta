@@ -42,7 +42,8 @@ def get_place_service(db: Database = Depends(get_db)) -> PlaceService:
 
 
 def get_trip_service(db: Database = Depends(get_db)) -> TripService:
-    return TripService(MongoTransitRepository(db), MongoPlaceRepository(db), MongoIncidentRepository(db))
+    return TripService(MongoTransitRepository(db), MongoPlaceRepository(db), MongoIncidentRepository(db),
+                       MongoStopMappingRepository(db))
 
 
 def get_mapping_service(db: Database = Depends(get_db)) -> MappingService:

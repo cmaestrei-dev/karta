@@ -370,14 +370,18 @@ class ViajeCubit extends Cubit<ViajeState> {
     _vigiaQuieto = Timer.periodic(cadaCuanto, (_) => revisarSiSeVaro());
   }
 
-  /// Subió a la ruta en la calle, no en una estación: ese punto es una pista para ubicar el paradero. Va con el
-  /// mismo permiso de compartir el viaje, y sin el nombre de nadie.
+  /// Subió a la ruta: el punto donde esperaba va con el mismo permiso de compartir el viaje, y sin el nombre de
+  /// nadie. En la calle es una pista para ubicar el paradero; en una estación, con el módulo del bus, enseña de qué
+  /// lado queda cada vagón (sin módulo, en la estación no sirve).
   void _contarSubida() {
     final tramo = seguidor.tramoActual, punto = _dondeEsperaba;
     _dondeEsperaba = null;
-    if (!_quiereCompartir || !haySesion() || tiempoReal == null || punto == null || tramo.subeEnEstacion) return;
+    if (!_quiereCompartir || !haySesion() || tiempoReal == null || punto == null) return;
+    if (tramo.subeEnEstacion && tramo.modulo == null) return;
     final ruta = rutaDelBus;
-    if (ruta != null) tiempoReal!.subida(ruta, punto).catchError((_) {});
+    if (ruta != null) {
+      tiempoReal!.subida(ruta, punto, modulo: tramo.subeEnEstacion ? tramo.modulo : null).catchError((_) {});
+    }
   }
 
   void _seMovio(LatLng punto) {

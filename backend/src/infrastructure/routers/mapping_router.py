@@ -125,11 +125,12 @@ def mapping_ride(request: ViajeDeMapeoRequest, codigo: str = Path(..., pattern=r
 def board(request: SubidaRequest, usuario: Usuario = Depends(por_viajero("subida", "LIMITE_AVISTAMIENTOS")),
           service: MappingService = Depends(get_mapping_service)):
     """
-    El viajero se subió a la ruta fuera de una estación. Se guarda solo la ruta y el punto, sin quién: sirve de
-    pista para ubicar los paraderos. Vence a los 180 días.
+    El viajero se subió a la ruta. Se guarda solo la ruta y el punto, sin quién, y vence a los 180 días. Fuera de
+    las estaciones sirve de pista para ubicar los paraderos; en una estación, con el módulo, enseña de qué lado
+    queda cada vagón.
     """
     try:
-        service.boarding(request.ruta, request.latitud, request.longitud)
+        service.boarding(request.ruta, request.latitud, request.longitud, request.modulo)
     except ParaderoNoEncontrado:
         raise HTTPException(status_code=404, detail="No existe esa ruta.")
     return Response(status_code=status.HTTP_204_NO_CONTENT)

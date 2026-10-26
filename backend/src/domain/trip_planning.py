@@ -101,6 +101,8 @@ class Tramo:
     integrado: bool = False             # caminata de un transbordo en la misma estación o en una integración
     indicacion: str | None = None       # cómo hacer el cambio («Sal de Santa Lucía y cruza por la cebra…»)
     advertencia: str | None = None      # al subir en una estación que se confunde con la de enfrente
+    lado_del_modulo: str | None = None  # el vagón queda en el extremo hacia «el Centro» o «el Portal»
+    lado_segun: int = 0                 # cuántas subidas lo enseñaron
 
 
 @dataclass(frozen=True)
@@ -613,11 +615,12 @@ def con_alternativas(opcion: OpcionViaje, muestras: list[RutaMuestreada], estaci
     return OpcionViaje(tramos=tuple(tramos))
 
 
-def estaciones_en_orden(ruta: RutaTransporte, estaciones: list[Estacion]) -> list[Estacion]:
+def estaciones_en_orden(ruta: RutaTransporte, estaciones: list[Estacion], solo_propias: bool = True) -> list[Estacion]:
     """
     Las estaciones de la ruta en el orden en que las recorre. Muchas relaciones de OSM son de ida y vuelta
     («Portal - Bocagrande - Portal»): proyectar sobre el trazado puede caer en la vuelta, así que cuenta la
-    primera vez que la ruta pasa cerca de cada estación.
+    primera vez que la ruta pasa cerca de cada estación. Con `solo_propias=False`, todas las estaciones por las que
+    pasa, pare o no (la T101 pasa por Delicias sin parar).
     """
     linea = a_metros(LineString(ruta.coordenadas))
     posiciones = np.append(np.arange(0, linea.length, PASO_DE_MUESTREO_M), linea.length)
@@ -628,6 +631,11 @@ def estaciones_en_orden(ruta: RutaTransporte, estaciones: list[Estacion]) -> lis
         cerca = np.flatnonzero(np.hypot(puntos[:, 0] - p.x, puntos[:, 1] - p.y) <= RADIO_DE_ESTACION_M * 2)
         return float(posiciones[cerca[0]]) if len(cerca) else linea.project(p)
 
+    if not solo_propias:
+        def pasa(estacion: Estacion) -> bool:
+            p = a_metros(Point(estacion.longitud, estacion.latitud))
+            return bool(np.any(np.hypot(puntos[:, 0] - p.x, puntos[:, 1] - p.y) <= RADIO_DE_ESTACION_M * 2))
+        return sorted((e for e in estaciones if pasa(e)), key=primera_pasada)
     return sorted((e for e in estaciones if ruta.id in e.rutas), key=primera_pasada)
 
 
