@@ -242,7 +242,7 @@ Cartagena de Indias
 
 Yo, Camilo Andres Maestre Iglesias, identificado con la cédula de ciudadanía n.º [Cédula], en nombre propio y con fundamento en los artículos 23 y 74 de la Constitución, la Ley 1755 de 2015 y la Ley 1712 de 2014, presento la siguiente petición.
 
-**Antecedentes.** El Portal de Datos Abiertos del Distrito publica «Paraderos del Sistema Integrado de Transporte Masivo – Transcaribe S.A. Cartagena» y «Rutas del Sistema Integrado de Transporte Masivo – Transcaribe S.A. Cartagena», con autor «Oficina Asesora de Informatica». El primero también está en datos.gov.co (conjunto nemj-z89t), atribuido a esta Alcaldía. Los paraderos (948 registros) no traen coordenadas ni identificador único, y las rutas no traen su trazado. A la vez, la cuenta «sig_cartagena» de la Alcaldía publica en ArcGIS Online la capa «Rutas STM» (servicio «Equipamiento e Infraestructura»), con 26 trazados que provienen del archivo de Transcaribe «Trazados de rutas con paradas SITM-TRANSCARIBE 28-10-24.kmz», sin las paradas y sin licencia declarada. La licencia figura como «Creative Commons Attribution», sin versión, en el portal distrital, y como CC BY-SA 4.0 en datos.gov.co. El [fecha] presenté a Transcaribe S.A. una petición relacionada.
+**Antecedentes.** El Portal de Datos Abiertos del Distrito publica «Paraderos del Sistema Integrado de Transporte Masivo – Transcaribe S.A. Cartagena» y «Rutas del Sistema Integrado de Transporte Masivo – Transcaribe S.A. Cartagena», con autor «Oficina Asesora de Informatica». El primero también está en datos.gov.co (conjunto nemj-z89t), atribuido a esta Alcaldía. Los paraderos (948 registros) no traen coordenadas ni identificador único, y las rutas no traen su trazado. A la vez, la cuenta «sig_cartagena» de la Alcaldía publica en ArcGIS Online la capa «Rutas STM» (servicio «Equipamiento e Infraestructura»), con 26 trazados que provienen del archivo de Transcaribe «Trazados de rutas con paradas SITM-TRANSCARIBE 28-10-24.kmz», sin las paradas y sin licencia declarada. La licencia figura como «Creative Commons Attribution», sin versión, en el portal distrital, y como CC BY-SA 4.0 en datos.gov.co. El [fecha] presenté a Transcaribe S.A. una petición relacionada, radicada con el n.º [radicado], que pide además los datos GTFS del sistema y los módulos de las estaciones.
 
 **Peticiones.**
 
@@ -254,7 +254,7 @@ Yo, Camilo Andres Maestre Iglesias, identificado con la cédula de ciudadanía n
 
 **Fundamentos.** C.P., arts. 23, 74 y 209. Ley 1755 de 2015, arts. 13, 14 y 21. Ley 1712 de 2014, arts. 2, 3 (calidad de la información: «reutilizable, procesable»), 6 (lit. j) y 11 (lit. k). Decreto 1081 de 2015, arts. 2.1.1.2.1.11 y 2.1.1.3.1.5. Resolución MinTIC 1519 de 2020, art. 7 y anexo 4. Decreto 1078 de 2015, art. 2.2.9.1.2.1, num. 4.3 (Decreto 767 de 2022). La información no contiene datos personales (Ley 1581 de 2012, art. 3, lit. c).
 
-**Plazos.** Lo que es información (numerales 3 y 5) debe responderse en 10 días hábiles. Lo demás, en 15 días hábiles (Ley 1755 de 2015, art. 14).
+**Plazos.** Lo pedido en el numeral 2, en cuanto a la copia del archivo, y en los numerales 3 y 5 es información y debe responderse en 10 días hábiles. Lo demás, en 15 días hábiles (Ley 1755 de 2015, art. 14).
 
 **Finalidad.** Soy estudiante de Ingeniería de Sistemas de la Universidad de Cartagena y desarrollo Karta, una aplicación gratuita y de código abierto para moverse en Transcaribe (github.com/cmaestrei-dev/karta). Presento esta petición a título personal. Los datos se usarán citando la fuente.
 
