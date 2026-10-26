@@ -86,9 +86,12 @@ Con eso el servidor estima «sale en ~6 min, según 3 viajeros». Todo vence sol
 - **Animaciones:** el recorrido que se dibuja, los reportes que caen y las hojas que suben, respetando la opción de reducir movimiento del sistema.
 - **Documentación:** reemplaza a «Cal y azulejo»; DESIGN.md se reescribe al final de la fase 1.
 
-**D7 · Despliegue.**
-- **Datos:** MongoDB Atlas M0, gratis.
-- **API:** el contenedor de la API en un servicio gratuito con HTTPS. Render es la primera opción; en la fase 0 se verifican sus condiciones actuales.
+**D7 · Despliegue.** Actualizado el 26 de octubre: AWS en vez de Render. Detalle en [despliegue-aws.md](despliegue-aws.md).
+- **Datos:** MongoDB Atlas M0, gratis, alojado en AWS (`us-east-1`).
+- **API:** la misma app de FastAPI en AWS Lambda, con una Function URL que da HTTPS.
+  - Cabe en la capa siempre gratuita de AWS, así que cuesta USD 0 y no gasta los créditos de la cuenta.
+  - Usa AWS, una de las nubes que se vieron en clase.
+  - Un calentador de EventBridge la invoca cada 5 minutos para que no se apague.
 - **Distribución:** APK de *release* firmado para el piloto.
 - **Desarrollo:** se mantiene Docker Compose y la prueba en el teléfono por cable (`adb reverse`).
 
