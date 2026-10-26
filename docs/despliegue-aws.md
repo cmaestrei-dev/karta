@@ -123,6 +123,12 @@ En CloudShell (la carpeta `karta` se conserva entre sesiones):
 cd karta && git pull && deploy/aws/desplegar.sh
 ```
 
+O desde un computador con la CLI de AWS configurada (`aws configure`), en la raíz del repositorio:
+
+```bash
+PYTHON=backend/.venv/bin/python deploy/aws/desplegar.sh
+```
+
 Para cambiar la cadena de conexión de Atlas, por ejemplo tras cambiar la contraseña: `deploy/aws/desplegar.sh --cambiar-base`.
 
 ## Ver qué pasa
