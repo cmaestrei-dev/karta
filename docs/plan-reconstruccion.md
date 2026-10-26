@@ -231,6 +231,12 @@ Con eso el servidor estima «sale en ~6 min, según 3 viajeros». Todo vence sol
 - **Primer paso, sin depender de la comunidad:** importar Patio Portal, Santa Lucía y las plataformas por ruta desde OpenStreetMap.
 - **Hecho en la fase 3c (25 de octubre):**
   - Santa Lucía (alimentadoras A103, A104, A105, A107, A108 y A111) y el Patio Portal ya son estaciones.
+  - **Recorridos completos (26 de octubre):**
+    - La A104 y la C017 no se sugerían nunca, porque su recorrido en OSM salía con 10 y 4 «cortes».
+    - No eran huecos de verdad, sino cómo se unían las vías: dos vías a 8 m que no comparten nodo, ida y vuelta por las mismas calles, una glorieta, un cruce en T y una vía repetida por error.
+    - El encadenado nuevo (`scripts/importar_osm.py --solo-recorridos`) deja las 24 rutas sin cortes.
+    - Validado contra la capa de rutas de la Alcaldía (solo para medir; sin licencia, no se copia): el 95 % de cada recorrido queda a menos de 7 m, salvo la T102.
+    - Las longitudes coinciden: la A104 pasó de 17,2 a 13,1 km (Alcaldía: 13,0 km) y la C017 de 34,7 a 33,6 km (33,4 km).
   - El planificador trata como transbordos integrados el cambio dentro de una estación y el de Santa Lucía a Madre Bernarda (40 m por la cebra; el pasaje no se cobra otra vez dentro de 90 minutos).
   - Entrar desde la calle a una estación troncal suma 2 minutos por cruzar la avenida.
   - Sobre la troncal, las rutas X solo paran en estaciones.

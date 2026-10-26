@@ -74,3 +74,4 @@ Hora de llegada de la opción más rápida. «Karta antes» es la versión previ
   Cada sitio lleva su barrio, para distinguir los que se llaman igual («Terpel · Alto Bosque»).
 - ~~**Elegir el día** de salida, no solo la hora.~~ **Hecho:** «Hoy, a otra hora», «Mañana» u «Otro día» (hasta un mes), y la cabecera dice «Vie 30 oct 8:00 a. m.».
 - **Repetir esta comparación** en el piloto con viajes reales, midiendo la hora a la que se llega de verdad.
+- ~~**Las rutas A104 y C017**, que Karta nunca sugería porque su recorrido en OSM salía cortado.~~ **Hecho:** se arregló el encadenado de las vías, y las 24 rutas quedaron completas (ver D18 en el plan).

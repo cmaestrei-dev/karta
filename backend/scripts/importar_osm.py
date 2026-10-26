@@ -5,6 +5,7 @@ Cartagena, y los guarda procesados en backend/data/ para cargarlos en MongoDB co
 Uso (desde backend/):
     python -m scripts.importar_osm                  # rutas, estaciones y lugares
     python -m scripts.importar_osm --solo-lugares   # solo los lugares buscables
+    python -m scripts.importar_osm --solo-recorridos   # solo el trazado de las rutas que ya están
 
 Datos © colaboradores de OpenStreetMap, disponibles bajo la licencia ODbL.
 """
@@ -100,20 +101,53 @@ def consultar_overpass(consulta: str) -> list[dict]:
     raise RuntimeError("Overpass no está disponible; intenta más tarde.")
 
 
+HUECO_TOLERABLE_M = 150   # un hueco menor se cruza en línea recta; uno mayor es un corte de la relación
+
+
 def encadenar_vias(vias: list[list[tuple[float, float]]]) -> tuple[list[tuple[float, float]], int]:
-    """Une las vías de una relación en una sola línea orientada. Devuelve (línea, cortes)."""
+    """
+    Une las vías de una relación en una sola línea orientada. Devuelve (línea, cortes).
+
+    Cada vía se toma por el extremo más cercano a donde va la línea: en OSM a veces dos vías seguidas no comparten
+    el nodo (quedan a 8 m), y una ruta de ida y vuelta repite las vías en sentido contrario. Las glorietas (vías
+    cerradas) se recorren en su sentido, desde el nodo más cercano a la llegada hasta el más cercano a la vía que
+    sigue. Si la línea llega a la mitad de una vía (un cruce en T), se toma la mitad que lleva a la vía siguiente.
+    Una vía repetida dos veces seguidas se salta cuando la siguiente arranca donde ya está la línea (un error de
+    OSM; un retorno de verdad, como al final de una calle ciega, sigue desde el otro extremo). Solo un hueco de más
+    de 150 m cuenta como corte.
+    """
     linea = list(vias[0])
+    if len(vias) > 1:
+        siguiente = vias[1]
+        lejos = lambda p: min(distancia_m(p, siguiente[0]), distancia_m(p, siguiente[-1]))
+        if lejos(linea[0]) < lejos(linea[-1]):
+            linea.reverse()  # la primera vía venía en sentido contrario
     cortes = 0
     for i, via in enumerate(vias[1:], start=1):
-        if i == 1 and linea[0] in (via[0], via[-1]) and linea[-1] not in (via[0], via[-1]):
-            linea.reverse()  # la primera vía venía en sentido contrario
-        if via[0] == linea[-1]:
-            linea.extend(via[1:])
-        elif via[-1] == linea[-1]:
-            linea.extend(reversed(via[:-1]))
+        fin = linea[-1]
+        sigue = vias[i + 1] if i + 1 < len(vias) else None
+        if sigue is not None and set(via) == set(vias[i - 1]) and fin in (sigue[0], sigue[-1]):
+            continue  # la misma vía dos veces seguidas y la siguiente arranca aquí: está repetida por error en OSM
+        if via[0] == via[-1] and len(via) > 3:
+            ciclo = via[:-1]
+            entra = min(range(len(ciclo)), key=lambda k: distancia_m(fin, ciclo[k]))
+            sale = entra if sigue is None else min(
+                range(len(ciclo)), key=lambda k: min(distancia_m(ciclo[k], sigue[0]), distancia_m(ciclo[k], sigue[-1])))
+            tramo, k = [ciclo[entra]], entra
+            while k != sale:
+                k = (k + 1) % len(ciclo)
+                tramo.append(ciclo[k])
+        elif fin in via[1:-1]:
+            # Se entra a la vía por la mitad (un cruce en T): sigue la mitad que lleva hacia la vía siguiente.
+            k = via.index(fin)
+            mitades = [via[k:], via[k::-1]]
+            tramo = max(mitades, key=len) if sigue is None else min(
+                mitades, key=lambda t: min(distancia_m(t[-1], sigue[0]), distancia_m(t[-1], sigue[-1])))
         else:
+            tramo = via if distancia_m(fin, via[0]) <= distancia_m(fin, via[-1]) else via[::-1]
+        if distancia_m(fin, tramo[0]) > HUECO_TOLERABLE_M:
             cortes += 1  # relación incompleta en OSM: se salta el hueco
-            linea.extend(via)
+        linea.extend(tramo[1:] if tramo[0] == fin else tramo)
     return linea, cortes
 
 
@@ -279,9 +313,32 @@ def solo_lugares():
     print(f"✅ {len(lugares)} lugares.")
 
 
+def solo_recorridos():
+    """Vuelve a encadenar el trazado de las rutas que ya están, sin tocar las estaciones ni los lugares."""
+    transcaribe = json.loads((DATA_DIR / "transcaribe.json").read_text(encoding="utf-8"))
+    nuevas = {r["_id"]: r for r in procesar_rutas(consultar_overpass(CONSULTA_RUTAS), [])["rutas"]}
+    for ruta in transcaribe["rutas"]:
+        nueva = nuevas.get(ruta["_id"])
+        if nueva is None:
+            print(f"   ⚠️ {ruta['_id']}: ya no está en OSM; queda como estaba")
+            continue
+        antes = (ruta["cortes_en_osm"], len(ruta["geometria"]["coordinates"]))
+        ruta["geometria"], ruta["cortes_en_osm"] = nueva["geometria"], nueva["cortes_en_osm"]
+        if antes != (ruta["cortes_en_osm"], len(ruta["geometria"]["coordinates"])):
+            print(f"   {ruta['_id']}: cortes {antes[0]} → {ruta['cortes_en_osm']}, "
+                  f"vértices {antes[1]} → {len(ruta['geometria']['coordinates'])}")
+    for ref in sorted(set(nuevas) - {r["_id"] for r in transcaribe["rutas"]}):
+        print(f"   ℹ️ {ref}: está en OSM y no en Karta; no se agrega sola")
+    transcaribe["atribucion"] = "Datos © colaboradores de OpenStreetMap (ODbL), descargados el " + time.strftime("%Y-%m-%d")
+    with open(DATA_DIR / "transcaribe.json", "w", encoding="utf-8") as archivo:
+        json.dump(transcaribe, archivo, ensure_ascii=False, separators=(",", ":"))
+
+
 def main():
     if "--solo-integraciones" in sys.argv:
         return solo_estaciones_de_integracion()
+    if "--solo-recorridos" in sys.argv:
+        return solo_recorridos()
     if "--solo-lugares" in sys.argv:
         return solo_lugares()
     DATA_DIR.mkdir(exist_ok=True)
