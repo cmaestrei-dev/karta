@@ -637,7 +637,7 @@ class _Cabecera extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             SizedBox(
-              height: 40,
+              height: 48, // lo mínimo para tocar con el dedo (y para TalkBack)
               child: ListView(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 2),
@@ -737,7 +737,7 @@ class _Extremo extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         onTap: onTap,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 40),
+          constraints: const BoxConstraints(minHeight: 48), // lo mínimo para tocar con el dedo
           child: Row(
             children: [
               const SizedBox(width: 6),
@@ -884,7 +884,7 @@ class _Burbujas extends StatelessWidget {
             key: ValueKey('burbuja-$k-${o.tiempoTotalMin}'),
             point: burbujas[k],
             width: 170,
-            height: 44,
+            height: 52,
             child: Center(
               child: _BurbujaDeTiempo(
                 opcion: o,
@@ -986,28 +986,33 @@ class _BurbujaDeTiempo extends StatelessWidget {
         onTap: onTap,
         child: GestureDetector(
           onTap: onTap,
-          child: AnimatedContainer(
-            duration: Movimiento.rapido,
-            height: 38,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: elegida ? color : b.hoja,
-              borderRadius: BorderRadius.circular(19),
-              border: Border.all(color: color, width: 2),
-              boxShadow: const [BoxShadow(color: Color(0x59000000), blurRadius: 12, offset: Offset(0, 5))],
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '${opcion.tiempoTotalMin} min',
-                  style: texto.titleSmall?.copyWith(color: tinta, fontFeatures: tabularFigures),
-                ),
-                if (etiqueta != null) ...[
-                  const SizedBox(width: 4),
-                  Text('· $etiqueta', style: texto.labelMedium?.copyWith(color: elegida ? tinta : b.textoSuave)),
+          behavior: HitTestBehavior.opaque,
+          // Se ve de 38, pero la zona de toque mide 48: lo mínimo para el dedo y para TalkBack.
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 5),
+            child: AnimatedContainer(
+              duration: Movimiento.rapido,
+              height: 38,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: elegida ? color : b.hoja,
+                borderRadius: BorderRadius.circular(19),
+                border: Border.all(color: color, width: 2),
+                boxShadow: const [BoxShadow(color: Color(0x59000000), blurRadius: 12, offset: Offset(0, 5))],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${opcion.tiempoTotalMin} min',
+                    style: texto.titleSmall?.copyWith(color: tinta, fontFeatures: tabularFigures),
+                  ),
+                  if (etiqueta != null) ...[
+                    const SizedBox(width: 4),
+                    Text('· $etiqueta', style: texto.labelMedium?.copyWith(color: elegida ? tinta : b.textoSuave)),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),
