@@ -104,15 +104,22 @@ class TarjetaDeOpcion extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(
-                  width: 56,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('${opcion.tiempoTotalMin}',
-                          style: texto.displaySmall?.copyWith(fontSize: 32, height: 1, fontFeatures: tabularFigures)),
-                      Text('min', style: texto.labelMedium?.copyWith(color: b.textoSuave)),
-                    ],
+                // Con la letra más grande, los minutos crecen hasta 1,5 veces y la columna se ensancha con ellos.
+                MediaQuery.withClampedTextScaling(
+                  maxScaleFactor: 1.5,
+                  child: Builder(
+                    builder: (context) => SizedBox(
+                      width: MediaQuery.textScalerOf(context).scale(56),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('${opcion.tiempoTotalMin}',
+                              style: texto.displaySmall
+                                  ?.copyWith(fontSize: 32, height: 1, fontFeatures: tabularFigures)),
+                          Text('min', style: texto.labelMedium?.copyWith(color: b.textoSuave)),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -182,7 +189,7 @@ class _ReportesEnElCamino extends StatelessWidget {
         children: [
           Icon(Icons.check, size: 16, color: b.enVivo),
           const SizedBox(width: 6),
-          Text('Sin reportes en el camino', style: texto.labelMedium?.copyWith(color: b.textoSuave)),
+          Flexible(child: Text('Sin reportes en el camino', style: texto.labelMedium?.copyWith(color: b.textoSuave))),
         ],
       );
     }
@@ -232,7 +239,8 @@ class LegSequence extends StatelessWidget {
               Icon(Icons.directions_walk, size: 18, color: b.texto),
               Text('${tramo.duracionMin}', style: estilo),
             ])
-          : Row(mainAxisSize: MainAxisSize.min, children: [
+          // «T103 o T101» se parte en dos renglones si no cabe (letra grande).
+          : Wrap(crossAxisAlignment: WrapCrossAlignment.center, runSpacing: 4, children: [
               for (final (k, ruta) in tramo.rutas.indexed) ...[
                 if (k > 0) Padding(padding: const EdgeInsets.symmetric(horizontal: 3), child: Text('o', style: estilo)),
                 RouteCapsule(codigo: ruta, tipo: tramo.tipoRuta),
