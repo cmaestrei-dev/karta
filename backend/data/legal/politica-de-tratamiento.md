@@ -49,12 +49,18 @@ Karta no te pide nombre, correo ni documento para funcionar. Lo que trata depend
 - **Registros de errores del servidor**, para corregir fallas. Pueden incluir datos técnicos de la petición que falló. **Se borran a los 7 días.**
 - **En tu teléfono** quedan tu sesión, el secreto de tu cuenta invisible (en el almacenamiento seguro del sistema) y tus preferencias. Se borran al desinstalar la app.
 
+### Estadísticas agregadas y anónimas
+
+- Con lo que comparten todos los viajeros, Karta calcula estadísticas del transporte. Por ejemplo: cuánto se espera de verdad cada ruta a cada hora, qué tan llenos van los buses por franja, dónde se repiten los desvíos o los reportes de «el bus no pasa».
+- Se calculan antes de que se borren los datos de los que salen, y se conservan, porque no identifican a nadie.
+- **Pueden publicarse, compartirse o venderse** a entidades públicas (como Transcaribe, el DATT o la Alcaldía), universidades, empresas u otras organizaciones, para sostener Karta.
+- **Nunca permiten identificar a nadie:** no llevan cuentas, correos, alias ni recorridos individuales, y cada cifra reúne al menos 10 viajes o reportes distintos.
+
 ### Lo que no hacemos
 
-- No vendemos ni alquilamos datos.
-- No hay publicidad ni perfiles comerciales.
+- No vendemos, alquilamos ni entregamos tus datos personales a terceros.
+- No hay publicidad en la app ni hacemos perfiles comerciales de los viajeros.
 - No usamos tus datos para fines distintos de los de esta política sin pedirte una nueva autorización.
-- Podemos publicar o compartir **estadísticas agregadas** que no permiten identificar a nadie (por ejemplo, cuántos reportes de «el bus no pasa» tuvo cada ruta en un mes).
 
 ## 3. Dónde se guardan y quién más los trata
 

@@ -14,15 +14,14 @@ router = APIRouter(prefix="/api/v1/legal", tags=["Legal"])
 _PLANTILLA = Path(__file__).resolve().parents[3] / "data" / "legal" / "politica-de-tratamiento.md"
 
 
-RESPONSABLE = "Camilo Andrés Maestre Iglesias"
-
-
 class PoliticaResponse(BaseModel):
     version: str
     vigente_desde: str
-    responsable: str
     correo: str  # para consultas y reclamos: el aviso de privacidad lo muestra (Decreto 1074, art. 2.2.2.25.3.3)
     texto: str  # Markdown: títulos, párrafos, listas, negrillas y enlaces
+    # Vacío: el nombre ya no sale en el aviso, solo en la sección 1 del texto. Lo exigen las APK instaladas antes del
+    # 26 de octubre de 2026; se quita cuando el piloto use la nueva.
+    responsable: str = ""
 
 
 @lru_cache(maxsize=1)
@@ -38,7 +37,7 @@ def _politica() -> str:
 def politica():
     """La versión vigente, con los datos de contacto del responsable. La app la muestra en el aviso de privacidad."""
     return PoliticaResponse(version=VERSION_POLITICA, vigente_desde=config.POLITICA_VIGENTE_DESDE,
-                            responsable=RESPONSABLE, correo=config.RESPONSABLE_CORREO, texto=_politica())
+                            correo=config.RESPONSABLE_CORREO, texto=_politica())
 
 
 _PAGINA = """<!doctype html>

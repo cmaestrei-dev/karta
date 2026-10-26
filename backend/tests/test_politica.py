@@ -6,13 +6,13 @@ from tests.test_api import _auth
 def test_la_politica_se_sirve_completa_con_sus_seis_contenidos_minimos(api):
     respuesta = api.get("/api/v1/legal/politica").json()
     assert respuesta["version"] == VERSION_POLITICA
-    assert respuesta["responsable"] == "Camilo Andrés Maestre Iglesias" and respuesta["correo"]
+    assert respuesta["correo"]
     texto = respuesta["texto"]
     assert "{{" not in texto  # ningún marcador sin llenar
     # Decreto 1074, art. 2.2.2.25.3.1: responsable, tratamiento y finalidad, derechos, quién atiende,
     # procedimiento y vigencia.
     for seccion in ("Quién es el responsable", "Qué datos tratamos", "Tus derechos", "Consultas y reclamos",
-                    "10 días hábiles", "15 días hábiles", "Vigencia"):
+                    "10 días hábiles", "15 días hábiles", "Vigencia", "Estadísticas agregadas y anónimas"):
         assert seccion in texto, seccion
 
 

@@ -6,7 +6,8 @@ import '../../../core/api_client.dart';
 class Politica {
   final String version;
   final String vigenteDesde;
-  final String responsable;
+
+  /// El correo para consultas y reclamos, que el aviso de privacidad muestra.
   final String correo;
 
   /// Markdown: títulos, párrafos, listas, negrillas y enlaces.
@@ -15,7 +16,6 @@ class Politica {
   const Politica({
     required this.version,
     required this.vigenteDesde,
-    required this.responsable,
     required this.correo,
     required this.texto,
   });
@@ -23,7 +23,6 @@ class Politica {
   factory Politica.fromJson(Map<String, dynamic> json) => Politica(
         version: json['version'] as String,
         vigenteDesde: json['vigente_desde'] as String,
-        responsable: json['responsable'] as String,
         correo: json['correo'] as String,
         texto: json['texto'] as String,
       );

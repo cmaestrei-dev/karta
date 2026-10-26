@@ -15,7 +15,6 @@ class _PoliticaFalsa implements PoliticaRepository {
   Future<Politica> politica() async => const Politica(
         version: '1.0',
         vigenteDesde: '1 de noviembre de 2026',
-        responsable: 'Camilo Andrés Maestre Iglesias',
         correo: 'privacidad@karta.test',
         texto: '# Política\n\n## 1. Quién\n\n- **Correo:** privacidad@karta.test.\n\nUn párrafo.',
       );
@@ -27,13 +26,15 @@ Future<void> _montar(WidgetTester tester, Widget hijo) => tester.pumpWidget(Repo
     ));
 
 void main() {
-  testWidgets('el aviso dice quién responde y cómo escribirle, y se acepta solo siendo mayor de edad', (tester) async {
+  testWidgets('el aviso dice cómo escribir y dónde está la política, y se acepta solo siendo mayor de edad',
+      (tester) async {
     String? aceptada;
     await _montar(tester, AvisoDePrivacidad(onAceptar: (v) => aceptada = v));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Camilo Andrés Maestre Iglesias'), findsOneWidget);
     expect(find.textContaining('privacidad@karta.test'), findsWidgets);
+    expect(find.textContaining('estadísticas anónimas'), findsOneWidget);
+    expect(find.textContaining('nunca vendemos tus datos personales'), findsOneWidget);
     expect(find.text('Leer la política completa (versión 1.0)'), findsOneWidget);
 
     // Sin la casilla de edad, el botón no hace nada: nunca hay aceptación por omisión.

@@ -33,6 +33,22 @@ Todas las bases están en MongoDB Atlas (AWS us-east-1). Los encargados son Mong
 
 **Aunque no lleven cuenta, se tratan como datos personales** los viajes compartidos, los avistamientos, los puntos de subida y las respuestas de parada. Al recogerse llegan con la IP, y la ley colombiana no define la anonimización. Por eso están en la política, con su plazo.
 
+### Estadísticas agregadas y anónimas
+
+Son la base de la analítica para entidades del [plan de sostenibilidad](../plan-sostenibilidad.md) (§3.1). Pueden publicarse, compartirse o venderse.
+
+- **Por qué se pueden vender:**
+  - Una estadística que no puede asociarse a ninguna persona no es un dato personal (Ley 1581, art. 3 c), así que lo que se entrega queda fuera de la ley.
+  - Calcularla, en cambio, sí es tratar datos personales. Por eso es una finalidad declarada en la política desde la versión 1.1 y el viajero la acepta en el aviso (art. 4 b; Decreto 1074, art. 2.2.2.25.2.2).
+  - Vender los datos mismos, o cualquier tabla con una fila por viaje, por reporte o por cuenta, sigue prohibido por la política.
+- **Reglas de cada tabla que salga de la base:**
+  - Solo conteos, promedios o percentiles por celda: ruta, estación o tramo, franja de al menos 15 minutos y tipo de día.
+  - Cada celda reúne al menos **10 viajes o reportes distintos**: códigos de viaje distintos para el tiempo real, cuentas distintas para los reportes. Las celdas con menos se suprimen, no se redondean.
+  - Nunca salen cuentas, correos, alias, IP, códigos de viaje ni la secuencia de puntos de un mismo viaje (recorridos).
+  - No se cruzan con otras fuentes que permitan reidentificar, ni se calculan para un grupo tan pequeño que señale a alguien (por ejemplo, un paradero con un solo usuario).
+- **Cuándo:** antes de que el TTL borre los datos de origen. Las tablas resultantes se conservan sin plazo.
+- **A quién se entregan:** con un acuerdo que prohíba intentar reidentificar a alguien y entregar la tabla a terceros sin estas reglas.
+
 ## 2. Autorización y su prueba
 
 - **Al abrir la app por primera vez,** el aviso de privacidad se muestra antes de crear la cuenta o de pedir la ubicación (`frontend/lib/features/legal/presentation/aviso_de_privacidad.dart`).
@@ -47,6 +63,10 @@ Todas las bases están en MongoDB Atlas (AWS us-east-1). Los encargados son Mong
   3. Desplegar: la app vuelve a mostrar el aviso a todos antes de seguir.
 
   Si cambia una finalidad, eso es una nueva autorización (art. 2.2.2.25.2.2).
+
+  **Historial:**
+  - 1.0: primera versión.
+  - 1.1 (26 de octubre de 2026): se agregó la finalidad de las estadísticas agregadas y anónimas, que pueden venderse.
 
 ## 3. Atención de consultas y reclamos
 
@@ -90,6 +110,7 @@ Un incidente es, por ejemplo, una llave de AWS o la contraseña de Atlas filtrad
 | Una IP en los límites de peticiones | Ventanas de 1 min a 1 h, borradas por TTL |
 | Llaves y secretos | Mínimo privilegio en IAM (política `karta-despliegue`); secretos solo en la configuración de Lambda; Atlas con usuario limitado a la base `karta` y TLS |
 | Atlas abierto a cualquier IP (Lambda no tiene IP fija) | Contraseña larga generada por Atlas, TLS obligatorio, usuario sin otros permisos |
+| Reidentificar a alguien con las estadísticas que se venden o publican | Mínimo 10 viajes o reportes distintos por celda; nada de recorridos, códigos ni cuentas; acuerdo con quien las recibe (sección 1) |
 | Uso por menores | El aviso pide confirmar 18 años o más durante el piloto; si se detecta un menor, se borran sus datos |
 
 ## 6. Encargados y transmisión internacional

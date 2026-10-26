@@ -5,8 +5,9 @@ import '../../../core/design/bahia.dart';
 import '../data/politica_repository.dart';
 import 'politica_screen.dart';
 
-/// El aviso de privacidad (Ley 1581; Decreto 1074, arts. 2.2.2.25.3.2 y 2.2.2.25.3.3): antes de recoger cualquier
-/// dato, quién es el responsable, qué se trata y para qué, los derechos y cómo leer la política completa. Se acepta
+/// El aviso de privacidad (Ley 1581, art. 12; Decreto 1074, arts. 2.2.2.25.3.2 y 2.2.2.25.3.3): antes de recoger
+/// cualquier dato, qué se trata y para qué, los derechos, el correo y la política completa a un toque, que identifica
+/// al responsable (sección 1), porque su nombre no se muestra en la app. Se acepta
 /// con un acto afirmativo («Acepto y continuar»): el silencio o seguir usando la app nunca cuentan. Vuelve a salir si
 /// la política cambia.
 class AvisoDePrivacidad extends StatefulWidget {
@@ -99,13 +100,15 @@ class _AvisoDePrivacidadState extends State<AvisoDePrivacidad> {
                         punto(Icons.campaign_outlined,
                             'Tus reportes se muestran a todos con tu alias y se borran solos en horas.'),
                         punto(Icons.cloud_outlined,
-                            'Los datos se guardan en servidores de Amazon Web Services y MongoDB en Estados Unidos. '
-                            'No hay publicidad y no vendemos datos.'),
+                            'Los datos se guardan en servidores de Amazon Web Services y MongoDB en Estados Unidos.'),
+                        punto(Icons.insights_outlined,
+                            'Con los datos de todos hacemos estadísticas anónimas del transporte, que podemos compartir '
+                            'o vender sin identificar a nadie. No hay publicidad y nunca vendemos tus datos personales.'),
                         punto(Icons.verified_user_outlined,
                             'Puedes conocer, corregir y borrar tus datos, y retirar esta autorización, desde Perfil › '
                             'Privacidad o escribiendo a ${politica.correo}.'),
                         const SizedBox(height: 18),
-                        Text('Responsable: ${politica.responsable}, Cartagena · ${politica.correo}',
+                        Text('Quién es el responsable y cómo ejercer tus derechos está en la política completa.',
                             style: texto.bodySmall?.copyWith(color: b.textoSuave)),
                         Align(
                           alignment: Alignment.centerLeft,

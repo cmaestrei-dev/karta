@@ -98,7 +98,7 @@ void showProfileSheet(BuildContext context) {
 void _acercaDeKarta(BuildContext context) => showAboutDialog(
       context: context,
       applicationName: 'Karta',
-      applicationLegalese: '© 2026 Camilo Andres Maestre Iglesias',
+      applicationLegalese: '© 2026 Karta',
       children: const [
         SizedBox(height: 16),
         Text('El tiempo real de Transcaribe, hecho por sus pasajeros. Sin anuncios.'),
