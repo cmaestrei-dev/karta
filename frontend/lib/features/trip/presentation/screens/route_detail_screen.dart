@@ -382,6 +382,18 @@ class _FilaDeTramo extends StatelessWidget {
                 if (tramo.comoAbordar != null)
                   Text(tramo.comoAbordar![0].toUpperCase() + tramo.comoAbordar!.substring(1),
                       style: texto.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                if (tramo.advertencia != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.info_outline, size: 18, color: scheme.onSurfaceVariant),
+                        const SizedBox(width: 6),
+                        Expanded(child: Text(tramo.advertencia!, style: secundario)),
+                      ],
+                    ),
+                  ),
                 Text('Espera aprox. ${minutos(tramo.esperaMin)} · ${minutos(tramo.duracionMin)} de viaje',
                     style: secundario?.copyWith(fontFeatures: tabularFigures)),
                 const SizedBox(height: 4),

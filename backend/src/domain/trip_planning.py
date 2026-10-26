@@ -57,6 +57,22 @@ INTEGRACIONES = {
                    "Al entrar vuelves a pasar la tarjeta, pero no te cobra si cambias en menos de 90 minutos."),
 }
 
+# Estaciones enfrentadas que se confunden: quien llega desde la calle puede entrar a la equivocada. Para cada una,
+# a qué tipos de ruta sirve y qué decirle a quien va a tomar una de esas rutas en ella.
+ESTACIONES_ENFRENTADAS = {
+    "madre-bernarda": (("troncal", "pretroncal"),
+                       "Ojo: Santa Lucía, la estación de enfrente, es solo de alimentadoras. Entra a Madre Bernarda."),
+    "santa-lucia": (("alimentadora",),
+                    "Ojo: las alimentadoras paran en Santa Lucía; Madre Bernarda, la de enfrente, es de troncales."),
+}
+
+
+def advertencia_de_estacion(estacion: str | None, tipo_ruta: str) -> str | None:
+    """«Ojo: Santa Lucía, la de enfrente, es solo de alimentadoras», para quien va a subir en Madre Bernarda."""
+    tipos, advertencia = ESTACIONES_ENFRENTADAS.get(estacion or "", ((), None))
+    return advertencia if tipo_ruta in tipos else None
+
+
 VELOCIDAD_BUS_KMH = {"troncal": 30, "pretroncal": 18, "alimentadora": 15, "complementaria": 15}
 # Las troncales van rápido en su carril y se detienen en cada estación de su servicio (con estaciones cada unos
 # 800 m, el promedio da unos 22 km/h): así un expreso como la T100E, que se salta estaciones, llega antes que la
@@ -84,6 +100,7 @@ class Tramo:
     hacia: str | None = None            # hacia dónde va el bus («Bocagrande»)
     integrado: bool = False             # caminata de un transbordo en la misma estación o en una integración
     indicacion: str | None = None       # cómo hacer el cambio («Sal de Santa Lucía y cruza por la cebra…»)
+    advertencia: str | None = None      # al subir en una estación que se confunde con la de enfrente
 
 
 @dataclass(frozen=True)

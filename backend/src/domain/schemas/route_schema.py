@@ -75,6 +75,8 @@ class TramoResponse(BaseModel):
         default_factory=list, description="Otras rutas igual de buenas en este tramo: se toma la que pase primero")
     modulo: str | None = Field(None, description="Módulo de la estación donde para el bus en este sentido («A1»)")
     hacia: str | None = Field(None, description="Hacia dónde va el bus («Bocagrande»)")
+    advertencia: str | None = Field(
+        None, description="Al subir en una estación que se confunde con la de enfrente (Madre Bernarda y Santa Lucía)")
     indicacion: str | None = Field(
         None, description="En la caminata de un transbordo integrado, cómo hacer el cambio "
                           "(«Sal de Santa Lucía y cruza por la cebra hasta Madre Bernarda…»)")

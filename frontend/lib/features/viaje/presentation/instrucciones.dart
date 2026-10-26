@@ -127,6 +127,10 @@ String textoDeLoQueSeSabe(ComoSePideAqui sabido) {
 
 /// Cultura ciudadana mientras se espera: un recordatorio amable en el momento justo, sin regañar ni premiar
 /// (docs/plan-comunidad.md). En la estación, la fila de la ruta; cuando el bus ya llega, dejar bajar.
+/// Mientras se camina a la estación, lo que conviene saber antes de entrar: «Ojo: Santa Lucía, la estación de
+/// enfrente, es solo de alimentadoras».
+String? consejoAlCaminar(Leg? bus) => bus?.advertencia;
+
 String? consejoDeEspera(Leg bus, Llegada? llegada) {
   final m = llegada?.minutos;
   if (m != null && m <= 1 && !llegada!.sinConexion) return 'Deja bajar primero y sube en orden.';

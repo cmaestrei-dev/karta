@@ -9,9 +9,9 @@ from src.domain.paraderos import abordaje
 from src.domain.ports import IncidentRepository, PlaceRepository, TransitRepository
 from src.domain.route_risk import PENALIZACION_RIESGO_MIN, RADIO_BUSQUEDA_M, ResultadoRiesgo, evaluar_riesgo
 from src.domain.trip_planning import (
-    CAMINATA_MAXIMA_DE_ACCESO_M, MAX_CORTES_CONFIABLES, OpcionViaje, PasoCercano, caminata_entre, carril_de_la_troncal,
-    costo_percibido, con_alternativas, donde_pasa_cerca, el_que_pase_primero, estaciones_en_orden, muestrear, paradas_del_tramo,
-    planificar,
+    CAMINATA_MAXIMA_DE_ACCESO_M, MAX_CORTES_CONFIABLES, OpcionViaje, PasoCercano, advertencia_de_estacion,
+    caminata_entre, carril_de_la_troncal, costo_percibido, con_alternativas, donde_pasa_cerca, el_que_pase_primero,
+    estaciones_en_orden, muestrear, paradas_del_tramo, planificar,
 )
 
 Criterio = Literal["rapida", "segura", "sin_transbordo"]
@@ -218,9 +218,12 @@ class TripService:
                      for r in (ruta, *tramos[k].alternativas)]
             modulos = {c.modulo if c else None for c in comos}
             destinos = list(dict.fromkeys(c.hacia for c in comos if c and c.hacia))  # «Bocagrande o el Centro»
+            # Quien llega desde la calle (no de un transbordo integrado) puede entrar a la estación de enfrente.
+            advertencia = (advertencia_de_estacion(estacion_subida.id, ruta.tipo)
+                           if estacion_subida and not tramos[k - 1].integrado else None)
             tramos[k] = replace(tramos[k], desde=subida, hasta=bajada, paradas=paradas_del_tramo(tramos[k], estaciones),
                                 modulo=modulos.pop() if len(modulos) == 1 else None,
-                                hacia=" o ".join(destinos) if destinos else None)
+                                hacia=" o ".join(destinos) if destinos else None, advertencia=advertencia)
 
         # Cada caminata va del punto anterior al siguiente: el origen, una bajada, una subida o el destino.
         for k, tramo in enumerate(tramos):

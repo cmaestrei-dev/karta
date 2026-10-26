@@ -312,6 +312,17 @@ void main() {
     expect(consejoDeEspera(paradero, const Llegada(minutos: 1, fuentes: 1, sinConexion: true)), isNull);
   });
 
+  test('camino a Madre Bernarda advierte que Santa Lucía, la de enfrente, es de alimentadoras', () {
+    final bus = Leg.fromJson({
+      'modo': 'bus', 'desde': 'Estación Madre Bernarda', 'hasta': 'Estación La Bodeguita', 'distancia_m': 9000,
+      'duracion_min': 20, 'ruta': 'T103', 'tipo_ruta': 'troncal', 'modulo': 'A1',
+      'advertencia': 'Ojo: Santa Lucía, la estación de enfrente, es solo de alimentadoras. Entra a Madre Bernarda.',
+      'geometria': {'type': 'LineString', 'coordinates': [[-75.4786, 10.3951], [-75.5514, 10.4200]]},
+    });
+    expect(consejoAlCaminar(bus), startsWith('Ojo: Santa Lucía'));
+    expect(consejoAlCaminar(null), isNull);
+  });
+
   group('cómo pediste la parada', () {
     test('antes de subir sabe cómo se pide en la bajada; ya abajo pregunta una vez y se puede responder', () async {
       servidor.sabido = const ComoSePideAqui(como: ComoSePidio.timbre, viajeros: 4);

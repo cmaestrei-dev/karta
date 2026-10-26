@@ -41,3 +41,23 @@ def test_las_opciones_dicen_el_modulo_y_hacia_donde_va_el_bus(api):
     buses = [t for o in respuesta["opciones"] for t in o["tramos"]
              if t["modo"] == "bus" and "T101" in [t["ruta"], *t["alternativas"]]]
     assert buses and buses[0]["modulo"] == "A1" and "el Centro" in buses[0]["hacia"]
+
+
+def test_al_subir_en_madre_bernarda_advierte_que_santa_lucia_es_de_alimentadoras(api):
+    from src.domain.trip_planning import advertencia_de_estacion
+    assert "Santa Lucía" in advertencia_de_estacion("madre-bernarda", "troncal")
+    assert advertencia_de_estacion("madre-bernarda", "alimentadora") is None
+    assert "Santa Lucía" in advertencia_de_estacion("santa-lucia", "alimentadora")
+    assert advertencia_de_estacion("la-bodeguita", "troncal") is None
+
+    # Llegando desde la calle a Madre Bernarda para tomar la troncal hacia La Bodeguita.
+    viaje = lambda origen, destino: api.post("/api/v1/routes/suggest", json={
+        "origen": origen, "destino": destino, "salida": "2026-10-27T08:00:00-05:00"}).json()["opciones"]
+    opciones = viaje({"lat": 10.395141, "lon": -75.478607}, {"lat": 10.420019, "lon": -75.55141})
+    primer_bus = next(t for t in opciones[0]["tramos"] if t["modo"] == "bus")
+    assert primer_bus["advertencia"].startswith("Ojo: Santa Lucía")
+    # De la A107 al Centro se cambia en Santa Lucía y se cruza: el segundo bus ya trae su indicación, sin advertencia.
+    con_cambio = [o for o in viaje({"lat": 10.380317, "lon": -75.490698}, {"lat": 10.42304, "lon": -75.549219})
+                  if o["transbordos"] == 1 and o["tramos"][1]["ruta"] == "A107"]
+    segundo = [t for t in con_cambio[0]["tramos"] if t["modo"] == "bus"][1]
+    assert segundo["desde"] == "Estación Madre Bernarda" and segundo["advertencia"] is None

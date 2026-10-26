@@ -44,6 +44,10 @@ class Leg extends Equatable {
   final String? modulo;
   final String? hacia;
 
+  /// Al subir en una estación que se confunde con la de enfrente: «Ojo: Santa Lucía, la estación de enfrente, es
+  /// solo de alimentadoras».
+  final String? advertencia;
+
   /// Otras rutas igual de buenas en este tramo: se toma la que pase primero (D19).
   final List<String> alternativas;
 
@@ -62,6 +66,7 @@ class Leg extends Equatable {
     this.indicacion,
     this.modulo,
     this.hacia,
+    this.advertencia,
     this.alternativas = const [],
   });
 
@@ -108,6 +113,7 @@ class Leg extends Equatable {
         tipoRuta: json['tipo_ruta'] as String?,
         indicacion: json['indicacion'] as String?,
         modulo: json['modulo'] as String?,
+        advertencia: json['advertencia'] as String?,
         hacia: json['hacia'] as String?,
         alternativas: [for (final r in json['alternativas'] as List? ?? const []) r as String],
         paradas: [

@@ -199,13 +199,23 @@ class _ViajeViewState extends State<_ViajeView> {
                             : null,
                       )
                     : null;
-            final consejo =
-                state.estado.fase == Fase.esperando ? consejoDeEspera(seguidor.tramoActual, llegada) : null;
+            final caminando = state.estado.fase == Fase.caminandoALaParada;
+            final consejo = switch (state.estado.fase) {
+              Fase.esperando => consejoDeEspera(seguidor.tramoActual, llegada),
+              Fase.caminandoALaParada => consejoAlCaminar(seguidor.tramoSiguiente),
+              _ => null,
+            };
             final arriba = consejo == null
                 ? enVivo
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [?enVivo, _Consejo(texto: consejo, solo: enVivo == null)],
+                    children: [
+                      ?enVivo,
+                      _Consejo(
+                          texto: consejo,
+                          solo: enVivo == null,
+                          icono: caminando ? Icons.info_outline : Icons.people_alt_outlined),
+                    ],
                   );
             return Stack(
               children: [
@@ -833,7 +843,9 @@ class _Consejo extends StatelessWidget {
   /// Sin la llegada encima, necesita su propio margen arriba.
   final bool solo;
 
-  const _Consejo({required this.texto, required this.solo});
+  final IconData icono;
+
+  const _Consejo({required this.texto, required this.solo, this.icono = Icons.people_alt_outlined});
 
   @override
   Widget build(BuildContext context) {
@@ -842,7 +854,7 @@ class _Consejo extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(20, solo ? 14 : 0, 20, 14),
       child: Row(
         children: [
-          Icon(Icons.people_alt_outlined, size: 20, color: b.textoSuave),
+          Icon(icono, size: 20, color: b.textoSuave),
           const SizedBox(width: 12),
           Expanded(
             child: Text(texto, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: b.textoSuave)),
