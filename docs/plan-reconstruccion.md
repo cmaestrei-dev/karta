@@ -197,7 +197,7 @@ Con eso el servidor estima «sale en ~6 min, según 3 viajeros». Todo vence sol
 
 **D17 · Aprender de los demás y medirnos.** Google Maps es un competidor directo: muy completo, pero con quejas por su navegación y por las rutas y los tiempos de transporte.
 - **Estudio de las reseñas** de las tiendas (Google Play y App Store) de Google Maps, Moovit, Waze, MiBus y las apps de Transcaribe y TransMilenio: los dolores más frecuentes, lo que se valora y qué adoptar y evitar (en curso).
-- **Pruebas comparativas en el piloto** (fase 4):
+- **Pruebas comparativas en el piloto** (fase 4; cómo se hace todo el piloto: [plan del piloto](piloto/plan-del-piloto.md)):
   - **Recorridos:** 10 trayectos típicos, planificados en Karta, Google Maps y Moovit.
   - **Qué se mide:**
     - el error de la hora de llegada estimada frente a la real;
