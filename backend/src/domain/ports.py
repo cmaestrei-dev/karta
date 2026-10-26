@@ -7,6 +7,7 @@ from src.domain.conocimiento import ComoSePidio, RespuestaDeParada
 from src.domain.direcciones import Cruce
 from src.domain.mapeo import EstadoDeMarca, Marca, Voto
 from src.domain.paraderos import ParaderoOficial
+from src.domain.precision import ResultadoDeViaje
 from src.domain.models import (
     Estacion, IconoLugar, Incidente, Lugar, LugarGuardado, RutaTransporte, TipoViajero, Usuario,
 )
@@ -258,3 +259,9 @@ class RealtimeRepository(Protocol):
 
     def stop_answers(self, ruta: str, longitud: float, latitud: float, radio_m: float) -> list[RespuestaDeParada]:
         ...
+
+    def add_trip_result(self, resultado: ResultadoDeViaje, en: datetime) -> None:
+        """Cuánto estimó Karta y cuánto tardó el viaje, sin quién lo hizo ni por dónde."""
+        ...
+
+    def trip_results(self, desde: datetime) -> list[ResultadoDeViaje]: ...

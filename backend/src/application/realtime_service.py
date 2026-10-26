@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from src.domain.conocimiento import CERCA_DEL_PARADERO_M, ComoSePidio, LoQueSeSabe, como_se_pide
 from src.domain.geo import validar_cobertura
 from src.domain.ports import IncidentRepository, RealtimeRepository, TransitRepository
+from src.domain.precision import BusMedido, resultado
 from src.domain.tiempo_real import BusVarado, Estimacion, Ocupacion, estimar_llegada, varado_antes_de_la_parada
 
 
@@ -54,6 +55,14 @@ class RealtimeService:
         self._ruta_valida(ruta)
         validar_cobertura(latitud, longitud)
         self.realtime.add_stop_answer(ruta, longitud, latitud, como, ahora or datetime.now(timezone.utc))
+
+    def report_trip_result(self, estimado_min: int, real_min: int, buses: list[BusMedido],
+                           ahora: datetime | None = None) -> None:
+        """Al llegar: cuánto estimó Karta y cuánto tardó el viaje, en total y en cada bus (D17)."""
+        for bus in buses:
+            self._ruta_valida(bus.ruta)
+        ahora = ahora or datetime.now(timezone.utc)
+        self.realtime.add_trip_result(resultado(estimado_min, real_min, buses, ahora), ahora)
 
     def stop_request(self, ruta: str, latitud: float, longitud: float) -> LoQueSeSabe | None:
         """Cómo se pide la parada en ese punto según los viajeros, si hay suficientes respuestas que coinciden."""

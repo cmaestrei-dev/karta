@@ -36,6 +36,7 @@ Karta no te pide nombre, correo ni documento para funcionar. Lo que trata depend
 ### Lo que compartes con la comunidad
 
 - **Compartir dónde va el bus.** Durante un viaje, mientras vas en el bus, la app envía cada medio minuto la posición del bus y, si la indicas, qué tan lleno va. El viaje lleva un código al azar, **sin tu cuenta**, y es **solo el tramo en bus**, nunca la caminata desde o hasta tu casa. **Se borra 5 minutos después de la última posición** y no se guarda ningún historial de recorridos. Viene activado: antes de tu primer viaje en bus, Karta te lo explica y empiezas el viaje solo si aceptas. Se apaga cuando quieras en Perfil › Privacidad.
+- **Cuánto tardaste.** Si compartes el viaje, al llegar al destino se envía cuánto estimó Karta y cuánto tardaste de verdad: en total y, en cada bus, la ruta, la espera y el tiempo a bordo. **Sin tu cuenta, sin puntos ni paraderos**, y con la hora de salida redondeada al cuarto de hora. Sirve para medir y mejorar las estimaciones. **Se borra a los 180 días.**
 - **Puntos de subida.** Si compartes el viaje, al subirte se guardan la ruta, el punto, la hora y, en las estaciones, el módulo, **sin tu cuenta**. Sirven para ubicar paraderos y saber de qué lado de cada estación para cada ruta. **Se borran a los 180 días.**
 - **Avistamientos** («vi pasar el T103»): la ruta, el punto, la hora y la ocupación, **sin tu cuenta**. **Se borran a los 30 minutos.**
 - **Respuestas a «¿Cómo pediste la parada?»:** la ruta, el punto y la respuesta, **sin tu cuenta**. **Se borran al año.**

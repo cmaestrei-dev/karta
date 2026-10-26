@@ -13,11 +13,12 @@ from src.domain.conocimiento import ComoSePidio, RespuestaDeParada
 from src.domain.direcciones import Cruce, Via
 from src.domain.mapeo import EstadoDeMarca, Marca, Voto
 from src.domain.paraderos import ParaderoOficial
+from src.domain.precision import BusMedido, ResultadoDeViaje
 from src.domain.models import (
     ALIAS_SIN_CUENTA, REPUTACION_INICIAL, EmailYaRegistrado, Impacto, Estacion, IconoLugar, Incidente, LimiteLugaresGuardados,
     Lugar, LugarGuardado, LugarGuardadoNoEncontrado, RutaTransporte, TipoViajero, Usuario,
 )
-from src.domain.horarios import HorarioRuta
+from src.domain.horarios import HorarioRuta, en_colombia
 from src.domain.reportes import GraciasRepetidas, TipoReporte, VotoRepetido, alias_publico
 from src.domain.tiempo_real import Observacion, Ocupacion
 
@@ -604,11 +605,14 @@ class MongoRealtimeRepository:
     VIGENCIA_VIAJE = timedelta(minutes=5)
     # Cómo se pide la parada cambia poco, pero cambia (un paradero nuevo, otra regla): un año basta.
     VIGENCIA_RESPUESTA_DE_PARADA = timedelta(days=365)
+    # Los resultados de los viajes (`trip_results`): las estadísticas se calculan antes de que venzan.
+    VIGENCIA_RESULTADO = timedelta(days=180)
 
     def __init__(self, db: Database):
         self._sightings = db.sightings
         self._trips = db.live_trips
         self._stop_answers = db.stop_answers
+        self._resultados = db.trip_results
 
     def add_sighting(self, ruta: str, longitud: float, latitud: float, ocupacion: Ocupacion | None,
                      en: datetime) -> None:
@@ -658,3 +662,19 @@ class MongoRealtimeRepository:
         cerca = {"$near": {"$geometry": {"type": "Point", "coordinates": [longitud, latitud]}, "$maxDistance": radio_m}}
         return [RespuestaDeParada(ComoSePidio(d["como"]), *d["ubicacion"]["coordinates"], d["en"])
                 for d in self._stop_answers.find({"ruta": ruta, "ubicacion": cerca}).limit(500)]
+
+    def add_trip_result(self, resultado: ResultadoDeViaje, en: datetime) -> None:
+        # Sin la hora exacta de llegada: `en` solo sirve para el vencimiento.
+        self._resultados.insert_one({
+            "estimado_min": resultado.estimado_min, "real_min": resultado.real_min, "franja": resultado.franja,
+            "tipo_de_dia": resultado.tipo_de_dia,
+            "buses": [{"ruta": b.ruta, "espera_estimada_min": b.espera_estimada_min,
+                       "espera_real_min": b.espera_real_min, "a_bordo_estimado_min": b.a_bordo_estimado_min,
+                       "a_bordo_real_min": b.a_bordo_real_min} for b in resultado.buses],
+            "expira_en": en + self.VIGENCIA_RESULTADO,
+        })
+
+    def trip_results(self, desde: datetime) -> list[ResultadoDeViaje]:
+        return [ResultadoDeViaje(d["estimado_min"], d["real_min"], en_colombia(d["franja"]), d["tipo_de_dia"],
+                                 tuple(BusMedido(**b) for b in d["buses"]))
+                for d in self._resultados.find({"franja": {"$gte": desde}}).limit(100000)]

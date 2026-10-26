@@ -73,3 +73,28 @@ def test_un_bus_varado_reportado_deja_de_contar_y_se_avisa(api, registrar):
     assert llegada["minutos"] is None  # el único T103 visto es el varado
     assert llegada["varado"]["metros_antes"] > 0
     assert llegada["varado"]["hace_min"] == 0
+
+
+def test_el_resultado_del_viaje_se_guarda_sin_cuenta_ni_puntos(api, registrar):
+    from src.infrastructure.database import get_database
+    token, usuario = registrar()
+    cuerpo = {"estimado_min": 34, "real_min": 37, "buses": [
+        {"ruta": "T103", "espera_estimada_min": 6, "espera_real_min": 9, "a_bordo_estimado_min": 20,
+         "a_bordo_real_min": 24},
+        {"ruta": "A101", "espera_estimada_min": 4, "espera_real_min": None, "a_bordo_estimado_min": 8,
+         "a_bordo_real_min": 7},
+    ]}
+    assert api.post("/api/v1/trip-results", json=cuerpo).status_code == 401
+    respuesta = api.post("/api/v1/trip-results", json=cuerpo, headers=_auth(token))
+    assert respuesta.status_code == 201, respuesta.text
+
+    doc = get_database().trip_results.find_one({"estimado_min": 34, "real_min": 37})
+    assert set(doc) == {"_id", "estimado_min", "real_min", "franja", "tipo_de_dia", "buses", "expira_en"}
+    assert doc["franja"].minute % 15 == 0 and doc["franja"].second == 0
+    assert str(usuario["id"]) not in str(doc)
+    assert [b["ruta"] for b in doc["buses"]] == ["T103", "A101"] and doc["buses"][1]["espera_real_min"] is None
+
+    mala = {**cuerpo, "buses": [{**cuerpo["buses"][0], "ruta": "T999"}]}
+    assert api.post("/api/v1/trip-results", json=mala, headers=_auth(token)).status_code == 422
+    assert api.post("/api/v1/trip-results", json={**cuerpo, "buses": []}, headers=_auth(token)).status_code == 422
+    assert api.post("/api/v1/trip-results", json={**cuerpo, "real_min": 0}, headers=_auth(token)).status_code == 422

@@ -205,6 +205,10 @@ Con eso el servidor estima «sale en ~6 min, según 3 viajeros». Todo vence sol
     - cuántos toques hacen falta para empezar un viaje;
     - batería y datos móviles por hora de viaje.
 - **Primera comparación (25 de octubre):** 10 trayectos en Karta, Google Maps y Moovit el lunes a las 8:00; ver [comparacion-apps.md](comparacion-apps.md). Karta llega primero, o a menos de 6 minutos de la mejor, en 7 de 10. De ahí salieron tres arreglos: la caminata larga cuando ninguna ruta pasa cerca, las X fuera del carril de la troncal y el motivo de cada aviso.
+- **Medición automática (fase 4, 26 de octubre):** al llegar, la app muestra «Tardaste 37 min, 3 más de lo que estimó Karta».
+  - Si el viajero comparte sus viajes, envía lo estimado y lo real, en total y por bus (espera y tiempo a bordo), sin puntos ni paraderos (`POST /api/v1/trip-results`, se borra a los 180 días).
+  - `python -m scripts.informe_de_precision` arma el informe: la mediana del error, cuánto se equivoca el 90 % y qué parte queda a menos de 5 minutos. Lo da en total, por hora y por ruta, y solo con grupos de 10 viajes o más.
+  - Así el error de la hora de llegada de Karta se mide en cada viaje del piloto, no solo en los 10 trayectos comparados a mano.
 - **Trazas para pruebas:** con permiso expreso de quienes hagan el piloto, se graban los recorridos GPS reales. Se usan para reproducir viajes en las pruebas automáticas y para afinar el seguidor. Nunca salen del equipo de desarrollo y se borran al terminar.
 
 **D18 · Estaciones por dentro: plataformas, sentido y estaciones confusas** (propuesto el 25 de octubre).

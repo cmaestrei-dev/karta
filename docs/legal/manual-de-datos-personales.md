@@ -22,6 +22,7 @@ Todas las bases están en MongoDB Atlas (AWS us-east-1). Los encargados son Mong
 | `boardings` | Ruta, punto, hora y módulo, sin cuenta | Ubicar paraderos y lados de las estaciones | 180 días (TTL) |
 | `sightings` | Ruta, punto, hora y ocupación, sin cuenta | Tiempo real | 30 min (TTL) |
 | `live_trips` | Código al azar, ruta, posición y ocupación, sin cuenta | Tiempo real | 5 min después de la última posición (TTL) |
+| `trip_results` | Cuánto estimó Karta y cuánto tardó el viaje: en total y, por bus, la ruta, la espera y el tiempo a bordo; la hora de salida redondeada al cuarto de hora y el tipo de día. Sin cuenta, puntos ni paraderos | Medir qué tan bien estima Karta (D17) y las estadísticas agregadas | 180 días (TTL) |
 | `stop_answers` | Ruta, punto y respuesta, sin cuenta | Base de conocimiento de cómo pedir la parada | 1 año (TTL) |
 | `rate_limits` | IP o id del viajero, más un contador | Evitar abusos | La ventana: 1 min a 1 h (TTL) |
 | Registros de AWS Lambda (CloudWatch) | Datos técnicos de peticiones que fallaron | Corregir errores | 7 días (retención del grupo) |
@@ -31,7 +32,7 @@ Todas las bases están en MongoDB Atlas (AWS us-east-1). Los encargados son Mong
 - el recorrido de las caminatas;
 - ningún historial de ubicación.
 
-**Aunque no lleven cuenta, se tratan como datos personales** los viajes compartidos, los avistamientos, los puntos de subida y las respuestas de parada. Al recogerse llegan con la IP, y la ley colombiana no define la anonimización. Por eso están en la política, con su plazo.
+**Aunque no lleven cuenta, se tratan como datos personales** los viajes compartidos, los avistamientos, los puntos de subida, las respuestas de parada y los resultados de los viajes. Al recogerse llegan con la IP, y la ley colombiana no define la anonimización. Por eso están en la política, con su plazo.
 
 ### Estadísticas agregadas y anónimas
 
@@ -47,6 +48,7 @@ Son la base de la analítica para entidades del [plan de sostenibilidad](../plan
   - Nunca salen cuentas, correos, alias, IP, códigos de viaje ni la secuencia de puntos de un mismo viaje (recorridos).
   - No se cruzan con otras fuentes que permitan reidentificar, ni se calculan para un grupo tan pequeño que señale a alguien (por ejemplo, un paradero con un solo usuario).
 - **Cuándo:** antes de que el TTL borre los datos de origen. Las tablas resultantes se conservan sin plazo.
+- **La primera tabla:** `python -m scripts.informe_de_precision` (en `backend/`) mide qué tan exacto es Karta con `trip_results` y ya aplica estas reglas.
 - **A quién se entregan:** con un acuerdo que prohíba intentar reidentificar a alguien y entregar la tabla a terceros sin estas reglas.
 
 ## 2. Autorización y su prueba
@@ -66,7 +68,7 @@ Son la base de la analítica para entidades del [plan de sostenibilidad](../plan
 
   **Historial:**
   - 1.0: primera versión.
-  - 1.1 (26 de octubre de 2026): se agregó la finalidad de las estadísticas agregadas y anónimas, que pueden venderse.
+  - 1.1 (26 de octubre de 2026): se agregó la finalidad de las estadísticas agregadas y anónimas, que pueden venderse, y el resultado de cada viaje (cuánto se tardó frente a lo estimado).
 
 ## 3. Atención de consultas y reclamos
 

@@ -805,7 +805,8 @@ class _PrivacidadState extends State<_Privacidad> {
             onChanged: _compartir == null ? null : _cambiar,
             title: const Text('Compartir dónde va el bus'),
             subtitle: Text(
-              'En tus viajes, sin tu nombre y solo el tramo en bus. Se borra 5 minutos después.',
+              'En tus viajes, sin tu nombre y solo el tramo en bus. Se borra 5 minutos después. Al llegar, '
+              'también cuánto tardaste, para medir a Karta.',
               style: texto.bodySmall?.copyWith(color: b.textoSuave),
             ),
           ),
