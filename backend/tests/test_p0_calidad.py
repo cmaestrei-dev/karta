@@ -101,3 +101,20 @@ def test_un_viaje_compartido_vencido_ya_no_cuenta(api):
     observaciones = MongoRealtimeRepository(db).observations("C017", ahora - timedelta(minutes=30), ahora)
     assert observaciones == []
     db.live_trips.delete_one({"_id": "vencido-hace-un-momento"})
+
+
+def test_las_subidas_y_las_respuestas_de_parada_no_guardan_la_hora_exacta(api):
+    from src.infrastructure.database import get_database
+    from src.infrastructure.repositories import MongoRealtimeRepository, MongoStopMappingRepository
+    from src.domain.conocimiento import ComoSePidio
+    db = get_database()
+    a_las = datetime(2026, 11, 18, 12, 37, 41, tzinfo=timezone.utc)
+    MongoStopMappingRepository(db).add_boarding("A105", -75.4801, 10.3907, a_las)
+    MongoRealtimeRepository(db).add_stop_answer("A105", -75.4801, 10.3907, ComoSePidio.TIMBRE, a_las)
+    subida = db.boardings.find_one({"ruta": "A105", "ubicacion.coordinates": [-75.4801, 10.3907]})
+    respuesta = db.stop_answers.find_one({"ruta": "A105", "ubicacion.coordinates": [-75.4801, 10.3907]})
+    assert (subida["en"].hour, subida["en"].minute, subida["en"].second) == (12, 30, 0)  # el cuarto de hora
+    assert (respuesta["en"].hour, respuesta["en"].minute) == (0, 0)  # solo el día
+    assert subida["expira_en"] - a_las == MongoStopMappingRepository.VIGENCIA_DE_SUBIDA  # vence desde la hora real
+    db.boardings.delete_one({"_id": subida["_id"]})
+    db.stop_answers.delete_one({"_id": respuesta["_id"]})

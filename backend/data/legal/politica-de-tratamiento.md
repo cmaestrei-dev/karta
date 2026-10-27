@@ -36,10 +36,10 @@ Karta no te pide nombre, correo ni documento para funcionar. Lo que trata depend
 ### Lo que compartes con la comunidad
 
 - **Compartir dónde va el bus.** Durante un viaje, mientras vas en el bus, la app envía cada medio minuto la posición del bus y, si la indicas, qué tan lleno va. El viaje lleva un código al azar, **sin tu cuenta**, y es **solo el tramo en bus**, nunca la caminata desde o hasta tu casa. **Se borra 5 minutos después de la última posición** y no se guarda ningún historial de recorridos. Viene activado: antes de tu primer viaje en bus, Karta te lo explica y empiezas el viaje solo si aceptas. Se apaga cuando quieras en Perfil › Privacidad.
-- **Cuánto tardaste.** Si compartes el viaje, al llegar al destino se envía cuánto estimó Karta y cuánto tardaste de verdad: en total y, en cada bus, la ruta, la espera y el tiempo a bordo. **Sin tu cuenta, sin puntos ni paraderos**, y con la hora de salida redondeada al cuarto de hora. Sirve para medir y mejorar las estimaciones. **Se borra a los 180 días.**
-- **Puntos de subida.** Si compartes el viaje, al subirte se guardan la ruta, el punto, la hora y, en las estaciones, el módulo, **sin tu cuenta**. Sirven para ubicar paraderos y saber de qué lado de cada estación para cada ruta. **Se borran a los 180 días.**
+- **Cuánto tardaste.** Si compartes el viaje, al llegar al destino se envía cuánto estimó Karta y cuánto tardaste de verdad: en total y, en cada bus, la ruta, la espera y el tiempo a bordo. **Sin tu cuenta, sin puntos ni paraderos**, y con la hora de salida redondeada al cuarto de hora. Sirve para medir y mejorar las estimaciones. **Se borra a los 180 días.** Aparte, para contar cuántas personas distintas hay detrás de cada estadística, se guarda una huella cifrada de tu cuenta, distinta para cada estadística y cada mes: no permite saber quién eres, ni unir tus viajes, ni saber cuáles son tuyos. **Se borra a los 7 meses**, o antes si borras tu cuenta.
+- **Puntos de subida.** Si compartes el viaje, al subirte se guardan la ruta, el punto, la hora redondeada al cuarto de hora y, en las estaciones, el módulo, **sin tu cuenta**. Sirven para ubicar paraderos y saber de qué lado de cada estación para cada ruta. **Se borran a los 180 días.**
 - **Avistamientos** («vi pasar el T103»): la ruta, el punto, la hora y la ocupación, **sin tu cuenta**. **Se borran a los 30 minutos.**
-- **Respuestas a «¿Cómo pediste la parada?»:** la ruta, el punto y la respuesta, **sin tu cuenta**. **Se borran al año.**
+- **Respuestas a «¿Cómo pediste la parada?»:** la ruta, el punto, el día y la respuesta, **sin tu cuenta** y sin la hora. **Se borran al año.**
 - **Reportes** (el bus no pasa, trancón, calle inundada, robo, acoso…): el tipo, los detalles que elijas, el punto, la hora y tu cuenta, para tu reputación. Se muestran a todos con tu alias. **Se borran solos entre 30 minutos y 12 horas después**, según el tipo; cada confirmación de otro viajero renueva ese plazo.
 - **Votos («sigue / ya no»), «Gracias» y vistas** de reportes: tu cuenta y el reporte, para que cada persona cuente una vez. **Se borran a los 2 días.**
 - **Paraderos que marcas o confirmas** y viajes de mapeo: el paradero, la ruta, el punto y tu cuenta, para tu reputación. La ubicación del paradero es un dato de la comunidad y **queda en el mapa**; el vínculo con tu cuenta se borra si borras tu cuenta.
@@ -55,7 +55,7 @@ Karta no te pide nombre, correo ni documento para funcionar. Lo que trata depend
 - Con lo que comparten todos los viajeros, Karta calcula estadísticas del transporte. Por ejemplo: cuánto se espera de verdad cada ruta a cada hora, qué tan llenos van los buses por franja, dónde se repiten los desvíos o los reportes de «el bus no pasa».
 - Se calculan antes de que se borren los datos de los que salen, y se conservan, porque no identifican a nadie.
 - **Pueden publicarse, compartirse o venderse** a entidades públicas (como Transcaribe, el DATT o la Alcaldía), universidades, empresas u otras organizaciones, para sostener Karta.
-- **Nunca permiten identificar a nadie:** no llevan cuentas, correos, alias ni recorridos individuales, y cada cifra reúne al menos 10 viajes o reportes distintos.
+- **Nunca permiten identificar a nadie:** no llevan cuentas, correos, alias ni recorridos individuales, y cada cifra reúne datos de al menos 10 personas distintas.
 
 ### Lo que no hacemos
 

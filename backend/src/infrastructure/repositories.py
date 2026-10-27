@@ -15,7 +15,8 @@ from src.domain.conocimiento import ComoSePidio, RespuestaDeParada
 from src.domain.direcciones import Cruce, Via
 from src.domain.mapeo import EstadoDeMarca, Marca, Voto
 from src.domain.paraderos import ParaderoOficial
-from src.domain.precision import BusMedido, ResultadoDeViaje
+from src.domain.precision import BusMedido, ResultadoDeViaje, celdas_de, mes_de
+from src.infrastructure.aportes import MESES_DE_VIGENCIA, huella
 from src.domain.models import (
     ALIAS_SIN_CUENTA, REPUTACION_INICIAL, EmailYaRegistrado, Impacto, Estacion, IconoLugar, Incidente, LimiteLugaresGuardados,
     Lugar, LugarGuardado, LugarGuardadoNoEncontrado, RutaTransporte, TipoViajero, Usuario,
@@ -51,6 +52,10 @@ class MongoUserRepository:
         for coleccion in (db.incident_votes, db.incident_thanks, db.incident_views):
             coleccion.delete_many({"usuario": uid})
         db.rate_limits.delete_many({"_id": {"$regex": f"^[^:]+:usuario:{re.escape(user_id)}:"}})
+        # Sus huellas en el conteo de personas por cifra: cada una se recalcula con la clave y se quita.
+        for doc in db.trip_contributors.find({}, {"_id": 1}):
+            mes, celda = doc["_id"].split("|", 1)
+            db.trip_contributors.update_one({"_id": doc["_id"]}, {"$pull": {"huellas": huella(mes, celda, user_id)}})
         # Y la cuenta, con sus lugares guardados, su reputación y su impacto.
         self._users.delete_one({"_id": uid})
 
@@ -623,8 +628,10 @@ class MongoStopMappingRepository:
 
     def add_boarding(self, ruta: str, longitud: float, latitud: float, en: datetime,
                      estacion: str | None = None, modulo: str | None = None) -> None:
+        # La hora va redondeada al cuarto de hora: junto con el punto, la exacta ayudaría a reconocer a alguien.
+        cuarto = en.replace(minute=en.minute - en.minute % 15, second=0, microsecond=0)
         documento = {"ruta": ruta, "ubicacion": {"type": "Point", "coordinates": [longitud, latitud]},
-                     "en": en, "expira_en": en + self.VIGENCIA_DE_SUBIDA}
+                     "en": cuarto, "expira_en": en + self.VIGENCIA_DE_SUBIDA}
         if estacion is not None:
             documento |= {"estacion": estacion, "modulo": modulo}
         self._subidas.insert_one(documento)
@@ -658,6 +665,7 @@ class MongoRealtimeRepository:
         self._trips = db.live_trips
         self._stop_answers = db.stop_answers
         self._resultados = db.trip_results
+        self._aportantes = db.trip_contributors
 
     def add_sighting(self, ruta: str, longitud: float, latitud: float, ocupacion: Ocupacion | None,
                      en: datetime) -> None:
@@ -700,7 +708,9 @@ class MongoRealtimeRepository:
     def add_stop_answer(self, ruta: str, longitud: float, latitud: float, como: ComoSePidio, en: datetime) -> None:
         self._stop_answers.insert_one({
             "ruta": ruta, "ubicacion": {"type": "Point", "coordinates": [longitud, latitud]}, "como": como.value,
-            "en": en, "expira_en": en + self.VIGENCIA_RESPUESTA_DE_PARADA,
+            # Solo el día: el paradero donde alguien se baja, a una hora exacta, dice demasiado.
+            "en": en.replace(hour=0, minute=0, second=0, microsecond=0),
+            "expira_en": en + self.VIGENCIA_RESPUESTA_DE_PARADA,
         })
 
     def stop_answers(self, ruta: str, longitud: float, latitud: float, radio_m: float) -> list[RespuestaDeParada]:
@@ -708,8 +718,15 @@ class MongoRealtimeRepository:
         return [RespuestaDeParada(ComoSePidio(d["como"]), *d["ubicacion"]["coordinates"], d["en"])
                 for d in self._stop_answers.find({"ruta": ruta, "ubicacion": cerca}).limit(500)]
 
-    def add_trip_result(self, resultado: ResultadoDeViaje, en: datetime) -> None:
-        # Sin la hora exacta de llegada: `en` solo sirve para el vencimiento.
+    def add_trip_result(self, resultado: ResultadoDeViaje, en: datetime, aportante: str) -> None:
+        # Sin la hora exacta de llegada: `en` solo sirve para el vencimiento. El resultado no lleva al aportante: su
+        # huella va aparte, una por cada cifra, solo para contar personas distintas (aportes.py).
+        mes = mes_de(resultado.franja)
+        vence = en + timedelta(days=31 * MESES_DE_VIGENCIA)
+        for celda in celdas_de(resultado):
+            self._aportantes.update_one({"_id": f"{mes}|{celda}"},
+                                        {"$addToSet": {"huellas": huella(mes, celda, aportante)},
+                                         "$max": {"expira_en": vence}}, upsert=True)
         self._resultados.insert_one({
             "estimado_min": resultado.estimado_min, "real_min": resultado.real_min, "franja": resultado.franja,
             "tipo_de_dia": resultado.tipo_de_dia,
@@ -718,6 +735,17 @@ class MongoRealtimeRepository:
                        "a_bordo_real_min": b.a_bordo_real_min} for b in resultado.buses],
             "expira_en": en + self.VIGENCIA_RESULTADO,
         })
+
+    def contributors(self, desde: datetime) -> dict[str, int]:
+        """
+        Cuántas personas distintas aportaron a cada cifra desde ese mes. Las huellas cambian de un mes a otro, así que
+        en un periodo de varios meses se toma el mayor de los meses: nunca cuenta de más.
+        """
+        personas: dict[str, int] = {}
+        for doc in self._aportantes.find({"_id": {"$gte": mes_de(desde)}}):
+            celda = doc["_id"].split("|", 1)[1]
+            personas[celda] = max(personas.get(celda, 0), len(doc.get("huellas", [])))
+        return personas
 
     def trip_results(self, desde: datetime) -> list[ResultadoDeViaje]:
         return [ResultadoDeViaje(d["estimado_min"], d["real_min"], en_colombia(d["franja"]), d["tipo_de_dia"],

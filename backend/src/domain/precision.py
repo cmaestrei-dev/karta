@@ -1,8 +1,10 @@
 """
 Qué tan exacto es Karta (D17): cuánto estimó y cuánto tardó de verdad cada viaje, y las cifras que salen de ahí.
 
-Cada viaje llega sin cuenta, sin puntos y con la hora redondeada al cuarto de hora. Cada cifra reúne al menos
-MINIMO_POR_CIFRA viajes distintos; con menos no se calcula (política, «Estadísticas agregadas y anónimas»).
+Cada viaje llega sin cuenta, sin puntos y con la hora redondeada al cuarto de hora. Cada cifra reúne viajes de al
+menos MINIMO_POR_CIFRA personas distintas; con menos no se calcula (política, «Estadísticas agregadas y anónimas»).
+Contar viajes no basta: quien toma el T103 a la misma hora cada día llenaría solo una celda en dos semanas. Cuántas
+personas hay detrás de cada celda lo lleva la infraestructura aparte (aportes.py), sin ligarlo a los viajes.
 """
 import math
 from collections import defaultdict
@@ -12,7 +14,7 @@ from statistics import median
 
 from src.domain.horarios import en_colombia, tipo_de_dia
 
-MINIMO_POR_CIFRA = 10
+MINIMO_POR_CIFRA = 10  # personas distintas
 CERCA_MIN = 5  # «acertó»: a menos de 5 minutos de lo estimado
 
 
@@ -40,6 +42,21 @@ class ResultadoDeViaje:
         return self.real_min - self.estimado_min
 
 
+def celdas_de(r: ResultadoDeViaje) -> list[str]:
+    """Las cifras del informe a las que aporta este viaje: el total, su hora y la espera y el tiempo a bordo de cada ruta."""
+    celdas = ["total", f"hora:{r.franja.hour}"]
+    for bus in r.buses:
+        if bus.espera_real_min is not None:
+            celdas.append(f"espera:{bus.ruta}")
+        celdas.append(f"a_bordo:{bus.ruta}")
+    return list(dict.fromkeys(celdas))
+
+
+def mes_de(momento: datetime) -> str:
+    """«2026-11»: las huellas de quienes aportan se agrupan por mes de Colombia."""
+    return en_colombia(momento).strftime("%Y-%m")
+
+
 def franja_de(momento: datetime) -> datetime:
     local = en_colombia(momento)
     return local.replace(minute=local.minute - local.minute % 15, second=0, microsecond=0)
@@ -59,9 +76,9 @@ class Precision:
     cerca: float  # fracción a menos de CERCA_MIN minutos
 
 
-def precision(errores: list[int]) -> Precision | None:
-    """Las cifras de un grupo de errores (real − estimado), o None si son menos de MINIMO_POR_CIFRA."""
-    if len(errores) < MINIMO_POR_CIFRA:
+def precision(errores: list[int], personas: int) -> Precision | None:
+    """Las cifras de un grupo de errores (real − estimado), o None si vienen de menos de MINIMO_POR_CIFRA personas."""
+    if not errores or personas < MINIMO_POR_CIFRA:
         return None
     absolutos = sorted(abs(e) for e in errores)
     p90 = absolutos[math.ceil(0.9 * len(absolutos)) - 1]  # percentil por rango más cercano
@@ -78,8 +95,11 @@ class Informe:
     viajes: int
 
 
-def informe(resultados: list[ResultadoDeViaje]) -> Informe:
-    """Lo que se puede publicar: solo los grupos con al menos MINIMO_POR_CIFRA viajes."""
+def informe(resultados: list[ResultadoDeViaje], personas: dict[str, int]) -> Informe:
+    """
+    Lo que se puede publicar: solo los grupos con viajes de al menos MINIMO_POR_CIFRA personas. `personas` dice
+    cuántas personas distintas aportaron a cada celda (celdas_de); una celda que no está ahí no se publica.
+    """
     por_hora: dict[int, list[int]] = defaultdict(list)
     espera: dict[str, list[int]] = defaultdict(list)
     a_bordo: dict[str, list[int]] = defaultdict(list)
@@ -90,8 +110,10 @@ def informe(resultados: list[ResultadoDeViaje]) -> Informe:
                 espera[bus.ruta].append(bus.espera_real_min - bus.espera_estimada_min)
             a_bordo[bus.ruta].append(bus.a_bordo_real_min - bus.a_bordo_estimado_min)
 
-    def publicables(grupos: dict) -> dict:
-        return {clave: p for clave, errores in sorted(grupos.items()) if (p := precision(errores))}
+    def publicables(grupos: dict, prefijo: str) -> dict:
+        return {clave: p for clave, errores in sorted(grupos.items())
+                if (p := precision(errores, personas.get(f"{prefijo}:{clave}", 0)))}
 
-    return Informe(precision([r.error_min for r in resultados]), publicables(por_hora), publicables(espera),
-                   publicables(a_bordo), len(resultados))
+    return Informe(precision([r.error_min for r in resultados], personas.get("total", 0)),
+                   publicables(por_hora, "hora"), publicables(espera, "espera"), publicables(a_bordo, "a_bordo"),
+                   len(resultados))

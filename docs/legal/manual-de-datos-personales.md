@@ -19,11 +19,12 @@ Todas las bases están en MongoDB Atlas (AWS us-east-1). Los encargados son Mong
 | `incidents` | Tipo, detalles, punto, hora, id de quien reportó, nivel y alias | Avisar a la comunidad; reputación | 30 min a 12 h según el tipo (TTL) |
 | `incident_votes`, `incident_thanks`, `incident_views` | Id del viajero e id del reporte | Una persona, un voto; «Tu impacto» | 2 días (TTL) |
 | `stop_marks` | Paradero, punto, id de quien marcó y de quienes votaron | Mapa comunitario de paraderos; reputación | Sin plazo, porque la ubicación del paradero es dato comunitario. El vínculo con la cuenta se borra al borrarla |
-| `boardings` | Ruta, punto, hora y módulo, sin cuenta | Ubicar paraderos y lados de las estaciones | 180 días (TTL) |
+| `boardings` | Ruta, punto, hora redondeada al cuarto de hora y módulo, sin cuenta | Ubicar paraderos y lados de las estaciones | 180 días (TTL) |
 | `sightings` | Ruta, punto, hora y ocupación, sin cuenta | Tiempo real | 30 min (TTL) |
 | `live_trips` | Código al azar, ruta, posición y ocupación, sin cuenta | Tiempo real | 5 min después de la última posición (TTL) |
 | `trip_results` | Cuánto estimó Karta y cuánto tardó el viaje: en total y, por bus, la ruta, la espera y el tiempo a bordo; la hora de salida redondeada al cuarto de hora y el tipo de día. Sin cuenta, puntos ni paraderos | Medir qué tan bien estima Karta (D17) y las estadísticas agregadas | 180 días (TTL) |
-| `stop_answers` | Ruta, punto y respuesta, sin cuenta | Base de conocimiento de cómo pedir la parada | 1 año (TTL) |
+| `trip_contributors` | Por cada cifra del informe de precisión y cada mes, las huellas de quienes aportaron: un HMAC de la cuenta con la clave `CLAVE_DE_APORTES`, distinto por cifra y mes. Los resultados de viaje no la llevan | Contar personas distintas por cifra, para el mínimo de 10 | 7 meses (TTL). Al borrar la cuenta se quitan sus huellas |
+| `stop_answers` | Ruta, punto, día (sin la hora) y respuesta, sin cuenta | Base de conocimiento de cómo pedir la parada | 1 año (TTL) |
 | `daily_counts` | Ninguno: conteos por día y hora (consultas de llegada y cuántas tuvieron datos, viajes compartidos, reportes, confirmaciones, desmentidos, vistas y «Gracias», y cuántas personas distintas vieron o agradecieron ese día) | Indicadores del piloto ([plan-comunidad](../plan-comunidad.md), §5) | Sin plazo: nacen agregados |
 | `rate_limits` | IP o id del viajero, más un contador | Evitar abusos | La ventana: 1 min a 1 h (TTL) |
 | Copias de seguridad (S3 `karta-respaldos`, AWS) | Las colecciones anteriores tal como estaban a las 3 a. m., salvo `sightings`, `live_trips` y `rate_limits`. Bucket privado y cifrado | Recuperarse de un incidente | 7 días (regla del bucket) |
@@ -46,7 +47,8 @@ Son la base de la analítica para entidades del [plan de sostenibilidad](../plan
   - Vender los datos mismos, o cualquier tabla con una fila por viaje, por reporte o por cuenta, sigue prohibido por la política.
 - **Reglas de cada tabla que salga de la base:**
   - Solo conteos, promedios o percentiles por celda: ruta, estación o tramo, franja de al menos 15 minutos y tipo de día.
-  - Cada celda reúne al menos **10 viajes o reportes distintos**: códigos de viaje distintos para el tiempo real, cuentas distintas para los reportes. Las celdas con menos se suprimen, no se redondean.
+  - Cada celda reúne datos de al menos **10 personas distintas**, no solo 10 viajes: quien toma la misma ruta a la misma hora cada día llenaría solo una celda en dos semanas. Las personas se cuentan con `trip_contributors`, sin ligarlas a los registros. Las celdas con menos se suprimen, no se redondean.
+  - Los totales sin ningún atributo (los indicadores del piloto: cuántos reportes, cuántas confirmaciones) pueden darse con 10 casos, porque no describen a nadie.
   - Nunca salen cuentas, correos, alias, IP, códigos de viaje ni la secuencia de puntos de un mismo viaje (recorridos).
   - No se cruzan con otras fuentes que permitan reidentificar, ni se calculan para un grupo tan pequeño que señale a alguien (por ejemplo, un paradero con un solo usuario).
 - **Cuándo:** antes de que el TTL borre los datos de origen. Las tablas resultantes se conservan sin plazo.
@@ -123,7 +125,7 @@ Un incidente es, por ejemplo, una llave de AWS o la contraseña de Atlas filtrad
 | Una IP en los límites de peticiones | Ventanas de 1 min a 1 h, borradas por TTL |
 | Llaves y secretos | Mínimo privilegio en IAM (política `karta-despliegue`); secretos solo en la configuración de Lambda; Atlas con usuario limitado a la base `karta` y TLS |
 | Atlas abierto a cualquier IP (Lambda no tiene IP fija) | Contraseña larga generada por Atlas, TLS obligatorio, usuario sin otros permisos |
-| Reidentificar a alguien con las estadísticas que se venden o publican | Mínimo 10 viajes o reportes distintos por celda; nada de recorridos, códigos ni cuentas; acuerdo con quien las recibe (sección 1) |
+| Reidentificar a alguien con las estadísticas que se venden o publican | Mínimo 10 personas distintas por celda; nada de recorridos, códigos ni cuentas; acuerdo con quien las recibe (sección 1) |
 | Uso por menores | El aviso pide confirmar 18 años o más durante el piloto; si se detecta un menor, se borran sus datos |
 
 ## 6. Encargados y transmisión internacional

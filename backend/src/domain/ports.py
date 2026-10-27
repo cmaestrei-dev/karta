@@ -264,8 +264,15 @@ class RealtimeRepository(Protocol):
     def stop_answers(self, ruta: str, longitud: float, latitud: float, radio_m: float) -> list[RespuestaDeParada]:
         ...
 
-    def add_trip_result(self, resultado: ResultadoDeViaje, en: datetime) -> None:
-        """Cuánto estimó Karta y cuánto tardó el viaje, sin quién lo hizo ni por dónde."""
+    def add_trip_result(self, resultado: ResultadoDeViaje, en: datetime, aportante: str) -> None:
+        """
+        Cuánto estimó Karta y cuánto tardó el viaje, sin quién lo hizo ni por dónde. El aportante solo cuenta, aparte,
+        como una persona más detrás de cada cifra.
+        """
+        ...
+
+    def contributors(self, desde: datetime) -> dict[str, int]:
+        """Cuántas personas distintas aportaron a cada cifra (celdas_de) desde ese mes."""
         ...
 
     def trip_results(self, desde: datetime) -> list[ResultadoDeViaje]: ...

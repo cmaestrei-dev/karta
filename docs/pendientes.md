@@ -57,7 +57,7 @@ Lo que salga del [plan de calidad](plan-calidad.md), sección «Qué hacer». Pr
 | Pendiente | Depende de |
 |---|---|
 | **Rutas de Transcaribe que faltan:** la A118 (opera desde el 27 de octubre de 2025) y la extensión de la X106 hasta Turbaco en hora pico ([otros transportes](plan-otros-transportes.md), §0) | Transcaribe, o mapearla desde el bus |
-| **El mínimo de 10 por cifra cuenta viajes, no personas:** una sola persona puede llenar una celda. Hay que corregirlo antes de entregar cualquier tabla, y redondear la hora de las subidas ([plan de datos](plan-datos-y-monetizacion.md), §6) | Ya |
+| ~~**El mínimo de 10 por cifra cuenta viajes, no personas**~~ **Hecho el 27 de octubre:** cuenta personas distintas, y las horas de las subidas y de las respuestas de parada van redondeadas ([plan de datos](plan-datos-y-monetizacion.md), §6) | — |
 | **Paraderos sin ubicar:** 724 de los 948 oficiales. Hoy hay 224; los demás llegan con la respuesta de Transcaribe o con «Marca este paradero» | Transcaribe o viajeros |
 | **Esperas calibradas:** hoy son fijas (5, 8 y 10 minutos según el tipo de ruta). Mejoran con las frecuencias oficiales o con los avistamientos | Transcaribe o viajeros |
 | **Velocidad de los buses por tramo** (fase A del [plan de datos de tráfico](plan-datos-de-trafico.md)): agregarla al recibir cada posición | Ya se puede construir; da datos con viajeros |
@@ -65,7 +65,7 @@ Lo que salga del [plan de calidad](plan-calidad.md), sección «Qué hacer». Pr
 
 ### Lo que falta probar en el teléfono
 
-- Instalar el APK v5 y hacer un viaje corto para ver la medición del viaje.
+- La medición del viaje en un trayecto real en bus (el APK v6 ya está instalado).
 - El modo ligero en un teléfono económico (D13).
 - La letra grande en la pantalla del viaje, que la prueba automática no cubre.
 

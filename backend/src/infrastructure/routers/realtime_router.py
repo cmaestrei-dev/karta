@@ -104,11 +104,12 @@ def report_trip_result(request: ResultadoDeViajeRequest,
     """
     Al llegar al destino, con el mismo permiso de compartir el viaje: cuánto estimó Karta y cuánto se tardó, en total
     y en cada bus. No se guarda quién viajó ni por dónde, y la hora va redondeada al cuarto de hora. Sirve para medir
-    qué tan exactas son las estimaciones (D17). Vence a los 180 días.
+    qué tan exactas son las estimaciones (D17). Vence a los 180 días. Aparte, una huella cifrada por cifra cuenta
+    cuántas personas distintas hay detrás de cada estadística, sin unir los viajes de nadie.
     """
     try:
         service.report_trip_result(request.estimado_min, request.real_min,
-                                   [BusMedido(**bus.model_dump()) for bus in request.buses])
+                                   [BusMedido(**bus.model_dump()) for bus in request.buses], usuario.id)
     except RutaDesconocida:
         raise RUTA_DESCONOCIDA
     return {"mensaje": "Gracias: así medimos qué tan bien estima Karta."}

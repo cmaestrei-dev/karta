@@ -1,6 +1,6 @@
 # Plan: qué datos guardar, qué vender y cómo
 
-**Estado:** investigación y plan del 26 de octubre de 2026. Es **solo un plan**: nada de lo que propone está hecho.
+**Estado:** investigación y plan del 26 de octubre de 2026. Las correcciones de la sección 6 se hicieron el 27 de octubre; lo demás sigue siendo plan.
 
 **Relación con otros documentos:**
 - Profundiza el [plan de sostenibilidad](plan-sostenibilidad.md), §3.1, que pone la analítica agregada como la fuente principal de ingresos.
@@ -32,7 +32,7 @@
 3. **Analítica.** Un dato seudonimizado, con una fila por viaje, **sigue siendo un dato personal**. Venderlo es una transferencia: exige una autorización nueva de cada viajero, contradice la política 1.1 y el comprador público no puede guardar exclusividad. Además, el mercado no paga esas filas: paga el servicio.
 4. **Ganancias y pérdidas:** están en la sección 5. En corto: más datos crudos dan mejores modelos, pero multiplican el daño de una filtración y las obligaciones legales, y gastan la confianza que hace funcionar el tiempo real comunitario.
 
-**Hay que corregir algo antes de entregar la primera tabla** (sección 6): el mínimo de 10 por cifra cuenta viajes, no personas.
+**Se corrigió el 27 de octubre** (sección 6): el mínimo de 10 por cifra contaba viajes, no personas.
 
 ## 1. Qué vale y para quién
 
@@ -167,6 +167,12 @@ Casi todo eso se logra con agregados, que crecen con el catálogo (rutas × tram
   «Sin anuncios y sin historial» solo distingue a Karta de Moovit si de verdad no se guarda el historial.
 
 ## 6. Correcciones antes de entregar cualquier tabla
+
+**Hechas el 27 de octubre de 2026** (las dos primeras):
+- **Personas, no viajes.** Por cada cifra y cada mes se guardan aparte las huellas de quienes aportaron (`trip_contributors`), con un HMAC distinto por cifra. El informe solo publica cifras de al menos 10 personas. No hizo falta HyperLogLog: a la escala de Karta, el conjunto exacto de huellas es pequeño, y al borrar la cuenta se puede quitar la huella.
+- **Las horas, redondeadas:** las subidas, al cuarto de hora; las respuestas de parada, al día.
+
+Lo que se encontró:
 
 1. **El mínimo de 10 cuenta viajes, no personas.** Afecta a `precision.py`, a `indicadores.py` y al manual.
    - **Ejemplo:** alguien que toma el T103 a la misma hora cada día hábil llena en dos semanas una celda «T103, 6:30–6:45, día hábil» con 10 viajes suyos. Con una OD por paradero, esa celda revelaría su casa y su trabajo.

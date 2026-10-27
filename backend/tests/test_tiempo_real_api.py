@@ -94,6 +94,25 @@ def test_el_resultado_del_viaje_se_guarda_sin_cuenta_ni_puntos(api, registrar):
     assert str(usuario["id"]) not in str(doc)
     assert [b["ruta"] for b in doc["buses"]] == ["T103", "A101"] and doc["buses"][1]["espera_real_min"] is None
 
+    # Aparte, una huella por cifra cuenta a esta persona; no lleva su id y difiere en cada cifra.
+    aportes = list(get_database().trip_contributors.find({"_id": {"$regex": r"\|(total|a_bordo:T103)$"}}))
+    huellas = [h for d in aportes for h in d["huellas"]]
+    assert len(aportes) == 2 and str(usuario["id"]) not in str(aportes)
+    assert len(set(huellas)) == len(huellas)  # la misma persona tiene otra huella en cada cifra
+    from src.infrastructure.repositories import MongoRealtimeRepository
+    from datetime import datetime, timezone
+    personas = MongoRealtimeRepository(get_database()).contributors(datetime(2026, 1, 1, tzinfo=timezone.utc))
+    assert personas["total"] >= 1 and personas["a_bordo:A101"] >= 1 and "espera:A101" not in personas
+    # Otro viaje de la misma persona no suma otra persona.
+    antes = personas["total"]
+    assert api.post("/api/v1/trip-results", json=cuerpo, headers=_auth(token)).status_code == 201
+    assert MongoRealtimeRepository(get_database()).contributors(datetime(2026, 1, 1, tzinfo=timezone.utc))["total"] == antes
+    # Borrar la cuenta quita sus huellas.
+    assert api.delete("/api/v1/users/me", headers=_auth(token)).status_code == 204
+    despues = MongoRealtimeRepository(get_database()).contributors(datetime(2026, 1, 1, tzinfo=timezone.utc))
+    assert despues["total"] == antes - 1
+    token, usuario = registrar()
+
     mala = {**cuerpo, "buses": [{**cuerpo["buses"][0], "ruta": "T999"}]}
     assert api.post("/api/v1/trip-results", json=mala, headers=_auth(token)).status_code == 422
     assert api.post("/api/v1/trip-results", json={**cuerpo, "buses": []}, headers=_auth(token)).status_code == 422

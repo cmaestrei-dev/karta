@@ -60,6 +60,8 @@ def ensure_indexes(db: Database) -> None:
     # Cuánto estimó Karta y cuánto tardó cada viaje (D17): sin cuenta ni puntos; vence a los 180 días.
     db.trip_results.create_index([("franja", ASCENDING)])
     db.trip_results.create_index([("expira_en", ASCENDING)], expireAfterSeconds=0)
+    # Las huellas que cuentan personas distintas por cifra y mes (aportes.py); vencen a los 7 meses.
+    db.trip_contributors.create_index([("expira_en", ASCENDING)], expireAfterSeconds=0)
     migrar(db)
 
 

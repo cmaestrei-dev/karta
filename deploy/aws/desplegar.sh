@@ -95,6 +95,7 @@ variables.setdefault("JWT_SECRET", secrets.token_hex(32))
 variables.setdefault("MONGO_DB", "karta")
 variables.setdefault("CORS_ORIGINS", "*")
 variables.setdefault("CONTADORES_CADA_S", "60")  # los conteos del piloto se juntan en memoria (plan de calidad, E2)
+variables.setdefault("CLAVE_DE_APORTES", secrets.token_hex(32))  # huellas que cuentan personas por cifra (aportes.py)
 if os.path.exists(f"{obra}/bucket"):  # la copia diaria en S3 (plan de calidad, D2)
     variables["RESPALDOS_BUCKET"] = open(f"{obra}/bucket").read()
 with open(f"{obra}/entorno.json", "w") as f:

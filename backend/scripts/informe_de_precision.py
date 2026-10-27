@@ -1,7 +1,7 @@
 """
 Qué tan exacto es Karta (D17), con los viajes reales que llegaron al destino: el error de la hora de llegada, por hora
-del día, y el de la espera y el tiempo a bordo por ruta. Solo imprime grupos con al menos 10 viajes, así que el
-informe se puede publicar o entregar (política, «Estadísticas agregadas y anónimas»).
+del día, y el de la espera y el tiempo a bordo por ruta. Solo imprime grupos con viajes de al menos 10 personas
+distintas, así que el informe se puede publicar o entregar (política, «Estadísticas agregadas y anónimas»).
 
 Uso (con MONGO_URI y MONGO_DB de la base que se quiere medir):
     python -m scripts.informe_de_precision [--desde 2026-11-18] [--md docs/precision-del-piloto.md]
@@ -26,7 +26,7 @@ def _fila(nombre: str, p: Precision) -> str:
 
 def _tabla(titulo: str, columna: str, grupos: dict) -> list[str]:
     if not grupos:
-        return [f"### {titulo}", "", f"Aún no hay ningún grupo con {MINIMO_POR_CIFRA} viajes.", ""]
+        return [f"### {titulo}", "", f"Aún no hay ningún grupo con viajes de {MINIMO_POR_CIFRA} personas.", ""]
     return [f"### {titulo}", "", f"| {columna} | Viajes | Mediana | 90 % se equivoca a lo sumo | A menos de {CERCA_MIN} min |",
             "|---|---|---|---|---|", *[_fila(str(k), p) for k, p in grupos.items()], ""]
 
@@ -36,10 +36,10 @@ def en_markdown(hecho: Informe, desde: datetime) -> str:
         "# Qué tan exacto es Karta", "",
         f"Viajes reales que llegaron al destino desde el {desde:%d/%m/%Y}: **{hecho.viajes}**. "
         f"El error es lo que se tardó de verdad menos lo que estimó Karta al empezar: positivo, se tardó más. "
-        f"Solo se muestran grupos con al menos {MINIMO_POR_CIFRA} viajes.", "",
+        f"Solo se muestran grupos con viajes de al menos {MINIMO_POR_CIFRA} personas distintas.", "",
     ]
     if hecho.total is None:
-        lineas += [f"Aún no hay {MINIMO_POR_CIFRA} viajes: no hay cifras que mostrar.", ""]
+        lineas += [f"Aún no hay viajes de {MINIMO_POR_CIFRA} personas distintas: no hay cifras que mostrar.", ""]
         return "\n".join(lineas)
     lineas += _tabla("Hora de llegada", "Viajes", {"Todos": hecho.total})
     lineas += _tabla("Hora de llegada, por hora de salida", "Hora",
@@ -55,7 +55,8 @@ def main() -> None:
     argumentos.add_argument("--md", type=Path, help="Además de imprimirlo, guardarlo en este archivo")
     opciones = argumentos.parse_args()
     desde = datetime.fromisoformat(opciones.desde).replace(tzinfo=HORA_DE_COLOMBIA)
-    texto = en_markdown(informe(MongoRealtimeRepository(get_database()).trip_results(desde)), desde)
+    viajes = MongoRealtimeRepository(get_database())
+    texto = en_markdown(informe(viajes.trip_results(desde), viajes.contributors(desde)), desde)
     print(texto)
     if opciones.md:
         opciones.md.write_text(texto + "\n", encoding="utf-8")

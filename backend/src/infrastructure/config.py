@@ -56,5 +56,8 @@ LIMITE_IP_BUSCAR = (int(os.getenv("LIMITE_IP_BUSCAR_POR_MINUTO", "120")), 30)
 # memoria para no escribir en Atlas por cada consulta de llegada.
 CONTADORES_CADA_S = int(os.getenv("CONTADORES_CADA_S", "0"))
 
+# La clave de las huellas que cuentan personas distintas por estadística (aportes.py). La pone el despliegue.
+CLAVE_DE_APORTES = os.getenv("CLAVE_DE_APORTES", "")
+
 # El bucket privado de S3 de la copia diaria (respaldo.py). Lo pone el despliegue.
 RESPALDOS_BUCKET = os.getenv("RESPALDOS_BUCKET", "")
