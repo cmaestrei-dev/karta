@@ -153,7 +153,7 @@ Todas se apoyan en tres normas:
 | Ministerio de Transporte y Terminal de Transportes | Rutas intermunicipales, empresas, frecuencias y puntos de salida |
 | Capitanía de Puerto (DIMAR) y Corpoturismo | Empresas habilitadas, rutas y muelles autorizados, zarpes y tasas |
 
-Se redactan con el mismo cuidado que la [petición a Transcaribe](legal/derecho-de-peticion-transcaribe.md), cuando Camilo lo decida. Antes de contar con el silencio positivo, hay que confirmar si los plazos son días hábiles.
+Se redactan con el mismo cuidado que la [petición a Transcaribe](legal/derecho-de-peticion-transcaribe.md), cuando Camilo lo decida. **La del DATT ya está redactada** (27 de octubre): [carta](legal/derecho-de-peticion-datt.md) y [notas](legal/derecho-de-peticion-datt-notas.md). El DATT no tiene canal propio y recibe por el formulario PQRSDF de la Alcaldía. Antes de contar con el silencio positivo, hay que confirmar si los plazos son días hábiles.
 
 ## 8. Orden
 

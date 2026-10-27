@@ -20,6 +20,7 @@ Cada pendiente dice de qué depende:
 | Que José acepte el [acuerdo de contribución](acuerdo-de-contribucion.md) por sus aportes anteriores | Camilo y José | Sin él, esos aportes no se pueden relicenciar |
 | Buscar la marca «Karta» en SIPI, antes del lanzamiento | Camilo | Hay un registro internacional «Karta» de Grab ([propiedad intelectual](propiedad-intelectual.md)) |
 | Decidir cómo se reparte el APK: *release* de GitHub (público) o enlace privado | Camilo | Paso previo al piloto |
+| **Radicar la petición al DATT** (rutas de busetas, redactada el 27 de octubre): [carta](legal/derecho-de-peticion-datt.md) y [notas](legal/derecho-de-peticion-datt-notas.md), con la versión en Word en Descargas | Camilo | Es el primer paso de los otros transportes; si se radica ya, responde en paralelo con Transcaribe |
 | Hacer seguimiento a las peticiones a Transcaribe y a la Alcaldía; si no responden de fondo, insistir y, en último caso, tutela | Transcaribe | Lo que pasa si no responden está en las [notas de la petición](legal/derecho-de-peticion-transcaribe-notas.md) |
 | Más adelante: decidir si crear una S.A.S. | Camilo | Hace falta para facturar analítica y para que el responsable de los datos no sea una persona ([plan de datos y monetización](plan-datos-y-monetizacion.md)) |
 
