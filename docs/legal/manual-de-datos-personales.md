@@ -26,6 +26,7 @@ Todas las bases están en MongoDB Atlas (AWS us-east-1). Los encargados son Mong
 | `stop_answers` | Ruta, punto y respuesta, sin cuenta | Base de conocimiento de cómo pedir la parada | 1 año (TTL) |
 | `daily_counts` | Ninguno: conteos por día y hora (consultas de llegada y cuántas tuvieron datos, viajes compartidos, reportes, confirmaciones, desmentidos, vistas y «Gracias», y cuántas personas distintas vieron o agradecieron ese día) | Indicadores del piloto ([plan-comunidad](../plan-comunidad.md), §5) | Sin plazo: nacen agregados |
 | `rate_limits` | IP o id del viajero, más un contador | Evitar abusos | La ventana: 1 min a 1 h (TTL) |
+| Copias de seguridad de Atlas | Todo lo anterior, tal como estaba ese día | Recuperarse de un incidente | 4 días: Atlas guarda las últimas 4 instantáneas diarias |
 | Registros de AWS Lambda (CloudWatch) | Datos técnicos de peticiones que fallaron | Corregir errores | 7 días (retención del grupo) |
 
 **No se guardan:**
@@ -61,7 +62,11 @@ Son la base de la analítica para entidades del [plan de sostenibilidad](../plan
 - **Al abrir la app por primera vez,** el aviso de privacidad se muestra antes de crear la cuenta o de pedir la ubicación (`frontend/lib/features/legal/presentation/aviso_de_privacidad.dart`).
   - Para aceptar hay que marcar «Tengo 18 años o más» y tocar «Acepto y continuar».
   - Es un acto afirmativo: no hay casillas premarcadas ni aceptación por seguir usando la app (C-748 de 2011).
-- **La prueba:** al existir la cuenta, la app envía `POST /api/v1/users/me/autorizacion` y el servidor guarda en `users.autorizaciones` la versión y la fecha (art. 2.2.2.25.2.5).
+- **La prueba:** el servidor guarda en `users.autorizaciones` la versión y la fecha (art. 2.2.2.25.2.5).
+  - Desde el 26 de octubre de 2026, la app manda la versión aceptada en la misma petición que crea o renueva la sesión (`/auth/anonymous`, `/auth/login`). Así la prueba no depende de que después haya señal.
+  - Las versiones anteriores de la app la mandan con `POST /api/v1/users/me/autorizacion`.
+  - Registrarse marca la casilla de autorización, que también guarda la prueba.
+- **El servidor no recibe datos sin esa prueba** (Ley 1581, art. 9). Las escrituras de una cuenta sin la versión vigente responden 403: reportes, votos, avistamientos, viajes, subidas, marcas y lugares guardados. Abrir un reporte tampoco guarda la vista.
 - **Compartir el bus** tiene su propio aviso antes del primer viaje en bus.
 - **La ubicación** se pide con el permiso del sistema y se puede negar.
 - **Si cambia la política:**
@@ -99,6 +104,7 @@ Las atiende el responsable, por el correo de la política.
 Un incidente es, por ejemplo, una llave de AWS o la contraseña de Atlas filtradas, o un acceso indebido a la base.
 
 1. **Contener:**
+   - Si fue un despliegue malo: `deploy/aws/desplegar.sh --volver N` deja la versión anterior en segundos.
    - Desactivar la llave (IAM).
    - Cambiar la contraseña de `karta-api` en Atlas y actualizar la función con `deploy/aws/desplegar.sh --cambiar-base`.
    - Si hace falta, cerrar la Function URL.
@@ -138,6 +144,8 @@ Un incidente es, por ejemplo, una llave de AWS o la contraseña de Atlas filtrad
   Mientras falten, la política dice «[por definir]» y no se debe invitar a nadie al piloto.
 
 ## 7. Revisión
+
+**Cada 90 días** se rotan los secretos: el de los tokens con `deploy/aws/desplegar.sh --rotar-secreto` y la contraseña de Atlas ([despliegue](../despliegue-aws.md), «Rotar los secretos»). La próxima vez es el 24 de enero de 2027.
 
 Cada año, o antes si cambia la app o la norma:
 - revisar el inventario;

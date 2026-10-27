@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from src.domain.geo import corredor_de_ruta
 from src.domain.models import Incidente, Usuario
 from src.domain.indicadores import dia, inicio_del_dia
+from src.domain.politica import VERSION_POLITICA
 from src.domain.ports import Contadores, IncidentRepository, PlaceRepository, TransitRepository, UserRepository
 from src.domain.reportes import (
     CATALOGO, REPUTACION_POR_CONFIRMACION, REPUTACION_POR_RETIRO, REPUTACION_POR_VOTAR, DetallesInvalidos,
@@ -83,7 +84,8 @@ class IncidentService:
         autor = self.users.get_by_id(incidente.reportado_por)
         es_mio = usuario is not None and usuario.id == incidente.reportado_por
         ahora = datetime.now(timezone.utc)
-        if usuario and not es_mio and self.incidents.register_view(incidente_id, usuario.id, ahora):
+        autorizado = usuario is not None and usuario.autorizacion == VERSION_POLITICA
+        if autorizado and not es_mio and self.incidents.register_view(incidente_id, usuario.id, ahora):
             self.users.sumar_impacto(incidente.reportado_por, "vistas")
             self._contar(ahora, {"vistas": 1})
             self._contar_persona("vista", usuario, ahora, "personas.vieron_reportes")

@@ -45,3 +45,13 @@ LIMITE_MARCAS = (int(os.getenv("LIMITE_MARCAS_POR_10_MIN", "10")), 600)  # por v
 LIMITE_VIAJES_DE_MAPEO = (int(os.getenv("LIMITE_VIAJES_DE_MAPEO_POR_HORA", "6")), 3600)  # por viajero
 LIMITE_POSICIONES = (int(os.getenv("LIMITE_POSICIONES_POR_10_MIN", "40")), 600)  # por viajero
 LIMITE_RESULTADOS_DE_VIAJE = (int(os.getenv("LIMITE_RESULTADOS_DE_VIAJE_POR_HORA", "6")), 3600)  # por viajero
+
+# Por IP, en memoria y para todas las rutas (limite_en_memoria.py): (por minuto, ráfaga). Un viajero activo hace
+# menos de 10 peticiones por minuto (la llegada y la posición, cada 30 s); planificar y buscar cuestan más.
+LIMITE_IP_GENERAL = (int(os.getenv("LIMITE_IP_POR_MINUTO", "240")), 60)
+LIMITE_IP_PLANIFICAR = (int(os.getenv("LIMITE_IP_PLANIFICAR_POR_MINUTO", "30")), 10)
+LIMITE_IP_BUSCAR = (int(os.getenv("LIMITE_IP_BUSCAR_POR_MINUTO", "120")), 30)
+
+# Cada cuántos segundos se guardan en la base los conteos del piloto (0: en cada petición). En Lambda se juntan en
+# memoria para no escribir en Atlas por cada consulta de llegada.
+CONTADORES_CADA_S = int(os.getenv("CONTADORES_CADA_S", "0"))

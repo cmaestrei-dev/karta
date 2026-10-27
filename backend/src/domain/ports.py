@@ -253,8 +253,8 @@ class RealtimeRepository(Protocol):
 
     def end_trip(self, viaje: str) -> None: ...
 
-    def observations(self, ruta: str, desde: datetime) -> list[Observacion]:
-        """Avistamientos y viajes compartidos de la ruta desde ese momento."""
+    def observations(self, ruta: str, desde: datetime, ahora: datetime) -> list[Observacion]:
+        """Avistamientos desde ese momento y los viajes compartidos que siguen vivos."""
         ...
 
     def add_stop_answer(self, ruta: str, longitud: float, latitud: float, como: ComoSePidio, en: datetime) -> None:

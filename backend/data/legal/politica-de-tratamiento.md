@@ -76,6 +76,8 @@ Karta no te pide nombre, correo ni documento para funcionar. Lo que trata depend
 - Las contraseñas se guardan solo como huella (argon2).
 - El acceso al servidor y a la base de datos es mínimo y protegido.
 - Casi todo se borra solo, en los plazos de la sección 2.
+- La base de datos tiene una copia de seguridad diaria, cifrada, que se borra a los 4 días. Lo que borres sigue en esas copias a lo sumo 4 días más.
+- El servidor no recibe ningún dato tuyo mientras no hayas aceptado la versión vigente de esta política.
 - No guardamos historiales de ubicación.
 - El código de Karta es abierto: cualquiera puede revisar en [github.com/cmaestrei-dev/karta](https://github.com/cmaestrei-dev/karta) qué datos se tratan y cómo.
 

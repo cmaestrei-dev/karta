@@ -5,6 +5,7 @@ from src.domain.schemas.place_schema import SavedPlaceCreate, SavedPlaceResponse
 from src.domain.schemas.user_schema import AutorizacionRequest, UserResponse
 from src.application.auth_service import AuthService
 from src.infrastructure.dependencies import get_auth_service, get_current_user, get_place_service
+from src.infrastructure.limites import viajero_autorizado
 from src.infrastructure.routers.respuestas import FUERA_DE_COBERTURA, SIN_SESION, error
 from typing import List
 
@@ -53,7 +54,7 @@ def list_saved_places(usuario: Usuario = Depends(get_current_user),
 
 @router.post("/me/places", summary="Guardar un lugar", response_model=SavedPlaceResponse, status_code=status.HTTP_201_CREATED,
              responses={**SIN_SESION, 409: error("Ya hay 10 lugares guardados."), **FUERA_DE_COBERTURA})
-def create_saved_place(datos: SavedPlaceCreate, usuario: Usuario = Depends(get_current_user),
+def create_saved_place(datos: SavedPlaceCreate, usuario: Usuario = Depends(viajero_autorizado),
                        service: PlaceService = Depends(get_place_service)):
     """Guarda un lugar frecuente. Máximo 10 por viajero."""
     try:
@@ -65,7 +66,7 @@ def create_saved_place(datos: SavedPlaceCreate, usuario: Usuario = Depends(get_c
 
 @router.patch("/me/places/{place_id}", summary="Editar un lugar guardado", response_model=SavedPlaceResponse,
               responses={**SIN_SESION, 404: error("No existe o es de otro viajero."), **FUERA_DE_COBERTURA})
-def update_saved_place(place_id: str, cambios: SavedPlaceUpdate, usuario: Usuario = Depends(get_current_user),
+def update_saved_place(place_id: str, cambios: SavedPlaceUpdate, usuario: Usuario = Depends(viajero_autorizado),
                        service: PlaceService = Depends(get_place_service)):
     """Cambia el nombre, el ícono o la ubicación de un lugar guardado propio."""
     try:

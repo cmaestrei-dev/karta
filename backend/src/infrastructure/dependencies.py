@@ -10,9 +10,10 @@ from src.application.place_service import PlaceService
 from src.application.realtime_service import RealtimeService
 from src.application.trip_service import TripService
 from src.domain.models import Usuario
+from src.infrastructure import config
 from src.infrastructure.database import get_database
 from src.infrastructure.repositories import (
-    MongoContadores, MongoIncidentRepository, MongoPlaceRepository, MongoRealtimeRepository, MongoSavedPlaceRepository,
+    ContadoresAgrupados, MongoContadores, MongoIncidentRepository, MongoPlaceRepository, MongoRealtimeRepository, MongoSavedPlaceRepository,
     MongoStopMappingRepository, MongoTransitRepository, MongoUserRepository,
 )
 from src.infrastructure.security import password_hasher, token_issuer
@@ -32,9 +33,20 @@ def get_auth_service(users: MongoUserRepository = Depends(get_user_repository)) 
     return AuthService(users, password_hasher, token_issuer)
 
 
+_CONTADORES: ContadoresAgrupados | None = None
+
+
+def contadores(db: Database) -> ContadoresAgrupados:
+    """Los conteos del piloto de esta instancia, juntados en memoria (config.CONTADORES_CADA_S)."""
+    global _CONTADORES
+    if _CONTADORES is None:
+        _CONTADORES = ContadoresAgrupados(MongoContadores(db), config.CONTADORES_CADA_S)
+    return _CONTADORES
+
+
 def get_incident_service(db: Database = Depends(get_db)) -> IncidentService:
     return IncidentService(MongoIncidentRepository(db), MongoUserRepository(db),
-                           MongoPlaceRepository(db), MongoTransitRepository(db), MongoContadores(db))
+                           MongoPlaceRepository(db), MongoTransitRepository(db), contadores(db))
 
 
 def get_place_service(db: Database = Depends(get_db)) -> PlaceService:
@@ -52,7 +64,7 @@ def get_mapping_service(db: Database = Depends(get_db)) -> MappingService:
 
 def get_realtime_service(db: Database = Depends(get_db)) -> RealtimeService:
     return RealtimeService(MongoRealtimeRepository(db), MongoTransitRepository(db), MongoIncidentRepository(db),
-                           MongoContadores(db))
+                           contadores(db))
 
 
 def get_current_user(

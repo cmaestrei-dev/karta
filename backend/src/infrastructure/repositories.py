@@ -2,12 +2,14 @@
 import math
 import re
 import secrets
+import threading
+import time
 from datetime import datetime, timedelta, timezone
 
 from bson import ObjectId
 from pymongo import DESCENDING, ReturnDocument
 from pymongo.database import Database
-from pymongo.errors import DuplicateKeyError
+from pymongo.errors import DuplicateKeyError, PyMongoError
 
 from src.domain.conocimiento import ComoSePidio, RespuestaDeParada
 from src.domain.direcciones import Cruce, Via
@@ -284,8 +286,42 @@ class MongoPlaceRepository:
         return (_to_lugar(docs[0]), docs[0]["distancia_m"]) if docs else None
 
 
+class CacheDeReferencia:
+    """
+    Rutas, estaciones, horarios y sentidos solo cambian al desplegar (cargar_datos_de_referencia), pero se pedían a
+    Atlas en cada consulta. Aquí se guardan VIGENCIA_S segundos por instancia: eso ahorra la mayoría de las lecturas
+    y de la transferencia de Atlas. Los paraderos no pasan por aquí, porque llevan lo que ubica la comunidad.
+    Se entregan copias de las colecciones, así quien las use no cambia la guardada.
+    """
+    VIGENCIA_S = 60
+
+    def __init__(self, reloj=time.monotonic):
+        self._reloj = reloj
+        self._candado = threading.Lock()
+        self._datos: dict[tuple, tuple[float, object]] = {}
+
+    def obtener(self, clave: tuple, calcular):
+        ahora = self._reloj()
+        with self._candado:
+            guardado = self._datos.get(clave)
+        if guardado is None or ahora - guardado[0] >= self.VIGENCIA_S:
+            guardado = (ahora, calcular())
+            with self._candado:
+                self._datos[clave] = guardado
+        valor = guardado[1]
+        return type(valor)(valor) if isinstance(valor, (list, dict, set)) else valor
+
+    def limpiar(self) -> None:
+        with self._candado:
+            self._datos.clear()
+
+
+REFERENCIA = CacheDeReferencia()
+
+
 class MongoTransitRepository:
     def __init__(self, db: Database):
+        self._base = db.name
         self._routes = db.transit_routes
         self._stations = db.stations
         self._schedules = db.route_schedules
@@ -303,7 +339,8 @@ class MongoTransitRepository:
         return [_to_ruta(doc) for doc in self._routes.find(filtro)]
 
     def schedules(self) -> dict[str, HorarioRuta]:
-        return {doc["_id"]: HorarioRuta.desde_texto(doc["_id"], doc) for doc in self._schedules.find()}
+        return REFERENCIA.obtener((self._base, "horarios"), lambda: {
+            doc["_id"]: HorarioRuta.desde_texto(doc["_id"], doc) for doc in self._schedules.find()})
 
     def intersection_near(self, lon: float, lat: float, radio_m: float) -> str | None:
         doc = self._intersections.find_one({"ubicacion": {"$nearSphere": {
@@ -315,25 +352,27 @@ class MongoTransitRepository:
         return [p for p in _paraderos_con_comunidad(self._official_stops, self._marks, filtro) if p.longitud is not None]
 
     def directions(self) -> dict[str, str]:
-        return {d["_id"]: d["hacia"] for d in self._directions.find()}
+        return REFERENCIA.obtener((self._base, "sentidos"),
+                                  lambda: {d["_id"]: d["hacia"] for d in self._directions.find()})
 
     def list_stations(self) -> list[Estacion]:
-        return [_to_estacion(doc) for doc in self._stations.find()]
+        return REFERENCIA.obtener((self._base, "estaciones"),
+                                  lambda: [_to_estacion(doc) for doc in self._stations.find()])
 
     def stations_near(self, lon: float, lat: float, radio_m: float, limite: int) -> list[tuple[Estacion, float]]:
         return [(_to_estacion(doc), doc["distancia_m"])
                 for doc in self._stations.aggregate(_cercanos(lon, lat, radio_m, limite))]
 
     def list_routes(self, tipo: str | None = None) -> list[RutaTransporte]:
-        filtro = {"tipo": tipo} if tipo else {}
-        return [_to_ruta(doc) for doc in self._routes.find(filtro).sort("_id")]
+        todas = REFERENCIA.obtener((self._base, "rutas"),
+                                   lambda: [_to_ruta(doc) for doc in self._routes.find().sort("_id")])
+        return [r for r in todas if tipo is None or r.tipo == tipo]
 
     def route_codes(self) -> set[str]:
-        return set(self._routes.distinct("_id"))
+        return {r.id for r in self.list_routes()}
 
     def route(self, codigo: str) -> RutaTransporte | None:
-        doc = self._routes.find_one({"_id": codigo})
-        return _to_ruta(doc) if doc else None
+        return next((r for r in self.list_routes() if r.id == codigo), None)
 
 
 class MongoSavedPlaceRepository:
@@ -649,13 +688,13 @@ class MongoRealtimeRepository:
     def end_trip(self, viaje: str) -> None:
         self._trips.delete_one({"_id": viaje})
 
-    def observations(self, ruta: str, desde: datetime) -> list[Observacion]:
+    def observations(self, ruta: str, desde: datetime, ahora: datetime) -> list[Observacion]:
         def observacion(doc: dict, en_vivo: bool) -> Observacion:
             lon, lat = doc["ubicacion"]["coordinates"]
             return Observacion(longitud=lon, latitud=lat, en=doc["en"], en_vivo=en_vivo,
                                ocupacion=Ocupacion(doc["ocupacion"]) if doc.get("ocupacion") else None)
         filtro = {"ruta": ruta, "en": {"$gte": desde}}
-        return ([observacion(d, True) for d in self._trips.find({**filtro, "expira_en": {"$gt": desde}})]
+        return ([observacion(d, True) for d in self._trips.find({**filtro, "expira_en": {"$gt": ahora}})]
                 + [observacion(d, False) for d in self._sightings.find(filtro)])
 
     def add_stop_answer(self, ruta: str, longitud: float, latitud: float, como: ComoSePidio, en: datetime) -> None:
@@ -697,3 +736,44 @@ class MongoContadores:
 
     def dias(self, desde: str, hasta: str) -> list[dict]:
         return list(self._dias.find({"_id": {"$gte": desde, "$lte": hasta}}).sort("_id", 1))
+
+
+class ContadoresAgrupados:
+    """
+    Junta en memoria los conteos del piloto y los guarda en `destino` cada `cada_s` segundos, sumados por día: una
+    escritura cada tanto, no una por cada consulta de llegada. Lambda congela la instancia entre peticiones, así que
+    se vacía en la primera petición después del plazo y con el calentador, cada 5 minutos. Si la instancia se
+    recicla antes, se pierden a lo sumo esos segundos de conteos.
+    """
+
+    def __init__(self, destino, cada_s: int, reloj=time.monotonic):
+        self._destino = destino
+        self._cada_s = cada_s
+        self._reloj = reloj
+        self._candado = threading.Lock()
+        self._pendientes: dict[str, dict[str, int]] = {}
+        self._ultimo = reloj()
+
+    def sumar(self, dia: str, campos: dict[str, int]) -> None:
+        with self._candado:
+            del_dia = self._pendientes.setdefault(dia, {})
+            for campo, n in campos.items():
+                del_dia[campo] = del_dia.get(campo, 0) + n
+        if self._reloj() - self._ultimo >= self._cada_s:
+            self.vaciar()
+
+    def vaciar(self) -> None:
+        with self._candado:
+            pendientes, self._pendientes, self._ultimo = self._pendientes, {}, self._reloj()
+        for dia, campos in pendientes.items():
+            try:
+                self._destino.sumar(dia, campos)
+            except PyMongoError:
+                with self._candado:  # se reintenta con el próximo vaciado
+                    del_dia = self._pendientes.setdefault(dia, {})
+                    for campo, n in campos.items():
+                        del_dia[campo] = del_dia.get(campo, 0) + n
+
+    def dias(self, desde: str, hasta: str) -> list[dict]:
+        self.vaciar()
+        return self._destino.dias(desde, hasta)

@@ -97,7 +97,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   controlAffinity: ListTileControlAffinity.leading,
                   contentPadding: EdgeInsets.zero,
                   title: const Text(
-                    'Autorizo el tratamiento de mis datos personales y de ubicación según la Ley 1581 de 2012.',
+                    'Autorizo el tratamiento de mis datos personales y de ubicación según la política de datos de '
+                    'Karta (Ley 1581 de 2012).',
                     style: TextStyle(fontSize: 13, color: Colors.grey),
                   ),
                 ),

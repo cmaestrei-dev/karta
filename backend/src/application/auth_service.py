@@ -1,4 +1,5 @@
 import hashlib
+from dataclasses import replace
 from datetime import datetime, timezone
 
 from src.domain.models import CredencialesInvalidas, TipoViajero, Usuario
@@ -13,10 +14,12 @@ class AuthService:
         self.hasher = hasher
         self.tokens = tokens
 
-    def invisible(self, *, secreto: str) -> tuple[Usuario, str]:
+    def invisible(self, *, secreto: str, politica: str | None = None) -> tuple[Usuario, str]:
         """
         La cuenta invisible del teléfono: la misma cada vez que muestra su secreto, o una nueva la primera vez.
         Solo se guarda la huella del secreto (es aleatorio y largo: no hace falta un hash lento).
+        Si el teléfono dice que aceptó la política vigente, la prueba queda en la misma petición que crea o renueva la
+        sesión: no depende de que después haya señal.
         """
         huella = hashlib.sha256(secreto.encode()).hexdigest()
         ahora = datetime.now(timezone.utc)
@@ -25,13 +28,21 @@ class AuthService:
             usuario = self.users.add_invisible(huella=huella, creado_en=ahora)
         else:
             self.users.touch(usuario.id, ahora)
-        return usuario, self.tokens.issue(usuario.id)
+        return self._con_autorizacion(usuario, politica, ahora), self.tokens.issue(usuario.id)
+
+    def _con_autorizacion(self, usuario: Usuario, politica: str | None, ahora: datetime) -> Usuario:
+        """Guarda la prueba si se aceptó la versión vigente y la cuenta aún no la tenía."""
+        if politica != VERSION_POLITICA or usuario.autorizacion == VERSION_POLITICA:
+            return usuario
+        self.users.autorizar(usuario.id, politica, ahora)
+        return replace(usuario, autorizacion=politica)
 
     def register(self, *, email: str, password: str, nombre: str, tipo_viajero: TipoViajero,
                  actual: Usuario | None = None) -> tuple[Usuario, str]:
         """
         Caso de Uso: Registrarse. Desde la cuenta invisible, le pone correo a esa misma cuenta (conserva la
-        reputación y los lugares). Lanza EmailYaRegistrado si el correo ya existe.
+        reputación y los lugares). Lanza EmailYaRegistrado si el correo ya existe. La casilla obligatoria del
+        formulario autoriza el tratamiento según la política vigente, así que su prueba queda guardada.
         """
         ahora = datetime.now(timezone.utc)
         if actual is not None and actual.sin_cuenta:
@@ -40,7 +51,7 @@ class AuthService:
                 nombre=nombre.strip(), alias=alias_publico(nombre), tipo_viajero=tipo_viajero,
                 terminos_aceptados_en=ahora,
             )
-            return usuario, self.tokens.issue(usuario.id)
+            return self._con_autorizacion(usuario, VERSION_POLITICA, ahora), self.tokens.issue(usuario.id)
         usuario = self.users.add(
             email=email.strip().lower(),
             password_hash=self.hasher.hash(password),
@@ -50,7 +61,7 @@ class AuthService:
             creado_en=ahora,
             terminos_aceptados_en=ahora,
         )
-        return usuario, self.tokens.issue(usuario.id)
+        return self._con_autorizacion(usuario, VERSION_POLITICA, ahora), self.tokens.issue(usuario.id)
 
     def autorizar(self, usuario: Usuario, version: str) -> None:
         """
@@ -65,7 +76,7 @@ class AuthService:
         """Caso de Uso: Borrar mi cuenta y mis datos (supresión, Ley 1581 art. 8). No se puede deshacer."""
         self.users.erase(usuario.id)
 
-    def login(self, *, email: str, password: str) -> tuple[Usuario, str]:
+    def login(self, *, email: str, password: str, politica: str | None = None) -> tuple[Usuario, str]:
         """Caso de Uso: Iniciar sesión. Lanza CredencialesInvalidas sin revelar cuál dato falló."""
         usuario = self.users.get_by_email(email.strip().lower())
         if usuario is None:
@@ -75,4 +86,4 @@ class AuthService:
             raise CredencialesInvalidas()
         if usuario.password_hash is None or not self.hasher.verify(password, usuario.password_hash):
             raise CredencialesInvalidas()
-        return usuario, self.tokens.issue(usuario.id)
+        return self._con_autorizacion(usuario, politica, datetime.now(timezone.utc)), self.tokens.issue(usuario.id)

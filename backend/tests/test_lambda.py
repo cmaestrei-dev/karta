@@ -22,6 +22,7 @@ def evento(metodo: str, ruta: str, cuerpo: dict | None = None, ip: str = "181.50
 def test_el_calentador_y_la_function_url_llegan_a_la_api(api):
     from src.infrastructure.lambda_handler import handler
 
+    assert handler({"preparar": True}, None) == {"preparada": True}  # lo que hace el despliegue
     assert handler({"calentar": True}, None) == {"calentada": True}
 
     salud = handler(evento("GET", "/api/v1/health"), None)

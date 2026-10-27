@@ -93,7 +93,7 @@ class RealtimeService:
         ahora = ahora or datetime.now(timezone.utc)
         varados = [BusVarado(i.longitud, i.latitud, i.creado_en, i.votos_si, i.lugar)
                    for i in self.incidents.active_for_route("bus_varado", ruta, ahora)]
-        estimacion = estimar_llegada(ruta_, subida, bajada, self.realtime.observations(ruta, ahora - self.VENTANA),
+        estimacion = estimar_llegada(ruta_, subida, bajada, self.realtime.observations(ruta, ahora - self.VENTANA, ahora),
                                      ahora, varados)
         self._contar(ahora, consulta_de_llegada(ahora, ruta_.tipo == "troncal", estimacion is not None))
         return estimacion, varado_antes_de_la_parada(ruta_, subida, bajada, varados)

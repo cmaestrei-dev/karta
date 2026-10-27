@@ -10,7 +10,7 @@ class RoutePoint(BaseModel):
 
 class RouteRiskRequest(BaseModel):
     """Polilínea trazada en el mapa que la App Móvil quiere evaluar."""
-    route: List[RoutePoint] = Field(..., min_length=2, max_length=5000)
+    route: List[RoutePoint] = Field(..., min_length=2, max_length=1000)
 
 class IncidentRiskDetail(BaseModel):
     model_config = ConfigDict(from_attributes=True)

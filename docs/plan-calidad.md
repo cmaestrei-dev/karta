@@ -1,6 +1,6 @@
 # Plan de calidad: escalabilidad, disponibilidad, latencia, seguridad y consistencia
 
-**Estado:** auditoría y plan del 26 de octubre de 2026. Es **solo un plan**: nada de lo que propone está hecho.
+**Estado:** auditoría y plan del 26 de octubre de 2026. El P0 se hizo el mismo día (sección 8); lo demás sigue siendo plan.
 
 **Alcance:** la versión de la rama `claude/fase-4`, desplegada en AWS Lambda con MongoDB Atlas M0 ([despliegue](despliegue-aws.md)).
 
@@ -215,6 +215,27 @@ Lo demás:
   - D6 límite de cuentas para IP compartidas;
   - E6 más concurrencia y Atlas Flex o M10.
 - **P2, con miles de viajeros a la vez:** clúster dedicado con SLA y copia continua. Varias regiones no se justifican todavía.
+
+## 8. El P0, hecho el 26 de octubre
+
+| # | Qué quedó | Falta |
+|---|---|---|
+| D1 | `deploy/aws/alarmas.sh`: 5 alarmas (5xx, fallas, rechazos, p95 sobre 3 s, concurrencia de 8 o más) y el presupuesto `karta-mensual` de USD 5, con aviso por correo. La sonda `.github/workflows/sonda.yml` pide `/health` cada 10 min desde GitHub | Camilo corre `ajustar-permisos.sh` (una vez, con la cuenta principal) y confirma el correo de la suscripción. La sonda corre cuando se fusione a `main` |
+| D2 | Las copias del plan gratuito de Atlas: una instantánea diaria, se guardan 4. Declaradas en la política y el manual | Camilo las activa en Atlas (*Backup*) |
+| D3 | Los índices y los datos de referencia se preparan al desplegar (evento `preparar`), no en cada arranque en frío | — |
+| D4 | Cada despliegue publica una versión, la prepara y la prueba antes de mover el alias «live»; `--volver N` y `--versiones` | La dirección de la API cambia a la de «live»: hace falta un APK nuevo. La dirección vieja se borra cuando nadie use el APK anterior |
+| S1 | Límite por IP en memoria para todas las rutas: 240 por minuto; planificar, 30; buscar, 120. Las IPv6 cuentan por su red /64. Middleware ASGI puro, sin costo medible. `/routes/risk` admite hasta 1.000 puntos | — |
+| S3 | El APK de release falla sin la llave propia; `--rotar-secreto` y rotación cada 90 días en el manual | Ver abajo lo que no se hizo |
+| S5 | El servidor no recibe datos de una cuenta sin la versión vigente de la política (403). La app manda la versión aceptada al crear o renovar la sesión, y el registro la guarda | — |
+| E1 | Caché de 60 s por instancia para rutas, estaciones, horarios y sentidos; se vacía al recargar los datos. Los paraderos no pasan por ella porque llevan lo de la comunidad | — |
+| E2 | Los conteos del piloto se juntan en memoria y se guardan cada 60 s o con el calentador | Se pueden perder hasta 60 s de conteos si Lambda recicla la instancia |
+| C4 | Un viaje compartido vencido deja de contar en el acto | — |
+
+**Lo que no se hizo de S3, y por qué:**
+- **`/docs` sigue público.** El código es abierto (AGPL), así que esconder la documentación no protege nada, y la entrega del curso pide el enlace de la API.
+- **El JWT sigue durando 7 días.** Las cuentas con correo no tienen renovación automática: acortarlo las obligaría a iniciar sesión más seguido. Queda para cuando haya tokens de renovación (P1).
+- **`lambda:Get*` sigue en el usuario de despliegue.** Ese usuario puede subir código, y el código lee los secretos; quitarle la lectura no los protege. La mejora real es mover los secretos a Parameter Store (P1).
+- **No se reservó concurrencia.** Con el tope de 10 de esta cuenta, AWS no lo permite. Primero hay que pedir que lo suban, gratis, en *Service Quotas* (P1).
 
 ## Fuentes
 

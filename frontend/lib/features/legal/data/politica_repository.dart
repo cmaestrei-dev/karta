@@ -40,7 +40,10 @@ class PoliticaRepository {
   Future<Politica> politica() async => Politica.fromJson(await api.get('/legal/politica') as Map<String, dynamic>);
 
   /// La versión que se aceptó en este teléfono, o null si nunca se aceptó.
-  Future<String?> aceptadaEnEsteTelefono() async => (await SharedPreferences.getInstance()).getString(_clave);
+  Future<String?> aceptadaEnEsteTelefono() => versionAceptada();
+
+  /// La versión aceptada en este teléfono, sin una instancia: la sesión la manda al servidor junto con la cuenta.
+  static Future<String?> versionAceptada() async => (await SharedPreferences.getInstance()).getString(_clave);
 
   Future<void> aceptarEnEsteTelefono(String version) async =>
       (await SharedPreferences.getInstance()).setString(_clave, version);

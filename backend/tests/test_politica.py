@@ -31,10 +31,13 @@ def test_el_markdown_de_la_politica_se_escapa_y_se_arma():
                                 "<li>uno</li>", '<li><a href="https://x.co">dos</a></li>', "</ul>", "<p>Fin</p>"]
 
 
-def test_aceptar_el_aviso_queda_como_prueba_y_solo_vale_la_version_vigente(api, registrar):
+def test_aceptar_el_aviso_queda_como_prueba_y_solo_vale_la_version_vigente(api):
+    import secrets
     from bson import ObjectId
     from src.infrastructure.database import get_database
-    token, usuario = registrar()
+    # Una app anterior al 26 de octubre crea la cuenta sin decir qué aceptó y lo registra después.
+    sesion = api.post("/api/v1/auth/anonymous", json={"secreto": secrets.token_urlsafe(32)}).json()
+    token, usuario = sesion["access_token"], sesion["usuario"]
     assert api.get("/api/v1/users/me", headers=_auth(token)).json()["autorizacion"] is None
     assert api.post("/api/v1/users/me/autorizacion", headers=_auth(token), json={"version": "0.9"}).status_code == 409
     assert api.post("/api/v1/users/me/autorizacion", headers=_auth(token),
@@ -44,3 +47,10 @@ def test_aceptar_el_aviso_queda_como_prueba_y_solo_vale_la_version_vigente(api, 
     prueba = get_database().users.find_one({"_id": ObjectId(usuario["id"])})["autorizaciones"]
     assert [p["version"] for p in prueba] == [VERSION_POLITICA] and prueba[0]["en"] is not None
     assert api.post("/api/v1/users/me/autorizacion", json={"version": VERSION_POLITICA}).status_code == 401
+
+
+def test_registrarse_autoriza_la_politica_vigente(api, registrar):
+    """La casilla obligatoria del registro es la autorización: su prueba queda al crear la cuenta."""
+    token, usuario = registrar()
+    assert usuario["autorizacion"] == VERSION_POLITICA
+    assert api.get("/api/v1/users/me", headers=_auth(token)).json()["autorizacion"] == VERSION_POLITICA

@@ -20,10 +20,14 @@ class AutorizacionRequest(BaseModel):
 class InvisibleRequest(BaseModel):
     """El secreto aleatorio que el teléfono generó la primera vez y guarda en su almacenamiento seguro."""
     secreto: str = Field(..., min_length=32, max_length=128)
+    politica: str | None = Field(None, max_length=20, examples=["1.1"],
+                                 description="La versión del aviso de privacidad que se aceptó en el teléfono")
 
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=1, max_length=128)
+    politica: str | None = Field(None, max_length=20, examples=["1.1"],
+                                 description="La versión del aviso de privacidad que se aceptó en el teléfono")
 
 class ImpactoResponse(BaseModel):
     """«Tu impacto»: lo que el viajero le ha aportado a la comunidad."""

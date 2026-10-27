@@ -9,7 +9,7 @@
         "lambda:UpdateFunctionConfiguration", "lambda:PublishVersion", "lambda:InvokeFunction",
         "lambda:CreateFunctionUrlConfig", "lambda:UpdateFunctionUrlConfig", "lambda:AddPermission",
         "lambda:RemovePermission", "lambda:PutFunctionConcurrency", "lambda:DeleteFunctionConcurrency",
-        "lambda:TagResource"
+        "lambda:TagResource", "lambda:CreateAlias", "lambda:UpdateAlias"
       ],
       "Resource": "arn:aws:lambda:us-east-1:CUENTA:function:karta-api*"
     },
@@ -54,9 +54,27 @@
       "Action": [
         "lambda:ListFunctions", "lambda:GetAccountSettings", "logs:DescribeLogGroups", "scheduler:ListSchedules",
         "cloudwatch:GetMetricData", "cloudwatch:GetMetricStatistics", "cloudwatch:ListMetrics",
-        "freetier:GetFreeTierUsage"
+        "cloudwatch:DescribeAlarms", "freetier:GetFreeTierUsage"
       ],
       "Resource": "*"
+    },
+    {
+      "Sid": "SusAlarmas",
+      "Effect": "Allow",
+      "Action": ["cloudwatch:PutMetricAlarm"],
+      "Resource": "arn:aws:cloudwatch:us-east-1:CUENTA:alarm:karta-*"
+    },
+    {
+      "Sid": "ElAvisoPorCorreo",
+      "Effect": "Allow",
+      "Action": ["sns:CreateTopic", "sns:Subscribe", "sns:GetTopicAttributes", "sns:ListSubscriptionsByTopic"],
+      "Resource": "arn:aws:sns:us-east-1:CUENTA:karta-*"
+    },
+    {
+      "Sid": "ElPresupuesto",
+      "Effect": "Allow",
+      "Action": ["budgets:ViewBudget", "budgets:ModifyBudget"],
+      "Resource": "arn:aws:budgets::CUENTA:budget/karta-*"
     },
     {
       "Sid": "SusPropiasLlaves",

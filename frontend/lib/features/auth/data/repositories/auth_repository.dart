@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import '../../../../core/api_errors.dart';
 import '../../../../core/config.dart';
+import '../../../legal/data/politica_repository.dart';
 import '../../domain/models/usuario.dart';
 
 /// Inicia, recupera y cierra la sesión. El token se guarda en el almacenamiento
@@ -28,8 +29,13 @@ class AuthRepository {
   /// Token de la sesión activa, o null si no hay sesión.
   String? get token => _token;
 
-  /// Entra con la cuenta invisible del teléfono (la crea la primera vez).
-  Future<Usuario> entrarSinCuenta() async => _startSession('/auth/anonymous', {'secreto': await _secreto()});
+  /// Entra con la cuenta invisible del teléfono (la crea la primera vez). Con la versión de la política que se aceptó
+  /// en el teléfono: el servidor guarda la prueba en la misma petición, sin depender de que después haya señal, y no
+  /// recibe datos de una cuenta sin ella.
+  Future<Usuario> entrarSinCuenta() async => _startSession('/auth/anonymous', {
+        'secreto': await _secreto(),
+        'politica': ?await PoliticaRepository.versionAceptada(),
+      });
 
   /// Si la sesión que venció era la invisible, la renueva sin molestar al viajero. Devuelve si lo logró.
   Future<bool> renovarSiEsInvisible() async {
@@ -51,8 +57,12 @@ class AuthRepository {
     return nuevo;
   }
 
-  Future<Usuario> login({required String email, required String password}) {
-    return _startSession('/auth/login', {'email': email, 'password': password});
+  Future<Usuario> login({required String email, required String password}) async {
+    return _startSession('/auth/login', {
+      'email': email,
+      'password': password,
+      'politica': ?await PoliticaRepository.versionAceptada(),
+    });
   }
 
   Future<Usuario> register({
