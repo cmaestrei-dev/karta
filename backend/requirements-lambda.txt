@@ -1,0 +1,2 @@
+# Solo para AWS Lambda (ver docs/despliegue-aws.md): se instala con requirements.txt, sin uvicorn.
+mangum==0.22.0

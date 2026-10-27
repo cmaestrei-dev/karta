@@ -1,8 +1,19 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+// La llave con que se firma el APK del piloto (D7) va en android/key.properties, que no se sube al repositorio
+// (ver docs/despliegue-aws.md). Sin ese archivo, un release falla: firmado con la llave de depuración no se podría
+// instalar encima del APK del piloto. Para probar en local sin la llave: KARTA_FIRMA_DE_DEPURACION=1.
+val llave = Properties().apply {
+    val archivo = rootProject.file("key.properties")
+    if (archivo.exists()) FileInputStream(archivo).use { load(it) }
 }
 
 android {
@@ -32,17 +43,37 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (!llave.isEmpty) {
+            create("release") {
+                keyAlias = llave.getProperty("keyAlias")
+                keyPassword = llave.getProperty("keyPassword")
+                storeFile = file(llave.getProperty("storeFile"))
+                storePassword = llave.getProperty("storePassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName(if (llave.isEmpty) "debug" else "release")
+            // La comprobación va al armar el release, no al configurar: así flutter run (depuración) sigue igual.
         }
     }
 }
 
 flutter {
     source = "../.."
+}
+
+gradle.taskGraph.whenReady {
+    val esRelease = allTasks.any { it.project == project && it.name.endsWith("Release") }
+    if (esRelease && llave.isEmpty && System.getenv("KARTA_FIRMA_DE_DEPURACION") != "1") {
+        throw GradleException(
+            "Falta android/key.properties: el APK de release se firma con la llave de Karta " +
+                "(deploy/android/crear_llave.sh). Para probar sin ella: KARTA_FIRMA_DE_DEPURACION=1."
+        )
+    }
 }
 
 dependencies {

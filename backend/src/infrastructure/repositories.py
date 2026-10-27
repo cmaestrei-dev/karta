@@ -2,29 +2,62 @@
 import math
 import re
 import secrets
+import threading
+import time
 from datetime import datetime, timedelta, timezone
 
 from bson import ObjectId
 from pymongo import DESCENDING, ReturnDocument
 from pymongo.database import Database
-from pymongo.errors import DuplicateKeyError
+from pymongo.errors import DuplicateKeyError, PyMongoError
 
 from src.domain.conocimiento import ComoSePidio, RespuestaDeParada
 from src.domain.direcciones import Cruce, Via
 from src.domain.mapeo import EstadoDeMarca, Marca, Voto
 from src.domain.paraderos import ParaderoOficial
+from src.domain.precision import BusMedido, ResultadoDeViaje, celdas_de, mes_de
+from src.infrastructure.aportes import MESES_DE_VIGENCIA, huella
 from src.domain.models import (
     ALIAS_SIN_CUENTA, REPUTACION_INICIAL, EmailYaRegistrado, Impacto, Estacion, IconoLugar, Incidente, LimiteLugaresGuardados,
     Lugar, LugarGuardado, LugarGuardadoNoEncontrado, RutaTransporte, TipoViajero, Usuario,
 )
-from src.domain.horarios import HorarioRuta
+from src.domain.horarios import HorarioRuta, en_colombia
 from src.domain.reportes import GraciasRepetidas, TipoReporte, VotoRepetido, alias_publico
 from src.domain.tiempo_real import Observacion, Ocupacion
 
 
+# Quien borró su cuenta: lo que aportó al mapa común queda a nombre de nadie.
+ANONIMO = ObjectId("000000000000000000000000")
+
+
 class MongoUserRepository:
     def __init__(self, db: Database):
+        self._db = db
         self._users = db.users
+
+    def autorizar(self, user_id: str, version: str, en: datetime) -> None:
+        # Cada aceptación queda como prueba (Decreto 1074, art. 2.2.2.25.2.5): la versión y cuándo.
+        self._users.update_one({"_id": ObjectId(user_id)},
+                               {"$push": {"autorizaciones": {"version": version, "en": en}}})
+
+    def erase(self, user_id: str) -> None:
+        uid = ObjectId(user_id)
+        db = self._db
+        # Lo comunitario queda, desligado: los reportes y las marcas de paraderos, con sus votos.
+        db.incidents.update_many({"reportado_por": uid}, {"$set": {"reportado_por": ANONIMO}})
+        db.stop_marks.update_many({"propuesto_por": uid}, {"$set": {"propuesto_por": ANONIMO}})
+        db.stop_marks.update_many({"votos.usuario": uid}, {"$set": {"votos.$[voto].usuario": ANONIMO}},
+                                  array_filters=[{"voto.usuario": uid}])
+        # Lo que solo sirve para esa persona se borra: sus votos, «Gracias», vistas y límites de peticiones.
+        for coleccion in (db.incident_votes, db.incident_thanks, db.incident_views):
+            coleccion.delete_many({"usuario": uid})
+        db.rate_limits.delete_many({"_id": {"$regex": f"^[^:]+:usuario:{re.escape(user_id)}:"}})
+        # Sus huellas en el conteo de personas por cifra: cada una se recalcula con la clave y se quita.
+        for doc in db.trip_contributors.find({}, {"_id": 1}):
+            mes, celda = doc["_id"].split("|", 1)
+            db.trip_contributors.update_one({"_id": doc["_id"]}, {"$pull": {"huellas": huella(mes, celda, user_id)}})
+        # Y la cuenta, con sus lugares guardados, su reputación y su impacto.
+        self._users.delete_one({"_id": uid})
 
     def add(self, *, email: str, password_hash: str, nombre: str, alias: str, tipo_viajero: TipoViajero,
             creado_en: datetime, terminos_aceptados_en: datetime) -> Usuario:
@@ -137,6 +170,12 @@ class MongoIncidentRepository:
             return False
         return self._thanks.count_documents(
             {"incidente": ObjectId(incidente_id), "usuario": ObjectId(usuario_id)}, limit=1) > 0
+
+    def actions_since(self, accion: str, usuario_id: str, desde: datetime) -> int:
+        coleccion = {"vista": self._views, "gracias": self._thanks}[accion]
+        if not ObjectId.is_valid(usuario_id):
+            return 0
+        return coleccion.count_documents({"usuario": ObjectId(usuario_id), "en": {"$gte": desde}}, limit=2)
 
     def register_view(self, incidente_id: str, usuario_id: str, ahora: datetime) -> bool:
         try:
@@ -252,8 +291,42 @@ class MongoPlaceRepository:
         return (_to_lugar(docs[0]), docs[0]["distancia_m"]) if docs else None
 
 
+class CacheDeReferencia:
+    """
+    Rutas, estaciones, horarios y sentidos solo cambian al desplegar (cargar_datos_de_referencia), pero se pedían a
+    Atlas en cada consulta. Aquí se guardan VIGENCIA_S segundos por instancia: eso ahorra la mayoría de las lecturas
+    y de la transferencia de Atlas. Los paraderos no pasan por aquí, porque llevan lo que ubica la comunidad.
+    Se entregan copias de las colecciones, así quien las use no cambia la guardada.
+    """
+    VIGENCIA_S = 60
+
+    def __init__(self, reloj=time.monotonic):
+        self._reloj = reloj
+        self._candado = threading.Lock()
+        self._datos: dict[tuple, tuple[float, object]] = {}
+
+    def obtener(self, clave: tuple, calcular):
+        ahora = self._reloj()
+        with self._candado:
+            guardado = self._datos.get(clave)
+        if guardado is None or ahora - guardado[0] >= self.VIGENCIA_S:
+            guardado = (ahora, calcular())
+            with self._candado:
+                self._datos[clave] = guardado
+        valor = guardado[1]
+        return type(valor)(valor) if isinstance(valor, (list, dict, set)) else valor
+
+    def limpiar(self) -> None:
+        with self._candado:
+            self._datos.clear()
+
+
+REFERENCIA = CacheDeReferencia()
+
+
 class MongoTransitRepository:
     def __init__(self, db: Database):
+        self._base = db.name
         self._routes = db.transit_routes
         self._stations = db.stations
         self._schedules = db.route_schedules
@@ -271,7 +344,8 @@ class MongoTransitRepository:
         return [_to_ruta(doc) for doc in self._routes.find(filtro)]
 
     def schedules(self) -> dict[str, HorarioRuta]:
-        return {doc["_id"]: HorarioRuta.desde_texto(doc["_id"], doc) for doc in self._schedules.find()}
+        return REFERENCIA.obtener((self._base, "horarios"), lambda: {
+            doc["_id"]: HorarioRuta.desde_texto(doc["_id"], doc) for doc in self._schedules.find()})
 
     def intersection_near(self, lon: float, lat: float, radio_m: float) -> str | None:
         doc = self._intersections.find_one({"ubicacion": {"$nearSphere": {
@@ -283,25 +357,27 @@ class MongoTransitRepository:
         return [p for p in _paraderos_con_comunidad(self._official_stops, self._marks, filtro) if p.longitud is not None]
 
     def directions(self) -> dict[str, str]:
-        return {d["_id"]: d["hacia"] for d in self._directions.find()}
+        return REFERENCIA.obtener((self._base, "sentidos"),
+                                  lambda: {d["_id"]: d["hacia"] for d in self._directions.find()})
 
     def list_stations(self) -> list[Estacion]:
-        return [_to_estacion(doc) for doc in self._stations.find()]
+        return REFERENCIA.obtener((self._base, "estaciones"),
+                                  lambda: [_to_estacion(doc) for doc in self._stations.find()])
 
     def stations_near(self, lon: float, lat: float, radio_m: float, limite: int) -> list[tuple[Estacion, float]]:
         return [(_to_estacion(doc), doc["distancia_m"])
                 for doc in self._stations.aggregate(_cercanos(lon, lat, radio_m, limite))]
 
     def list_routes(self, tipo: str | None = None) -> list[RutaTransporte]:
-        filtro = {"tipo": tipo} if tipo else {}
-        return [_to_ruta(doc) for doc in self._routes.find(filtro).sort("_id")]
+        todas = REFERENCIA.obtener((self._base, "rutas"),
+                                   lambda: [_to_ruta(doc) for doc in self._routes.find().sort("_id")])
+        return [r for r in todas if tipo is None or r.tipo == tipo]
 
     def route_codes(self) -> set[str]:
-        return set(self._routes.distinct("_id"))
+        return {r.id for r in self.list_routes()}
 
     def route(self, codigo: str) -> RutaTransporte | None:
-        doc = self._routes.find_one({"_id": codigo})
-        return _to_ruta(doc) if doc else None
+        return next((r for r in self.list_routes() if r.id == codigo), None)
 
 
 class MongoSavedPlaceRepository:
@@ -419,6 +495,7 @@ def _to_usuario(doc: dict) -> Usuario:
         # Usuarios creados antes de que existiera el alias lo derivan de su nombre.
         alias=doc.get("alias") or (alias_publico(doc["nombre"]) if doc.get("nombre") else ALIAS_SIN_CUENTA),
         impacto=Impacto(**{k: v for k, v in doc.get("impacto", {}).items() if k in Impacto.__dataclass_fields__}),
+        autorizacion=doc["autorizaciones"][-1]["version"] if doc.get("autorizaciones") else None,
     )
 
 
@@ -551,8 +628,10 @@ class MongoStopMappingRepository:
 
     def add_boarding(self, ruta: str, longitud: float, latitud: float, en: datetime,
                      estacion: str | None = None, modulo: str | None = None) -> None:
+        # La hora va redondeada al cuarto de hora: junto con el punto, la exacta ayudaría a reconocer a alguien.
+        cuarto = en.replace(minute=en.minute - en.minute % 15, second=0, microsecond=0)
         documento = {"ruta": ruta, "ubicacion": {"type": "Point", "coordinates": [longitud, latitud]},
-                     "en": en, "expira_en": en + self.VIGENCIA_DE_SUBIDA}
+                     "en": cuarto, "expira_en": en + self.VIGENCIA_DE_SUBIDA}
         if estacion is not None:
             documento |= {"estacion": estacion, "modulo": modulo}
         self._subidas.insert_one(documento)
@@ -578,11 +657,15 @@ class MongoRealtimeRepository:
     VIGENCIA_VIAJE = timedelta(minutes=5)
     # Cómo se pide la parada cambia poco, pero cambia (un paradero nuevo, otra regla): un año basta.
     VIGENCIA_RESPUESTA_DE_PARADA = timedelta(days=365)
+    # Los resultados de los viajes (`trip_results`): las estadísticas se calculan antes de que venzan.
+    VIGENCIA_RESULTADO = timedelta(days=180)
 
     def __init__(self, db: Database):
         self._sightings = db.sightings
         self._trips = db.live_trips
         self._stop_answers = db.stop_answers
+        self._resultados = db.trip_results
+        self._aportantes = db.trip_contributors
 
     def add_sighting(self, ruta: str, longitud: float, latitud: float, ocupacion: Ocupacion | None,
                      en: datetime) -> None:
@@ -613,22 +696,112 @@ class MongoRealtimeRepository:
     def end_trip(self, viaje: str) -> None:
         self._trips.delete_one({"_id": viaje})
 
-    def observations(self, ruta: str, desde: datetime) -> list[Observacion]:
+    def observations(self, ruta: str, desde: datetime, ahora: datetime) -> list[Observacion]:
         def observacion(doc: dict, en_vivo: bool) -> Observacion:
             lon, lat = doc["ubicacion"]["coordinates"]
             return Observacion(longitud=lon, latitud=lat, en=doc["en"], en_vivo=en_vivo,
                                ocupacion=Ocupacion(doc["ocupacion"]) if doc.get("ocupacion") else None)
         filtro = {"ruta": ruta, "en": {"$gte": desde}}
-        return ([observacion(d, True) for d in self._trips.find({**filtro, "expira_en": {"$gt": desde}})]
+        return ([observacion(d, True) for d in self._trips.find({**filtro, "expira_en": {"$gt": ahora}})]
                 + [observacion(d, False) for d in self._sightings.find(filtro)])
 
     def add_stop_answer(self, ruta: str, longitud: float, latitud: float, como: ComoSePidio, en: datetime) -> None:
         self._stop_answers.insert_one({
             "ruta": ruta, "ubicacion": {"type": "Point", "coordinates": [longitud, latitud]}, "como": como.value,
-            "en": en, "expira_en": en + self.VIGENCIA_RESPUESTA_DE_PARADA,
+            # Solo el día: el paradero donde alguien se baja, a una hora exacta, dice demasiado.
+            "en": en.replace(hour=0, minute=0, second=0, microsecond=0),
+            "expira_en": en + self.VIGENCIA_RESPUESTA_DE_PARADA,
         })
 
     def stop_answers(self, ruta: str, longitud: float, latitud: float, radio_m: float) -> list[RespuestaDeParada]:
         cerca = {"$near": {"$geometry": {"type": "Point", "coordinates": [longitud, latitud]}, "$maxDistance": radio_m}}
         return [RespuestaDeParada(ComoSePidio(d["como"]), *d["ubicacion"]["coordinates"], d["en"])
                 for d in self._stop_answers.find({"ruta": ruta, "ubicacion": cerca}).limit(500)]
+
+    def add_trip_result(self, resultado: ResultadoDeViaje, en: datetime, aportante: str) -> None:
+        # Sin la hora exacta de llegada: `en` solo sirve para el vencimiento. El resultado no lleva al aportante: su
+        # huella va aparte, una por cada cifra, solo para contar personas distintas (aportes.py).
+        mes = mes_de(resultado.franja)
+        vence = en + timedelta(days=31 * MESES_DE_VIGENCIA)
+        for celda in celdas_de(resultado):
+            self._aportantes.update_one({"_id": f"{mes}|{celda}"},
+                                        {"$addToSet": {"huellas": huella(mes, celda, aportante)},
+                                         "$max": {"expira_en": vence}}, upsert=True)
+        self._resultados.insert_one({
+            "estimado_min": resultado.estimado_min, "real_min": resultado.real_min, "franja": resultado.franja,
+            "tipo_de_dia": resultado.tipo_de_dia,
+            "buses": [{"ruta": b.ruta, "espera_estimada_min": b.espera_estimada_min,
+                       "espera_real_min": b.espera_real_min, "a_bordo_estimado_min": b.a_bordo_estimado_min,
+                       "a_bordo_real_min": b.a_bordo_real_min} for b in resultado.buses],
+            "expira_en": en + self.VIGENCIA_RESULTADO,
+        })
+
+    def contributors(self, desde: datetime) -> dict[str, int]:
+        """
+        Cuántas personas distintas aportaron a cada cifra desde ese mes. Las huellas cambian de un mes a otro, así que
+        en un periodo de varios meses se toma el mayor de los meses: nunca cuenta de más.
+        """
+        personas: dict[str, int] = {}
+        for doc in self._aportantes.find({"_id": {"$gte": mes_de(desde)}}):
+            celda = doc["_id"].split("|", 1)[1]
+            personas[celda] = max(personas.get(celda, 0), len(doc.get("huellas", [])))
+        return personas
+
+    def trip_results(self, desde: datetime) -> list[ResultadoDeViaje]:
+        return [ResultadoDeViaje(d["estimado_min"], d["real_min"], en_colombia(d["franja"]), d["tipo_de_dia"],
+                                 tuple(BusMedido(**b) for b in d["buses"]))
+                for d in self._resultados.find({"franja": {"$gte": desde}}).limit(100000)]
+
+
+class MongoContadores:
+    """`daily_counts`: un documento por día de Colombia con los conteos del piloto. Son agregados: no vencen."""
+
+    def __init__(self, db: Database):
+        self._dias = db.daily_counts
+
+    def sumar(self, dia: str, campos: dict[str, int]) -> None:
+        self._dias.update_one({"_id": dia}, {"$inc": campos}, upsert=True)
+
+    def dias(self, desde: str, hasta: str) -> list[dict]:
+        return list(self._dias.find({"_id": {"$gte": desde, "$lte": hasta}}).sort("_id", 1))
+
+
+class ContadoresAgrupados:
+    """
+    Junta en memoria los conteos del piloto y los guarda en `destino` cada `cada_s` segundos, sumados por día: una
+    escritura cada tanto, no una por cada consulta de llegada. Lambda congela la instancia entre peticiones, así que
+    se vacía en la primera petición después del plazo y con el calentador, cada 5 minutos. Si la instancia se
+    recicla antes, se pierden a lo sumo esos segundos de conteos.
+    """
+
+    def __init__(self, destino, cada_s: int, reloj=time.monotonic):
+        self._destino = destino
+        self._cada_s = cada_s
+        self._reloj = reloj
+        self._candado = threading.Lock()
+        self._pendientes: dict[str, dict[str, int]] = {}
+        self._ultimo = reloj()
+
+    def sumar(self, dia: str, campos: dict[str, int]) -> None:
+        with self._candado:
+            del_dia = self._pendientes.setdefault(dia, {})
+            for campo, n in campos.items():
+                del_dia[campo] = del_dia.get(campo, 0) + n
+        if self._reloj() - self._ultimo >= self._cada_s:
+            self.vaciar()
+
+    def vaciar(self) -> None:
+        with self._candado:
+            pendientes, self._pendientes, self._ultimo = self._pendientes, {}, self._reloj()
+        for dia, campos in pendientes.items():
+            try:
+                self._destino.sumar(dia, campos)
+            except PyMongoError:
+                with self._candado:  # se reintenta con el próximo vaciado
+                    del_dia = self._pendientes.setdefault(dia, {})
+                    for campo, n in campos.items():
+                        del_dia[campo] = del_dia.get(campo, 0) + n
+
+    def dias(self, desde: str, hasta: str) -> list[dict]:
+        self.vaciar()
+        return self._destino.dias(desde, hasta)

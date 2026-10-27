@@ -40,6 +40,7 @@ class Usuario:
     creado_en: datetime
     alias: str  # nombre corto que ven los demás viajeros
     impacto: Impacto = Impacto()
+    autorizacion: str | None = None  # la última versión de la política de datos que aceptó
 
     @property
     def nivel(self) -> int:

@@ -4,8 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Response, status
 from src.application.realtime_service import RealtimeService, RutaDesconocida, ViajeTerminado
 from src.domain.conocimiento import ComoSePidio
 from src.domain.models import Usuario
+from src.domain.precision import BusMedido
 from src.domain.schemas.realtime_schema import (
-    AvistamientoRequest, ComoPediLaParadaRequest, PosicionRequest, ViajeCompartidoRequest, ViajeCompartidoResponse,
+    AvistamientoRequest, ComoPediLaParadaRequest, PosicionRequest, ResultadoDeViajeRequest, ViajeCompartidoRequest,
+    ViajeCompartidoResponse,
 )
 from src.domain.tiempo_real import Ocupacion
 from src.infrastructure.dependencies import get_current_user, get_realtime_service
@@ -92,3 +94,22 @@ def end_trip(viaje: str = Path(..., min_length=10, max_length=40), usuario: Usua
     """Borra el viaje compartido en el acto (también vence solo)."""
     service.end_trip(viaje)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/trip-results", status_code=status.HTTP_201_CREATED, summary="Cómo me fue en el viaje",
+             responses={**SIN_SESION, **DEMASIADOS})
+def report_trip_result(request: ResultadoDeViajeRequest,
+                       usuario: Usuario = Depends(por_viajero("resultado", "LIMITE_RESULTADOS_DE_VIAJE")),
+                       service: RealtimeService = Depends(get_realtime_service)):
+    """
+    Al llegar al destino, con el mismo permiso de compartir el viaje: cuánto estimó Karta y cuánto se tardó, en total
+    y en cada bus. No se guarda quién viajó ni por dónde, y la hora va redondeada al cuarto de hora. Sirve para medir
+    qué tan exactas son las estimaciones (D17). Vence a los 180 días. Aparte, una huella cifrada por cifra cuenta
+    cuántas personas distintas hay detrás de cada estadística, sin unir los viajes de nadie.
+    """
+    try:
+        service.report_trip_result(request.estimado_min, request.real_min,
+                                   [BusMedido(**bus.model_dump()) for bus in request.buses], usuario.id)
+    except RutaDesconocida:
+        raise RUTA_DESCONOCIDA
+    return {"mensaje": "Gracias: así medimos qué tan bien estima Karta."}

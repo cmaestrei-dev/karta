@@ -6,6 +6,7 @@ import 'package:karta/features/trip/domain/trip_models.dart';
 import 'package:karta/features/viaje/data/avisos.dart';
 import 'package:karta/features/viaje/data/preferencia_de_compartir.dart';
 import 'package:karta/features/viaje/data/tiempo_real_repository.dart';
+import 'package:karta/features/viaje/domain/resultado_del_viaje.dart';
 import 'package:karta/features/viaje/domain/seguidor_de_viaje.dart';
 import 'package:karta/features/viaje/presentation/instrucciones.dart';
 import 'package:karta/features/viaje/presentation/viaje_cubit.dart';
@@ -122,6 +123,12 @@ class _TiempoReal implements TiempoRealRepository {
     llamadas.add('como se pide $ruta');
     return sabido;
   }
+
+  @override
+  Future<void> resultadoDelViaje(ResultadoDelViaje resultado) async => llamadas.add(
+      'resultado ${resultado.estimadoMin} ${resultado.realMin} '
+      '${[for (final b in resultado.buses) '${b.ruta} ${b.esperaRealMin}/${b.esperaEstimadaMin} '
+          '${b.aBordoRealMin}/${b.aBordoEstimadoMin}'].join(', ')}');
 }
 
 /// Cada ruta llega a su hora: para «el que pase primero».
@@ -550,6 +557,46 @@ void main() {
       const llegada = Llegada(varado: Varado(lugar: 'Cerca de Bazurto', metrosAntes: 900, haceMin: 6));
       expect(textoDeLlegada('T103', llegada),
           (titulo: 'Un T103 se varó antes de tu parada', detalle: 'Cerca de Bazurto · hace 6 min · espera el siguiente'));
+    });
+  });
+
+  group('qué tan bien estimó Karta (D17)', () {
+    Future<void> viajeCompleto() async {
+      await en(_p(0, 100), despues: const Duration(minutes: 1));
+      await en(_p(0, 195), despues: const Duration(minutes: 2)); // 8:03 en la parada
+      await en(_p(300, 200), despues: const Duration(minutes: 7)); // 8:10 subió: esperó 7 (se estimaban 5)
+      await en(_p(1500, 200), despues: const Duration(minutes: 6));
+      await en(_p(2990, 200), despues: const Duration(minutes: 6)); // 8:22 se bajó: 12 a bordo (se estimaban 10)
+      await en(_p(3000, 52), despues: const Duration(minutes: 3)); // 8:25 llegó
+    }
+
+    test('al llegar dice cuánto tardó frente a lo estimado y lo envía, sin puntos, si comparte', () async {
+      final c = cubit();
+      await c.iniciar();
+      await viajeCompleto();
+      expect(c.state.estado.fase, Fase.llegaste);
+      expect(c.state.resultado?.diferenciaMin, 5);
+      expect(c.state.resultado?.enPalabras, 'Tardaste 25\u00A0min, 5 más de lo que estimó Karta.');
+      expect(servidor.envios.last, 'resultado 20 25 T103 7/5 12/10');
+      expect(servidor.envios.where((e) => e.startsWith('resultado')), hasLength(1));
+      await c.close();
+    });
+
+    test('sin compartir el viaje, el resultado solo se ve en el teléfono', () async {
+      final c = cubit(compartir: false);
+      await c.iniciar();
+      await viajeCompleto();
+      expect(c.state.resultado?.realMin, 25);
+      expect(servidor.envios, isEmpty);
+      await c.close();
+    });
+
+    test('en palabras: justo, más o menos de lo estimado; los minutos se redondean', () async {
+      expect(const ResultadoDelViaje(estimadoMin: 20, realMin: 21, buses: []).enPalabras,
+          'Tardaste 21\u00A0min, justo lo que estimó Karta.');
+      expect(const ResultadoDelViaje(estimadoMin: 30, realMin: 26, buses: []).enPalabras,
+          'Tardaste 26\u00A0min, 4 menos de lo que estimó Karta.');
+      expect(minutosDe(const Duration(minutes: 6, seconds: 31)), 7);
     });
   });
 }

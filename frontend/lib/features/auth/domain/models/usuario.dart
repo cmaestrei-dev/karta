@@ -93,6 +93,11 @@ class Usuario extends Equatable {
   /// Nivel de 1 a 5 según la reputación: sube cuando la comunidad confirma tus reportes.
   final int nivel;
 
+  /// La última versión de la política de datos que aceptó, y la vigente. Si no coinciden, la app vuelve a mostrar el
+  /// aviso de privacidad (Ley 1581).
+  final String? autorizacion;
+  final String? politicaVigente;
+
   const Usuario({
     required this.id,
     required this.email,
@@ -105,7 +110,12 @@ class Usuario extends Equatable {
     this.impacto = const Impacto(),
     this.insignias = const [],
     this.siguienteInsignia,
+    this.autorizacion,
+    this.politicaVigente,
   });
+
+  /// Le falta aceptar la versión vigente de la política de datos.
+  bool get debeAceptarPolitica => politicaVigente != null && autorizacion != politicaVigente;
 
   /// El marco del avatar según el nivel («Bahía»), o null en el nivel 1.
   String? get marco => marcosPorNivel[nivel.clamp(1, 5)];
@@ -143,6 +153,8 @@ class Usuario extends Equatable {
       siguienteInsignia: json['siguiente_insignia'] == null
           ? null
           : AvanceDeInsignia.fromJson(json['siguiente_insignia'] as Map<String, dynamic>),
+      autorizacion: json['autorizacion'] as String?,
+      politicaVigente: json['politica_vigente'] as String?,
     );
   }
 
@@ -158,11 +170,14 @@ class Usuario extends Equatable {
         'impacto': impacto.toJson(),
         'insignias': [for (final i in insignias) i.toJson()],
         if (siguienteInsignia != null) 'siguiente_insignia': siguienteInsignia!.toJson(),
+        'autorizacion': autorizacion,
+        'politica_vigente': politicaVigente,
       };
 
   @override
   List<Object?> get props =>
-      [id, email, nombre, tipoViajero, reputacion, alias, nivel, sinCuenta, impacto, insignias, siguienteInsignia];
+      [id, email, nombre, tipoViajero, reputacion, alias, nivel, sinCuenta, impacto, insignias, siguienteInsignia,
+       autorizacion, politicaVigente];
 }
 
 /// Reputación con la que empieza cada nivel, del 2 al 5 (todos arrancan en 100, nivel 1).

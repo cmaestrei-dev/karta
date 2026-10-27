@@ -5,8 +5,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../../core/design/apariencia.dart';
 import '../../../../core/design/bahia.dart';
 import '../../../../core/design/movimiento.dart';
+import '../../../../core/design/vigia_de_fotogramas.dart';
 import '../../../../core/location_service.dart';
 import '../../../../core/map/capa_bahia.dart';
 import '../../../../core/widgets/karta_map.dart';
@@ -62,11 +64,16 @@ class _HomeViewState extends State<_HomeView> {
   LatLng? _miUbicacion;
   double _hoja = _hojaInicial;
   late final Future<List<RutaEnMapa>> _troncal = context.read<TripRepository>().rutas(tipo: 'troncal');
+  late final _vigia = VigiaDeFotogramas(alNotarLentitud: _ofrecerModoLigero);
 
   @override
   void initState() {
     super.initState();
     _ubicar();
+    // Se espera a que cargue la preferencia guardada: con el modo ligero ya puesto, no hay nada que ofrecer.
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted && !context.read<ModoLigeroCubit>().state) _vigia.empezar();
+    });
     // Los reportes viven entre 30 min y 12 h y la comunidad los confirma o desmiente: se refrescan seguido.
     _temporizador = Timer.periodic(_refresco, (_) => context.read<IncidentBloc>().add(LoadIncidentsEvent()));
   }
@@ -74,7 +81,17 @@ class _HomeViewState extends State<_HomeView> {
   @override
   void dispose() {
     _temporizador?.cancel();
+    _vigia.detener();
     super.dispose();
+  }
+
+  void _ofrecerModoLigero() {
+    if (!mounted || context.read<ModoLigeroCubit>().state) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      duration: const Duration(seconds: 10),
+      content: const Text('El mapa va lento en este teléfono. El modo ligero lo aligera.'),
+      action: SnackBarAction(label: 'Activar', onPressed: () => context.read<ModoLigeroCubit>().elegir(true)),
+    ));
   }
 
   Future<void> _ubicar() async {
@@ -214,6 +231,7 @@ class _HomeViewState extends State<_HomeView> {
                               button: true,
                               label: 'Tu perfil: ${state.usuario.nombre ?? 'sin cuenta'}, nivel ${state.usuario.nivel}',
                               excludeSemantics: true,
+                              onTap: () => showProfileSheet(context),
                               child: GestureDetector(
                                 onTap: () => showProfileSheet(context),
                                 child: DecoratedBox(
@@ -323,6 +341,7 @@ class _PildoraDeComunidad extends StatelessWidget {
           ? 'No pudimos cargar los reportes. Toca para reintentar'
           : (activo ? '$texto. Toca para verlos en el mapa' : texto),
       excludeSemantics: true,
+      onTap: alTocar,
       child: Material(
         color: b.hoja,
         borderRadius: BorderRadius.circular(24),
@@ -494,6 +513,7 @@ class _CampoDeDestino extends StatelessWidget {
       button: true,
       label: 'Buscar destino: ¿A dónde vas?',
       excludeSemantics: true,
+      onTap: onTap,
       child: Material(
         color: b.campo,
         borderRadius: radio,

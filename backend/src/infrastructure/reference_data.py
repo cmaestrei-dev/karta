@@ -12,6 +12,7 @@ from pymongo.collection import Collection
 from pymongo.database import Database
 
 from src.domain.direcciones import vias_del_cruce
+from src.infrastructure.repositories import REFERENCIA
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 
@@ -57,6 +58,7 @@ def cargar_datos_de_referencia(db: Database, forzar: bool = False) -> None:
         if forzar or coleccion.estimated_document_count() == 0 or not previa or previa.get("huella") != huella:
             cargar()
             db.reference_data.replace_one({"_id": grupo}, {"_id": grupo, "huella": huella}, upsert=True)
+    REFERENCIA.limpiar()
 
 
 def _huella(archivos: tuple[str, ...]) -> str:

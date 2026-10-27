@@ -2,8 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from src.application.place_service import PlaceService
 from src.domain.models import LimiteLugaresGuardados, LugarGuardadoNoEncontrado, MAX_LUGARES_GUARDADOS, Usuario
 from src.domain.schemas.place_schema import SavedPlaceCreate, SavedPlaceResponse, SavedPlaceUpdate
-from src.domain.schemas.user_schema import UserResponse
-from src.infrastructure.dependencies import get_current_user, get_place_service
+from src.domain.schemas.user_schema import AutorizacionRequest, UserResponse
+from src.application.auth_service import AuthService
+from src.infrastructure.dependencies import get_auth_service, get_current_user, get_place_service
+from src.infrastructure.limites import viajero_autorizado
 from src.infrastructure.routers.respuestas import FUERA_DE_COBERTURA, SIN_SESION, error
 from typing import List
 
@@ -18,6 +20,32 @@ def read_current_user(usuario: Usuario = Depends(get_current_user)):
     """
     return usuario
 
+@router.post("/me/autorizacion", summary="Aceptar el aviso de privacidad", status_code=status.HTTP_204_NO_CONTENT,
+             responses={**SIN_SESION, 409: error("La política de datos cambió: hay que mostrar la nueva versión.")})
+def authorize(datos: AutorizacionRequest, usuario: Usuario = Depends(get_current_user),
+              auth: AuthService = Depends(get_auth_service)):
+    """
+    Guarda que el viajero aceptó esta versión de la política de tratamiento de datos, y cuándo: es la prueba de su
+    autorización (Ley 1581 art. 9; Decreto 1074 art. 2.2.2.25.2.5).
+    """
+    try:
+        auth.autorizar(usuario, datos.version)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+@router.delete("/me", summary="Borrar mi cuenta y mis datos", status_code=status.HTTP_204_NO_CONTENT,
+               responses=SIN_SESION)
+def delete_current_user(usuario: Usuario = Depends(get_current_user),
+                        auth: AuthService = Depends(get_auth_service)):
+    """
+    Borra la cuenta y todo lo que la identifica: correo, nombre, contraseña, lugares guardados, reputación, votos y
+    «Gracias». Los reportes y las marcas de paraderos que aportó quedan en el mapa común, sin su nombre ni nada que
+    los ligue a la cuenta. No se puede deshacer (derecho de supresión, Ley 1581 art. 8).
+    """
+    auth.borrar_cuenta(usuario)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
 @router.get("/me/places", summary="Mis lugares guardados", response_model=List[SavedPlaceResponse], responses=SIN_SESION)
 def list_saved_places(usuario: Usuario = Depends(get_current_user),
                       service: PlaceService = Depends(get_place_service)):
@@ -26,7 +54,7 @@ def list_saved_places(usuario: Usuario = Depends(get_current_user),
 
 @router.post("/me/places", summary="Guardar un lugar", response_model=SavedPlaceResponse, status_code=status.HTTP_201_CREATED,
              responses={**SIN_SESION, 409: error("Ya hay 10 lugares guardados."), **FUERA_DE_COBERTURA})
-def create_saved_place(datos: SavedPlaceCreate, usuario: Usuario = Depends(get_current_user),
+def create_saved_place(datos: SavedPlaceCreate, usuario: Usuario = Depends(viajero_autorizado),
                        service: PlaceService = Depends(get_place_service)):
     """Guarda un lugar frecuente. Máximo 10 por viajero."""
     try:
@@ -38,7 +66,7 @@ def create_saved_place(datos: SavedPlaceCreate, usuario: Usuario = Depends(get_c
 
 @router.patch("/me/places/{place_id}", summary="Editar un lugar guardado", response_model=SavedPlaceResponse,
               responses={**SIN_SESION, 404: error("No existe o es de otro viajero."), **FUERA_DE_COBERTURA})
-def update_saved_place(place_id: str, cambios: SavedPlaceUpdate, usuario: Usuario = Depends(get_current_user),
+def update_saved_place(place_id: str, cambios: SavedPlaceUpdate, usuario: Usuario = Depends(viajero_autorizado),
                        service: PlaceService = Depends(get_place_service)):
     """Cambia el nombre, el ícono o la ubicación de un lugar guardado propio."""
     try:

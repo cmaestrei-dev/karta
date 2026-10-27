@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map_vector_tiles/flutter_map_vector_tiles.dart' as vt;
 
+import '../design/apariencia.dart';
+
 /// Fondo de la tierra mientras cargan las teselas, igual al del estilo para que no destelle.
 const fondoDelMapaOscuro = Color(0xFF1E2C39);
 const fondoDelMapaClaro = Color(0xFFEDF1F3);
@@ -48,12 +50,19 @@ class _CapaBahiaState extends State<CapaBahia> {
   Widget build(BuildContext context) {
     final estilo = _estilo;
     if (estilo == null) return const SizedBox.shrink();
+    final ligero = ModoLigero.de(context);
     return vt.VectorTileLayer(
-      key: ValueKey(_brillo),
+      key: ValueKey((_brillo, ligero)),
       theme: estilo.theme,
       tileProviders: estilo.providers,
       rasterSources: estilo.rasterSources,
       sprites: estilo.sprites,
+      // Modo ligero (D13): los nombres van dentro de cada tesela y no se redibujan en cada cuadro (el mapa no rota,
+      // así que no se nota), con menos hilos decodificando y sin fundidos.
+      labelMode: ligero ? vt.LabelMode.tile : vt.LabelMode.screen,
+      concurrency: ligero ? 2 : 3,
+      tileFadeDuration: ligero ? Duration.zero : const Duration(milliseconds: 150),
+      labelFadeDuration: ligero ? Duration.zero : const Duration(milliseconds: 150),
     );
   }
 }

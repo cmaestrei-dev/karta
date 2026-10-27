@@ -48,6 +48,22 @@ class ComoPediLaParadaRequest(_EnCartagena):
                                                   "conductor: le avisó al conductor")
 
 
+class BusMedidoRequest(BaseModel):
+    ruta: str = Field(..., pattern=PATRON_RUTA, examples=["T103"])
+    espera_estimada_min: int = Field(..., ge=0, le=180)
+    espera_real_min: int | None = Field(None, ge=0, le=240,
+                                        description="Null si no se pudo medir (el viaje empezó ya a bordo)")
+    a_bordo_estimado_min: int = Field(..., ge=0, le=240)
+    a_bordo_real_min: int = Field(..., ge=0, le=300)
+
+
+class ResultadoDeViajeRequest(BaseModel):
+    """Al llegar al destino: cuánto estimó Karta al empezar y cuánto se tardó de verdad. Sin puntos ni paraderos."""
+    estimado_min: int = Field(..., ge=1, le=300)
+    real_min: int = Field(..., ge=1, le=360)
+    buses: list[BusMedidoRequest] = Field(..., min_length=1, max_length=4)
+
+
 class ComoSePideResponse(BaseModel):
     """Cómo se pide la parada aquí según los viajeros. `como` es null si aún no hay suficientes respuestas."""
     como: ComoSePidioApi | None = None

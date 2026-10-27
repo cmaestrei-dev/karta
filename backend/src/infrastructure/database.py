@@ -46,6 +46,7 @@ def ensure_indexes(db: Database) -> None:
     # Un «Gracias» y una vista por viajero y reporte (para «Tu impacto»); vencen solos como los votos.
     for coleccion in (db.incident_thanks, db.incident_views):
         coleccion.create_index([("incidente", ASCENDING), ("usuario", ASCENDING)], unique=True)
+        coleccion.create_index([("usuario", ASCENDING), ("en", ASCENDING)])  # personas distintas por día
         coleccion.create_index([("expira_en", ASCENDING)], expireAfterSeconds=0)
     db.rate_limits.create_index([("expira_en", ASCENDING)], expireAfterSeconds=0)
     # Tiempo real de los viajeros: vence solo (30 min los avistamientos, 5 min sin moverse los viajes compartidos).
@@ -56,6 +57,11 @@ def ensure_indexes(db: Database) -> None:
     # «¿Cómo pediste la parada?» (D12): anónimo, por ruta y punto; vence al año.
     db.stop_answers.create_index([("ubicacion", GEOSPHERE), ("ruta", ASCENDING)])
     db.stop_answers.create_index([("expira_en", ASCENDING)], expireAfterSeconds=0)
+    # Cuánto estimó Karta y cuánto tardó cada viaje (D17): sin cuenta ni puntos; vence a los 180 días.
+    db.trip_results.create_index([("franja", ASCENDING)])
+    db.trip_results.create_index([("expira_en", ASCENDING)], expireAfterSeconds=0)
+    # Las huellas que cuentan personas distintas por cifra y mes (aportes.py); vencen a los 7 meses.
+    db.trip_contributors.create_index([("expira_en", ASCENDING)], expireAfterSeconds=0)
     migrar(db)
 
 

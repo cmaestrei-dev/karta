@@ -277,6 +277,7 @@ class _FilaDeResultado extends StatelessWidget {
       button: true,
       label: '${lugar.nombre}, ${lugar.subtitulo}${distancia != null ? ', a $distancia' : ''}',
       excludeSemantics: true,
+      onTap: onTap,
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
         onTap: onTap,
@@ -351,6 +352,7 @@ class _Tarjeta extends StatelessWidget {
       button: true,
       label: '$titulo. $detalle',
       excludeSemantics: true,
+      onTap: onTap,
       child: Material(
         color: b.tarjeta,
         borderRadius: radio,

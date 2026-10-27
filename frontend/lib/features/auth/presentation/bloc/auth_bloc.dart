@@ -102,7 +102,14 @@ class LogoutRequested extends AuthEvent {
   List<Object?> get props => [message];
 }
 
+/// Borra la cuenta y sus datos (Perfil › Privacidad); se sigue con una cuenta invisible nueva.
+class AccountDeletionRequested extends AuthEvent {
+  const AccountDeletionRequested();
+}
+
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
+  static const cuentaBorrada = 'Borramos tu cuenta y tus datos.';
+
   static const sinConexion = 'Karta necesita internet la primera vez que se abre. Revisa tus datos o tu Wi-Fi.';
 
   final AuthRepository repository;
@@ -161,6 +168,32 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     });
 
     on<LogoutRequested>((event, emit) => _volverASinCuenta(emit, event.message));
+
+    on<AccountDeletionRequested>((event, emit) async {
+      final actual = _actual;
+      if (actual == null) return;
+      emit(AuthInProgress(actual));
+      try {
+        try {
+          await repository.borrarCuenta();
+        } on SesionVencida {
+          // La sesión invisible se renueva sola; con correo hay que entrar de nuevo.
+          if (!await repository.renovarSiEsInvisible()) rethrow;
+          await repository.borrarCuenta();
+        }
+      } on SesionVencida {
+        emit(AuthAuthenticated(actual, aviso: 'Tu sesión expiró: entra de nuevo con tu correo para borrar tu cuenta.'));
+        return;
+      } catch (e) {
+        emit(AuthAuthenticated(actual, aviso: 'No pudimos borrar tu cuenta: ${_clean(e)}'));
+        return;
+      }
+      try {
+        emit(AuthAuthenticated(await repository.entrarSinCuenta(), aviso: cuentaBorrada));
+      } catch (_) {
+        emit(const AuthUnauthenticated(message: cuentaBorrada));
+      }
+    });
   }
 
   Usuario? get _actual => switch (state) {

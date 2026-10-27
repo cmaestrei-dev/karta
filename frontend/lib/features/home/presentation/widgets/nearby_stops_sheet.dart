@@ -101,6 +101,7 @@ class _FilaDeRutaCercana extends StatelessWidget {
       button: true,
       label: 'Ruta ${ruta.ruta}, se toma en ${ruta.paradero}, $aPie. Toca para ver su horario y estaciones',
       excludeSemantics: true,
+      onTap: () => RoutePageScreen.open(context, ruta.ruta),
       child: Material(
         color: b.tarjeta,
         borderRadius: radio,
@@ -148,20 +149,22 @@ class _TarjetaDeEstacion extends StatelessWidget {
     final ocultas = estacion.rutas.length - visibles.length;
     final aPie = '${metros(estacion.caminataM)} · ${minutos(estacion.caminataMin)} a pie';
     final radio = BorderRadius.circular(18);
+    void irALaEstacion() => PlanRouteScreen.open(
+          context,
+          destino: TripPoint(nombre: 'Estación ${estacion.nombre}', punto: estacion.punto),
+        );
 
     return Semantics(
       button: true,
       label: 'Estación ${estacion.nombre}, $aPie. Rutas ${estacion.rutas.join(', ')}. Toca para ver cómo llegar',
       excludeSemantics: true,
+      onTap: irALaEstacion,
       child: Material(
         color: b.tarjeta,
         borderRadius: radio,
         child: InkWell(
           borderRadius: radio,
-          onTap: () => PlanRouteScreen.open(
-            context,
-            destino: TripPoint(nombre: 'Estación ${estacion.nombre}', punto: estacion.punto),
-          ),
+          onTap: irALaEstacion,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
             child: Row(
