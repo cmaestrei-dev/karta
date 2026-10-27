@@ -379,11 +379,13 @@ Cada fase termina con una demostración en el teléfono y un PR fusionado.
 
 ## 11. Fuera de alcance (después de la entrega final)
 
-- Busetas y rutas tradicionales: datos abiertos del distrito o mapeo comunitario. Con ellas llega «¡Grita parada!» (D11).
+- Busetas, corredores intermunicipales y lanchas: [plan de otros transportes](plan-otros-transportes.md). Con las busetas llega «¡Grita parada!» (D11).
 - Marcar los paraderos reales: los niveles 4 y 5 los proponen sobre el mapa (D10, D12).
 - iOS y web.
 - Saldo de la tarjeta: depende de los sistemas de Transcaribe.
-- Monetización: [plan de sostenibilidad sin anuncios](plan-sostenibilidad.md).
+- Monetización: [plan de sostenibilidad sin anuncios](plan-sostenibilidad.md) y [qué datos guardar y vender](plan-datos-y-monetizacion.md).
+- Calidad (escalabilidad, disponibilidad, latencia, seguridad y consistencia): [plan de calidad](plan-calidad.md).
+- Todo lo pendiente, y de qué depende: [pendientes](pendientes.md).
 - Datos de tráfico externos: [plan de datos de tráfico](plan-datos-de-trafico.md).
 - Licencias y publicación: [plan de código abierto](plan-codigo-abierto.md) (AGPL en el servidor, Apache en la app).
 - Transporte privado: excluido.
