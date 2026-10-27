@@ -77,6 +77,12 @@
       "Resource": "arn:aws:budgets::CUENTA:budget/karta-*"
     },
     {
+      "Sid": "VerLosRespaldos",
+      "Effect": "Allow",
+      "Action": ["s3:ListBucket", "s3:GetObject"],
+      "Resource": ["arn:aws:s3:::karta-respaldos-CUENTA", "arn:aws:s3:::karta-respaldos-CUENTA/*"]
+    },
+    {
       "Sid": "SusPropiasLlaves",
       "Effect": "Allow",
       "Action": ["iam:GetUser", "iam:ListAccessKeys"],

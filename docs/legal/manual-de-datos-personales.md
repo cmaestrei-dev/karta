@@ -26,7 +26,7 @@ Todas las bases están en MongoDB Atlas (AWS us-east-1). Los encargados son Mong
 | `stop_answers` | Ruta, punto y respuesta, sin cuenta | Base de conocimiento de cómo pedir la parada | 1 año (TTL) |
 | `daily_counts` | Ninguno: conteos por día y hora (consultas de llegada y cuántas tuvieron datos, viajes compartidos, reportes, confirmaciones, desmentidos, vistas y «Gracias», y cuántas personas distintas vieron o agradecieron ese día) | Indicadores del piloto ([plan-comunidad](../plan-comunidad.md), §5) | Sin plazo: nacen agregados |
 | `rate_limits` | IP o id del viajero, más un contador | Evitar abusos | La ventana: 1 min a 1 h (TTL) |
-| Copias de seguridad de Atlas | Todo lo anterior, tal como estaba ese día | Recuperarse de un incidente | 4 días: Atlas guarda las últimas 4 instantáneas diarias |
+| Copias de seguridad (S3 `karta-respaldos`, AWS) | Las colecciones anteriores tal como estaban a las 3 a. m., salvo `sightings`, `live_trips` y `rate_limits`. Bucket privado y cifrado | Recuperarse de un incidente | 7 días (regla del bucket) |
 | Registros de AWS Lambda (CloudWatch) | Datos técnicos de peticiones que fallaron | Corregir errores | 7 días (retención del grupo) |
 
 **No se guardan:**

@@ -18,7 +18,7 @@ App (APK)  ──HTTPS──▶  Function URL de «live»  ──▶  AWS Lambda
 - **Calentador:** EventBridge Scheduler invoca «live» cada 5 minutos con `{"calentar": true}`. Así no se apaga, Atlas no pausa la base por falta de conexiones, y de paso se guardan los conteos del piloto que se juntaron en memoria.
 - **Registros:** CloudWatch los guarda 7 días.
 - **Alarmas y presupuesto** (plan de calidad, D1): 5 alarmas de CloudWatch y un presupuesto de USD 5 al mes, con aviso por correo. Además, una sonda en GitHub Actions pide `/health` cada 10 minutos desde fuera de AWS.
-- **Copias:** Atlas toma una instantánea diaria y guarda las últimas 4 (plan de calidad, D2).
+- **Copias** (plan de calidad, D2): cada día a las 3 a. m. de Colombia, la función exporta la base a `s3://karta-respaldos-<cuenta>`, un bucket privado y cifrado que borra cada copia a los 7 días. No copia los datos de referencia, que están en el repositorio. Cuesta centavos al mes. Las copias del plan gratuito de Atlas no se usan: cuestan USD 0,10 al día, piden tarjeta y están en vista previa.
 
 ### Por qué Lambda y no una máquina (EC2) o Render
 
@@ -91,8 +91,6 @@ En la nube (26 de octubre, desde Cartagena hasta Virginia, ida y vuelta incluida
 4. **Network Access** → *Add IP Address* → *Allow access from anywhere* (`0.0.0.0/0`), por lo explicado en Seguridad.
 5. **Connect** → *Drivers* → copiar la cadena `mongodb+srv://karta-api:<db_password>@…` y poner la contraseña en lugar de `<db_password>`, **sin los signos `<` `>`**: quedan `karta-api:Contraseña@…`. Guardarla para el paso siguiente; no se comparte por chat.
 
-6. **Copias:** en el clúster, *Backup* → activar las copias del plan gratuito (una instantánea diaria; guarda 4).
-
 ### 2. AWS
 
 1. Entrar a la consola de AWS, en la región **us-east-1 (N. Virginia)**, y abrir **CloudShell** (el ícono `>_` de la barra superior).
@@ -142,6 +140,21 @@ PYTHON=backend/.venv/bin/python deploy/aws/desplegar.sh
 Para cambiar la cadena de conexión de Atlas, por ejemplo tras cambiar la contraseña: `deploy/aws/desplegar.sh --cambiar-base`.
 
 Para poner los datos de contacto del responsable y la fecha desde la que rige la política: `deploy/aws/desplegar.sh --responsable`. Pide el correo, el teléfono, la dirección y la fecha. Quedan en la configuración de la función, no en el repositorio, y la política deja de decir «[por definir]». Mientras la diga, no se invita a nadie al piloto.
+
+### Copias de seguridad
+
+```bash
+deploy/aws/respaldos.sh
+deploy/aws/respaldos.sh --ahora
+deploy/aws/respaldos.sh --restaurar 2026-11-20
+deploy/aws/respaldos.sh --restaurar 2026-11-20 incidents users
+```
+
+- Sin argumentos, lista las copias.
+- `--ahora` hace la copia de las 3 a. m. en el momento.
+- `--restaurar` vuelve a poner los documentos de una copia, todas las colecciones o solo las que se nombren.
+
+Restaurar reemplaza cada documento por el de la copia según su `_id`, y pide escribir «restaurar» antes. Lo hace la propia función, así que nadie maneja la contraseña de Atlas. El bucket lo crea `deploy/aws/ajustar-permisos.sh`, y la copia diaria la programa el despliegue cuando el bucket existe.
 
 ### Volver atrás
 

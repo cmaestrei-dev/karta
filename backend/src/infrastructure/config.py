@@ -55,3 +55,6 @@ LIMITE_IP_BUSCAR = (int(os.getenv("LIMITE_IP_BUSCAR_POR_MINUTO", "120")), 30)
 # Cada cuántos segundos se guardan en la base los conteos del piloto (0: en cada petición). En Lambda se juntan en
 # memoria para no escribir en Atlas por cada consulta de llegada.
 CONTADORES_CADA_S = int(os.getenv("CONTADORES_CADA_S", "0"))
+
+# El bucket privado de S3 de la copia diaria (respaldo.py). Lo pone el despliegue.
+RESPALDOS_BUCKET = os.getenv("RESPALDOS_BUCKET", "")

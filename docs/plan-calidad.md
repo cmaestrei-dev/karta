@@ -88,7 +88,7 @@ Estimación con estos supuestos:
 | # | Mejora | Costo | Esfuerzo |
 |---|---|---|---|
 | D1 | Alarmas de errores, rechazos, p95 y concurrencia, con aviso por correo; presupuesto de AWS; sonda externa gratuita a `/health` cada 5 minutos | USD 0 (verificar el costo de las alarmas) | Medio día |
-| D2 | Activar la instantánea diaria de M0 y un `mongodump` semanal | USD 0 | Medio día |
+| D2 | Copias diarias. Las del plan gratuito de Atlas cuestan USD 0,10 al día y piden tarjeta, así que se hace una propia en S3 | Centavos al mes | Medio día |
 | D3 | Cargar los datos de referencia al desplegar, no al arrancar, y dejar el arranque solo de lectura | USD 0 | Medio a 1 día |
 | D4 | Despliegue reversible: publicar versiones, usar un alias «live» y probar antes de moverlo. Antes conviene poner un dominio o CloudFront delante, porque la dirección está compilada en el APK | USD 0 | 1 día |
 | D5 | App resistente: guardar en el teléfono rutas, estaciones y política; reintentar los GET con espera creciente; cola de envíos con clave de idempotencia | USD 0 | 2–3 días |
@@ -221,7 +221,7 @@ Lo demás:
 | # | Qué quedó | Falta |
 |---|---|---|
 | D1 | `deploy/aws/alarmas.sh`: 5 alarmas (5xx, fallas, rechazos, p95 sobre 3 s, concurrencia de 8 o más) y el presupuesto `karta-mensual` de USD 5, con aviso por correo. La sonda `.github/workflows/sonda.yml` pide `/health` cada 10 min desde GitHub | Camilo corre `ajustar-permisos.sh` (una vez, con la cuenta principal) y confirma el correo de la suscripción. La sonda corre cuando se fusione a `main` |
-| D2 | Las copias del plan gratuito de Atlas: una instantánea diaria, se guardan 4. Declaradas en la política y el manual | Camilo las activa en Atlas (*Backup*) |
+| D2 | Copia propia diaria (`respaldo.py`), a las 3 a. m. de Colombia, en un bucket privado y cifrado que borra cada copia a los 7 días. Sin los datos de referencia, que están en el repositorio. `deploy/aws/respaldos.sh` lista, copia ya y restaura. Las copias de Atlas no se usaron: cuestan USD 0,10 al día (hasta 3 al mes), piden tarjeta y están en vista previa ([Atlas](https://www.mongodb.com/docs/atlas/backup/cloud-backup/free-cluster-backup/)). Declarada en la política y el manual | Camilo vuelve a correr `ajustar-permisos.sh`, que crea el bucket, y se despliega |
 | D3 | Los índices y los datos de referencia se preparan al desplegar (evento `preparar`), no en cada arranque en frío | — |
 | D4 | Cada despliegue publica una versión, la prepara y la prueba antes de mover el alias «live»; `--volver N` y `--versiones` | La dirección de la API cambia a la de «live»: hace falta un APK nuevo. La dirección vieja se borra cuando nadie use el APK anterior |
 | S1 | Límite por IP en memoria para todas las rutas: 240 por minuto; planificar, 30; buscar, 120. Las IPv6 cuentan por su red /64. Middleware ASGI puro, sin costo medible. `/routes/risk` admite hasta 1.000 puntos | — |

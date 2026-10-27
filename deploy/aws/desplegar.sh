@@ -95,6 +95,8 @@ variables.setdefault("JWT_SECRET", secrets.token_hex(32))
 variables.setdefault("MONGO_DB", "karta")
 variables.setdefault("CORS_ORIGINS", "*")
 variables.setdefault("CONTADORES_CADA_S", "60")  # los conteos del piloto se juntan en memoria (plan de calidad, E2)
+if os.path.exists(f"{obra}/bucket"):  # la copia diaria en S3 (plan de calidad, D2)
+    variables["RESPALDOS_BUCKET"] = open(f"{obra}/bucket").read()
 with open(f"{obra}/entorno.json", "w") as f:
     json.dump({"Variables": variables}, f)
 PY
@@ -105,6 +107,10 @@ invocar() {
   aws lambda invoke --function-name "$FUNCION" --qualifier "$1" --cli-binary-format raw-in-base64-out \
     --payload "$2" "$obra/respuesta.json" >/dev/null
 }
+
+# El bucket de los respaldos lo crea deploy/aws/ajustar-permisos.sh; sin él, no se programa la copia diaria.
+bucket="karta-respaldos-$cuenta"
+aws s3api head-bucket --bucket "$bucket" 2>/dev/null && printf '%s' "$bucket" > "$obra/bucket"
 
 echo "1/7 · Armando el paquete…"
 "$raiz/deploy/aws/empaquetar.sh" "$obra/karta-api.zip"
@@ -224,6 +230,22 @@ if aws scheduler get-schedule --name "$CALENTADOR" >/dev/null 2>&1; then
 else
   aws scheduler create-schedule --name "$CALENTADOR" --schedule-expression "rate(5 minutes)" \
     --flexible-time-window Mode=OFF --target "$objetivo" >/dev/null
+fi
+
+if [[ -f "$obra/bucket" ]]; then
+  # La copia diaria, a las 3 a. m. de Colombia (8:00 UTC), con el mismo rol que el calentador.
+  respaldo='{"Arn": "'"$calentar"'", "RoleArn": "arn:aws:iam::'"$cuenta"':role/'"$ROL_CALENTADOR"'",
+    "Input": "{\"respaldar\": true}"}'
+  if aws scheduler get-schedule --name karta-api-respaldar >/dev/null 2>&1; then
+    aws scheduler update-schedule --name karta-api-respaldar --schedule-expression "cron(0 8 * * ? *)" \
+      --flexible-time-window Mode=OFF --target "$respaldo" >/dev/null
+  else
+    aws scheduler create-schedule --name karta-api-respaldar --schedule-expression "cron(0 8 * * ? *)" \
+      --flexible-time-window Mode=OFF --target "$respaldo" >/dev/null
+  fi
+  echo "    Y la copia diaria en s3://$bucket, a las 3 a. m. de Colombia."
+else
+  echo "    Sin bucket de respaldos: corre deploy/aws/ajustar-permisos.sh en CloudShell para tener la copia diaria."
 fi
 
 echo
