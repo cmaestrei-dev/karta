@@ -9,6 +9,12 @@
 set -euo pipefail
 
 export AWS_PAGER=""
+quien="$(aws sts get-caller-identity --query Arn --output text)"
+if [[ "$quien" == *":user/camilo-dev" ]]; then
+  echo "Esto lo corre la cuenta principal, no camilo-dev, que no puede darse permisos a sí mismo." >&2
+  echo "Abre la consola de AWS, región N. Virginia, el ícono >_ (CloudShell), y pega el comando allí." >&2
+  exit 1
+fi
 cuenta="$(aws sts get-caller-identity --query Account --output text)"
 politica="arn:aws:iam::$cuenta:policy/karta-despliegue"
 funcion="arn:aws:lambda:us-east-1:$cuenta:function:karta-api"
@@ -17,7 +23,8 @@ trap 'rm -rf "$obra"' EXIT
 
 echo "1/2 · Política karta-despliegue…"
 sed "s/CUENTA/$cuenta/g" "$(dirname "$0")/politica-karta.json" > "$obra/politica.json"
-if [[ "$(aws iam list-policy-versions --policy-arn "$politica" --query 'length(Versions)')" -ge 5 ]]; then
+versiones="$(aws iam list-policy-versions --policy-arn "$politica" --query 'length(Versions)' --output text)"
+if [[ "$versiones" -ge 5 ]]; then
   echo "La política ya tiene 5 versiones, el máximo. En la consola: IAM › Políticas › karta-despliegue › Versiones," >&2
   echo "borra la más vieja que no sea la predeterminada y vuelve a correr este script." >&2
   exit 1
