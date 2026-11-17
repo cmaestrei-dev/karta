@@ -11,7 +11,8 @@ from src.infrastructure.database import ensure_indexes, get_database
 from src.infrastructure.dependencies import get_db
 from src.infrastructure.reference_data import cargar_datos_de_referencia
 from src.infrastructure.routers import (
-    auth_router, user_router, incident_router, route_router, place_router, stop_router, realtime_router,
+    auth_router, user_router, incident_router, mapping_router, route_router, place_router, stop_router,
+    realtime_router,
 )
 
 
@@ -56,6 +57,7 @@ app.include_router(route_router.router)
 app.include_router(place_router.router)
 app.include_router(stop_router.router)
 app.include_router(realtime_router.router)
+app.include_router(mapping_router.router)
 
 @app.get("/", include_in_schema=False)
 async def root():

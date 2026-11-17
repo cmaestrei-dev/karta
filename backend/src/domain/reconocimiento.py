@@ -33,6 +33,10 @@ _REGLAS = (
     _Regla(Insignia("ojo_de_halcon", "Ojo de halcón", "Otros viajeros confirmaron 10 de tus reportes"),
            "confirmaciones", 10, "confirmaciones"),
     _Regla(Insignia("gracias_a_ti", "Gracias a ti", "10 viajeros te dieron las gracias"), "gracias", 10, "gracias"),
+    _Regla(Insignia("kartografo", "Kartógrafo", "Ubicaste un paradero que no estaba en el mapa"),
+           "paraderos", 1, "paraderos ubicados"),
+    _Regla(Insignia("gran_kartografo", "Gran Kartógrafo", "Ubicaste 10 paraderos que no estaban en el mapa"),
+           "paraderos", 10, "paraderos ubicados"),
     _Regla(Insignia("faro_de_la_bahia", "Faro de la bahía", "100 personas se guiaron con tus reportes"),
            "vistas", 100, "personas que vieron tus reportes"),
 )

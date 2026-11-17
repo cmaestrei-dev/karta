@@ -27,6 +27,7 @@ class ImpactoResponse(BaseModel):
     reportes: int = 0
     confirmaciones: int = Field(0, description="Veces que otros confirmaron sus reportes")
     gracias: int = Field(0, description="«Gracias» recibidos")
+    paraderos: int = Field(0, description="Paraderos que marcó y la comunidad confirmó")
     vistas: int = Field(0, description="Personas que abrieron sus reportes")
 
 class InsigniaResponse(BaseModel):

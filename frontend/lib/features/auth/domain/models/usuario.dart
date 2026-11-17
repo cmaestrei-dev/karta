@@ -7,20 +7,24 @@ class Impacto extends Equatable {
   final int gracias;
   final int vistas;
 
-  const Impacto({this.reportes = 0, this.confirmaciones = 0, this.gracias = 0, this.vistas = 0});
+  /// Paraderos que marcó y la comunidad confirmó (Kartógrafo).
+  final int paraderos;
+
+  const Impacto({this.reportes = 0, this.confirmaciones = 0, this.gracias = 0, this.vistas = 0, this.paraderos = 0});
 
   factory Impacto.fromJson(Map<String, dynamic>? json) => Impacto(
         reportes: json?['reportes'] as int? ?? 0,
         confirmaciones: json?['confirmaciones'] as int? ?? 0,
         gracias: json?['gracias'] as int? ?? 0,
         vistas: json?['vistas'] as int? ?? 0,
+        paraderos: json?['paraderos'] as int? ?? 0,
       );
 
   Map<String, dynamic> toJson() =>
-      {'reportes': reportes, 'confirmaciones': confirmaciones, 'gracias': gracias, 'vistas': vistas};
+      {'reportes': reportes, 'confirmaciones': confirmaciones, 'gracias': gracias, 'vistas': vistas, 'paraderos': paraderos};
 
   @override
-  List<Object> get props => [reportes, confirmaciones, gracias, vistas];
+  List<Object> get props => [reportes, confirmaciones, gracias, vistas, paraderos];
 }
 
 /// Una insignia ganada con aportes que la comunidad validó.

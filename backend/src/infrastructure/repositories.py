@@ -11,6 +11,8 @@ from pymongo.errors import DuplicateKeyError
 
 from src.domain.conocimiento import ComoSePidio, RespuestaDeParada
 from src.domain.direcciones import Cruce, Via
+from src.domain.mapeo import EstadoDeMarca, Marca, Voto
+from src.domain.paraderos import ParaderoOficial
 from src.domain.models import (
     ALIAS_SIN_CUENTA, REPUTACION_INICIAL, EmailYaRegistrado, Impacto, Estacion, IconoLugar, Incidente, LimiteLugaresGuardados,
     Lugar, LugarGuardado, LugarGuardadoNoEncontrado, RutaTransporte, TipoViajero, Usuario,
@@ -256,6 +258,9 @@ class MongoTransitRepository:
         self._stations = db.stations
         self._schedules = db.route_schedules
         self._intersections = db.intersections
+        self._official_stops = db.route_stops
+        self._directions = db.route_directions
+        self._marks = db.stop_marks
 
     def routes_intersecting_all(self, areas: list[dict]) -> list[RutaTransporte]:
         filtro = {"$and": [{"geometria": {"$geoIntersects": {"$geometry": area}}} for area in areas]}
@@ -272,6 +277,13 @@ class MongoTransitRepository:
         doc = self._intersections.find_one({"ubicacion": {"$nearSphere": {
             "$geometry": {"type": "Point", "coordinates": [lon, lat]}, "$maxDistance": radio_m}}})
         return doc["nombre"] if doc else None
+
+    def official_stops(self, rutas: list[str] | None = None) -> list[ParaderoOficial]:
+        filtro = {"ruta": {"$in": rutas}} if rutas is not None else {}
+        return [p for p in _paraderos_con_comunidad(self._official_stops, self._marks, filtro) if p.longitud is not None]
+
+    def directions(self) -> dict[str, str]:
+        return {d["_id"]: d["hacia"] for d in self._directions.find()}
 
     def list_stations(self) -> list[Estacion]:
         return [_to_estacion(doc) for doc in self._stations.find()]
@@ -371,7 +383,8 @@ def _cercanos(lon: float, lat: float, radio_m: float, limite: int, filtro: dict 
 
 def _to_lugar(doc: dict) -> Lugar:
     longitud, latitud = doc["ubicacion"]["coordinates"]
-    return Lugar(id=str(doc["_id"]), nombre=doc["nombre"], tipo=doc["tipo"], latitud=latitud, longitud=longitud)
+    return Lugar(id=str(doc["_id"]), nombre=doc["nombre"], tipo=doc["tipo"], latitud=latitud, longitud=longitud,
+                 detalle=f"{doc['tipo']} · {doc['zona']}" if doc.get("zona") else None)
 
 
 def _to_lugar_guardado(doc: dict) -> LugarGuardado:
@@ -451,6 +464,108 @@ class MongoRateLimiter:
         if doc["conteo"] <= limite:
             return None
         return max(1, math.ceil(inicio + segundos - ahora.timestamp()))
+
+
+def _a_paradero(d: dict, marca: dict | None = None) -> ParaderoOficial:
+    ubicacion = (d.get("ubicacion") or (marca or {}).get("ubicacion") or {}).get("coordinates")
+    return ParaderoOficial(ruta=d["ruta"], sentido=d["sentido"], orden=d["orden"], nombre=d["nombre"],
+                           estacion=d.get("estacion"), modulo=d.get("modulo"),
+                           precision=d.get("precision") or ("comunidad" if marca else None),
+                           longitud=ubicacion[0] if ubicacion else None, latitud=ubicacion[1] if ubicacion else None,
+                           id=d["_id"])
+
+
+def _paraderos_con_comunidad(paraderos, marcas, filtro: dict) -> list[ParaderoOficial]:
+    """Los paraderos oficiales con la ubicación que les dio la comunidad (las marcas viven aparte: recargar el
+    archivo oficial no las borra)."""
+    ubicadas = {m["paradero"]: m for m in marcas.find({**filtro, "estado": EstadoDeMarca.UBICADA.value})}
+    return [_a_paradero(d, None if "ubicacion" in d else ubicadas.get(d["_id"]))
+            for d in paraderos.find(filtro).sort([("sentido", 1), ("orden", 1)])]
+
+
+def _a_marca(d: dict) -> Marca:
+    lon, lat = d["ubicacion"]["coordinates"]
+    return Marca(id=str(d["_id"]), paradero=d["paradero"], ruta=d["ruta"], longitud=lon, latitud=lat,
+                 propuesto_por=str(d["propuesto_por"]), apoyo=d["apoyo"],
+                 votos=tuple(Voto(str(v["usuario"]), v["esta_aqui"], v["peso"]) for v in d.get("votos", [])),
+                 estado=EstadoDeMarca(d["estado"]), creado_en=d["creado_en"])
+
+
+class MongoStopMappingRepository:
+    """Marcas de paraderos (`stop_marks`) y subidas anónimas a las rutas (`boardings`, vencen a los 180 días)."""
+    VIGENCIA_DE_SUBIDA = timedelta(days=180)
+
+    def __init__(self, db: Database):
+        self._paraderos = db.route_stops
+        self._marcas = db.stop_marks
+        self._subidas = db.boardings
+
+    def route_stop_list(self, ruta: str) -> list[ParaderoOficial]:
+        return _paraderos_con_comunidad(self._paraderos, self._marcas, {"ruta": ruta})
+
+    def official_stop(self, paradero_id: str) -> ParaderoOficial | None:
+        d = self._paraderos.find_one({"_id": paradero_id})
+        if d is None:
+            return None
+        marca = None if "ubicacion" in d else self._marcas.find_one(
+            {"paradero": paradero_id, "estado": EstadoDeMarca.UBICADA.value})
+        return _a_paradero(d, marca)
+
+    def pending_mark(self, paradero_id: str) -> Marca | None:
+        d = self._marcas.find_one({"paradero": paradero_id, "estado": EstadoDeMarca.POR_CONFIRMAR.value})
+        return _a_marca(d) if d else None
+
+    def pending_marks(self, ruta: str) -> list[Marca]:
+        return [_a_marca(d) for d in self._marcas.find({"ruta": ruta, "estado": EstadoDeMarca.POR_CONFIRMAR.value})]
+
+    def get_mark(self, marca_id: str) -> Marca | None:
+        if not ObjectId.is_valid(marca_id):
+            return None
+        d = self._marcas.find_one({"_id": ObjectId(marca_id)})
+        return _a_marca(d) if d else None
+
+    def add_mark(self, *, paradero: str, ruta: str, longitud: float, latitud: float, propuesto_por: str,
+                 peso: int, en: datetime) -> Marca:
+        doc = {"paradero": paradero, "ruta": ruta, "ubicacion": {"type": "Point", "coordinates": [longitud, latitud]},
+               "propuesto_por": ObjectId(propuesto_por), "apoyo": peso, "votos": [],
+               "estado": EstadoDeMarca.POR_CONFIRMAR.value, "creado_en": en}
+        try:
+            self._marcas.insert_one(doc)
+        except DuplicateKeyError:  # otra marca por confirmar llegó primero
+            from src.domain.mapeo import MarcaPendiente
+            raise MarcaPendiente()
+        return _a_marca(doc)
+
+    def add_vote(self, marca_id: str, voto: Voto) -> Marca | None:
+        usuario = ObjectId(voto.usuario)
+        doc = self._marcas.find_one_and_update(
+            {"_id": ObjectId(marca_id), "estado": EstadoDeMarca.POR_CONFIRMAR.value,
+             "propuesto_por": {"$ne": usuario}, "votos.usuario": {"$ne": usuario}},
+            {"$push": {"votos": {"usuario": usuario, "esta_aqui": voto.esta_aqui, "peso": voto.peso}},
+             "$inc": {"apoyo": voto.peso if voto.esta_aqui else -voto.peso}},
+            return_document=ReturnDocument.AFTER)
+        return _a_marca(doc) if doc else None
+
+    def resolve(self, marca_id: str, estado: EstadoDeMarca, en: datetime) -> None:
+        self._marcas.update_one({"_id": ObjectId(marca_id)}, {"$set": {"estado": estado.value, "resuelta_en": en}})
+
+    def add_boarding(self, ruta: str, longitud: float, latitud: float, en: datetime,
+                     estacion: str | None = None, modulo: str | None = None) -> None:
+        documento = {"ruta": ruta, "ubicacion": {"type": "Point", "coordinates": [longitud, latitud]},
+                     "en": en, "expira_en": en + self.VIGENCIA_DE_SUBIDA}
+        if estacion is not None:
+            documento |= {"estacion": estacion, "modulo": modulo}
+        self._subidas.insert_one(documento)
+
+    def boardings(self, ruta: str) -> list[tuple[float, float]]:
+        return [tuple(d["ubicacion"]["coordinates"])
+                for d in self._subidas.find({"ruta": ruta, "estacion": None}).limit(5000)]
+
+    def station_boardings(self) -> dict[tuple[str, str], list[tuple[float, float]]]:
+        grupos: dict[tuple[str, str], list[tuple[float, float]]] = {}
+        for d in self._subidas.find({"estacion": {"$ne": None}}, {"estacion": 1, "modulo": 1, "ubicacion": 1}).limit(20000):
+            grupos.setdefault((d["estacion"], d["modulo"][0]), []).append(tuple(d["ubicacion"]["coordinates"]))
+        return grupos
 
 
 class MongoRealtimeRepository:

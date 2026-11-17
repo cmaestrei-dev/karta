@@ -23,6 +23,17 @@ def test_buscador_ignora_tildes_y_busca_por_prefijo(api):
     assert estaciones[0]["tipo"] == "Estación Transcaribe"
 
 
+def test_buscador_encuentra_mercados_hoteles_y_corregimientos(api):
+    # En OpenStreetMap el mercado y Caribe Plaza son zonas comerciales, y La Boquilla una localidad.
+    for consulta, nombre in [("mercado bazurto", "Mercado de Bazurto"), ("la boquilla", "La Boquilla"),
+                             ("hotel caribe", "Hotel Caribe"), ("caribe plaza", "Caribe Plaza")]:
+        assert api.get("/api/v1/places/search", params={"q": consulta}).json()[0]["nombre"] == nombre
+    # Varios sitios con el mismo nombre se distinguen por el barrio.
+    terpel = api.get("/api/v1/places/search", params={"q": "terpel"}).json()
+    assert len(terpel) > 1 and all(t["detalle"].startswith("Estación de servicio · ") for t in terpel)
+    assert len({t["detalle"] for t in terpel}) == len(terpel)
+
+
 def test_buscador_entiende_los_nombres_populares(api):
     # En OpenStreetMap es «Puerta del Reloj»; en la calle, la Torre del Reloj. También mientras se escribe.
     for consulta in ("Torre del Reloj", "torre del re"):
@@ -117,6 +128,25 @@ def test_de_noche_avisa_cuando_sale_la_primera_ruta(api):
     assert cuerpo["aviso"].startswith("A esta hora no pasa ninguna ruta de Transcaribe")
     assert "mañana a las 5:" in cuerpo["aviso"]
     assert cuerpo["salida"].startswith("2026-10-23T23:30:00")
+    assert cuerpo["motivo_del_aviso"] == "horario"
+
+
+def test_si_ninguna_ruta_pasa_cerca_ofrece_caminar_mas_y_lo_avisa(api):
+    # De la Estación Los Ejecutivos al Parque de Castillogrande, la ruta más cercana al destino queda a más de 1 km.
+    cuerpo = api.post("/api/v1/routes/suggest", json={
+        "origen": {"lat": 10.399489, "lon": -75.493651}, "destino": {"lat": 10.391747, "lon": -75.546954},
+        "salida": MARTES_10_AM,
+    }).json()
+    assert cuerpo["motivo_del_aviso"] == "caminata_larga"
+    assert any(o["transbordos"] == 0 and "T103" in o["resumen"] for o in cuerpo["opciones"])
+    assert all(o["distancia_caminata_m"] > 1000 for o in cuerpo["opciones"])
+    # Si el viajero puso un límite de caminata, se respeta: no se ofrece caminar más.
+    limitado = api.post("/api/v1/routes/suggest", json={
+        "origen": {"lat": 10.399489, "lon": -75.493651}, "destino": {"lat": 10.391747, "lon": -75.546954},
+        "salida": MARTES_10_AM, "caminata_maxima_m": 500,
+    }).json()
+    assert not [o for o in limitado["opciones"] if o["transbordos"] or o["resumen"] != "A pie"]
+    assert limitado["motivo_del_aviso"] in ("caminata", None)
 
 
 def test_rutas_sugeridas_solo_dentro_de_cartagena(api):
@@ -208,3 +238,20 @@ def test_pagina_de_ruta_inexistente_o_mal_escrita(api):
     assert api.get("/api/v1/routes/hola").status_code == 422
     sin_horario = api.get("/api/v1/routes/C018").json()
     assert sin_horario["horario"] is None and sin_horario["opera_ahora"] is None
+
+
+def test_rutas_que_pasan_cerca_y_donde_tomarlas(api):
+    # En Blas de Lezo, sobre el recorrido de la A107, lejos de toda estación.
+    from scripts.analizar_transbordos import cargar, origenes
+    rutas, estaciones = cargar()
+    a107 = next(r for r in rutas if r.id == "A107")
+    lon, lat = origenes(a107, [e for e in estaciones if any(r.startswith(("T", "X")) for r in e.rutas)])[0]
+    cercanas = api.get("/api/v1/routes/nearby", params={"lat": lat, "lon": lon}).json()
+    a107 = next(r for r in cercanas if r["ruta"] == "A107")
+    assert a107["distancia_m"] <= 30 and a107["paradero"].startswith("Paradero")
+    assert a107["caminata_min"] >= 1
+    assert [r["distancia_m"] for r in cercanas] == sorted(r["distancia_m"] for r in cercanas)
+    # Junto a la estación Madre Bernarda, sobre el carril de la troncal, las T no se toman en la vía.
+    junto_a_la_troncal = api.get("/api/v1/routes/nearby", params={"lat": 10.39514, "lon": -75.47861, "radio_m": 100})
+    assert not any(r["ruta"].startswith("T") for r in junto_a_la_troncal.json())
+    assert api.get("/api/v1/routes/nearby", params={"lat": 11.24, "lon": -74.2}).status_code == 422

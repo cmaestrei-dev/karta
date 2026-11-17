@@ -44,6 +44,9 @@ class RouteSuggestRequest(BaseModel):
         "rapida", description="Cómo ordenar: la más rápida, la más segura (el riesgo pesa el triple) o sin transbordo")
     salida: datetime | None = Field(
         None, description="Hora de salida (ISO 8601 con zona); por defecto, ahora. Define qué rutas operan")
+    caminata_maxima_m: int | None = Field(
+        None, ge=200, le=2000, description="Lo máximo que se quiere caminar hasta la ruta o desde ella, a pie de verdad "
+                                           "(por defecto, unos 1.000 m)")
 
 class LineaGeoJSON(BaseModel):
     type: Literal["LineString"] = "LineString"
@@ -52,6 +55,13 @@ class LineaGeoJSON(BaseModel):
 class ParadaDelTramo(BaseModel):
     nombre: str
     latitud: float
+    longitud: float
+
+
+class VagonResponse(BaseModel):
+    letra: str = Field(description="«A» o «B»")
+    hacia: str = Field(description="El vagón queda en el extremo hacia «el Centro» o «el Portal»")
+    latitud: float = Field(description="Dónde esperan, en promedio, los viajeros que suben en ese vagón")
     longitud: float
 
 
@@ -68,6 +78,21 @@ class TramoResponse(BaseModel):
     paradas: List[ParadaDelTramo] = Field(
         default_factory=list,
         description="Estaciones por las que pasa el bus en este tramo, en orden (vacía fuera de la troncal)")
+    alternativas: List[str] = Field(
+        default_factory=list, description="Otras rutas igual de buenas en este tramo: se toma la que pase primero")
+    modulo: str | None = Field(None, description="Módulo de la estación donde para el bus en este sentido («A1»)")
+    hacia: str | None = Field(None, description="Hacia dónde va el bus («Bocagrande»)")
+    advertencia: str | None = Field(
+        None, description="Al subir en una estación que se confunde con la de enfrente (Madre Bernarda y Santa Lucía)")
+    lado_del_modulo: str | None = Field(
+        None, description="El vagón del módulo queda en el extremo hacia «el Centro» o «el Portal», según los viajeros")
+    lado_segun: int = Field(0, description="Cuántas subidas de viajeros lo enseñaron")
+    vagones: List[VagonResponse] = Field(
+        default_factory=list,
+        description="En una estación doble, los dos vagones según los viajeros, el del bus primero (para el plano)")
+    indicacion: str | None = Field(
+        None, description="En la caminata de un transbordo integrado, cómo hacer el cambio "
+                          "(«Sal de Santa Lucía y cruza por la cebra hasta Madre Bernarda…»)")
     geometria: LineaGeoJSON
 
 class RiesgoResumen(BaseModel):
@@ -87,7 +112,10 @@ class RouteSuggestResponse(BaseModel):
     opciones: List[RouteOptionResponse]
     criterio: Literal["rapida", "segura", "sin_transbordo"]
     salida: datetime = Field(..., description="Hora de salida usada, en hora de Colombia")
-    aviso: str | None = Field(None, description="Por qué no hay opciones en bus, si es por el horario")
+    aviso: str | None = Field(None, description="Por qué no hay opciones en bus, o qué tienen de raro las que hay")
+    motivo_del_aviso: Literal["horario", "caminata", "caminata_larga"] | None = Field(
+        None, description="horario: no opera a esa hora; caminata: no hay rutas con el límite de caminata pedido; "
+                          "caminata_larga: ninguna ruta pasa cerca, y estas opciones caminan más de lo normal")
     nota: str
     fuente: str
 

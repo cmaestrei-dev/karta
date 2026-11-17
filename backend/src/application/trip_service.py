@@ -5,17 +5,22 @@ from typing import Literal
 from src.domain.geo import circulo, corredor_de_ruta, distancia_m
 from src.domain.horarios import HorarioRuta, cuando, en_colombia, opera, proximo_servicio, tipo_de_dia
 from src.domain.models import Estacion, RutaTransporte
-from src.domain.ports import IncidentRepository, PlaceRepository, TransitRepository
+from src.domain.modulos import ESTACIONES_DOBLES, LadoDeModulo, lados_de_la_estacion
+from src.domain.paraderos import abordaje
+from src.domain.ports import IncidentRepository, PlaceRepository, StopMappingRepository, TransitRepository
 from src.domain.route_risk import PENALIZACION_RIESGO_MIN, RADIO_BUSQUEDA_M, ResultadoRiesgo, evaluar_riesgo
 from src.domain.trip_planning import (
-    CAMINATA_MAXIMA_DE_ACCESO_M, OpcionViaje, caminata_entre, costo_percibido, estaciones_en_orden, paradas_del_tramo,
-    planificar,
+    CAMINATA_MAXIMA_DE_ACCESO_M, MAX_CORTES_CONFIABLES, OpcionViaje, PasoCercano, advertencia_de_estacion,
+    caminata_entre, carril_de_la_troncal, costo_percibido, con_alternativas, donde_pasa_cerca, el_que_pase_primero,
+    estaciones_en_orden, muestrear, paradas_del_tramo, planificar,
 )
 
 Criterio = Literal["rapida", "segura", "sin_transbordo"]
 
 # Cuánto pesa el riesgo al ordenar, según el criterio que eligió el viajero.
 PESO_DEL_RIESGO = {"rapida": 1, "segura": 3, "sin_transbordo": 1}
+CAMINATA_LARGA_M = 2500   # si ninguna ruta pasa cerca, se busca caminando hasta esto (a pie de verdad), y se avisa
+MotivoDelAviso = Literal["horario", "caminata", "caminata_larga"]
 
 
 @dataclass(frozen=True)
@@ -23,8 +28,9 @@ class Sugerencias:
     opciones: list[tuple[OpcionViaje, ResultadoRiesgo]]
     salida: datetime
     criterio: Criterio
-    # Por qué no hay opciones en bus, cuando es por el horario («La primera sale mañana a las 5:30 a. m.»).
+    # Por qué no hay opciones en bus («La primera sale mañana a las 5:30 a. m.»), o qué tienen de raro las que hay.
     aviso: str | None = None
+    motivo_del_aviso: MotivoDelAviso | None = None
 
 
 @dataclass(frozen=True)
@@ -42,15 +48,20 @@ class TripService:
     RADIO_ESTACION_M = 150
     RADIO_CRUCE_M = 120
     RADIO_REFERENCIA_M = 300
+    RADIO_PARADERO_OFICIAL_M = 150
 
-    def __init__(self, transit: TransitRepository, places: PlaceRepository, incidents: IncidentRepository):
+    def __init__(self, transit: TransitRepository, places: PlaceRepository, incidents: IncidentRepository,
+                 subidas: StopMappingRepository | None = None):
         self.transit = transit
         self.places = places
         self.incidents = incidents
+        self.subidas = subidas
+        self._subidas_por_vagon: dict[tuple[str, str], list[tuple[float, float]]] | None = None  # una vez por consulta
 
     def suggest(self, origen: tuple[float, float], destino: tuple[float, float],
                 nombre_origen: str | None = None, nombre_destino: str | None = None,
-                criterio: Criterio = "rapida", salida: datetime | None = None) -> Sugerencias:
+                criterio: Criterio = "rapida", salida: datetime | None = None,
+                caminata_maxima_m: int | None = None) -> Sugerencias:
         """
         Caso de Uso: Consultar rutas sugeridas.
         1. MongoDB devuelve las rutas que pasan cerca del origen o del destino ($geoIntersects).
@@ -60,17 +71,54 @@ class TripService:
         4. A las más rápidas se les evalúa el riesgo con los reportes vigentes de su corredor.
         5. Se ordenan por tiempo + lo que cuesta cada transbordo + penalización por riesgo, que pesa el
            triple si se pide la más segura.
+        6. Si no queda ninguna en bus, se dice por qué; y si es porque ninguna ruta pasa cerca, se busca otra vez
+           caminando hasta 2,5 km, avisando que hay que caminar más de lo normal.
         """
         salida = salida or datetime.now(timezone.utc)
-        areas = [circulo(*origen, CAMINATA_MAXIMA_DE_ACCESO_M), circulo(*destino, CAMINATA_MAXIMA_DE_ACCESO_M)]
-        cercanas = self.transit.routes_intersecting_any(areas)
         horarios = self.transit.schedules()
-        en_servicio = [r for r in cercanas if opera(horarios.get(r.id), salida)]
         estaciones = self.transit.list_stations()
+        cercanas, en_servicio, evaluadas = self._buscar(origen, destino, criterio, salida, caminata_maxima_m,
+                                                        horarios, estaciones)
+        aviso, motivo = None, None
+        if not any(opcion.rutas for opcion, _ in evaluadas):
+            aviso = self._aviso_de_horario(cercanas, en_servicio, horarios, estaciones, origen, destino,
+                                           criterio, salida)
+            motivo = "horario" if aviso else None
+            if aviso is None and caminata_maxima_m and any(
+                    o.rutas for o in planificar(en_servicio, estaciones, origen, destino,
+                                                con_transbordos=criterio != "sin_transbordo")):
+                aviso, motivo = (f"Caminando hasta {caminata_maxima_m} m no hay rutas que te sirvan. "
+                                 "Si puedes caminar un poco más, sí las hay."), "caminata"
+            elif aviso is None and caminata_maxima_m is None:
+                # Ninguna ruta pasa cerca del origen o del destino: mejor una caminata larga que nada.
+                _, _, lejanas = self._buscar(origen, destino, criterio, salida, CAMINATA_LARGA_M, horarios, estaciones)
+                if any(opcion.rutas for opcion, _ in lejanas):
+                    evaluadas = lejanas
+                    aviso, motivo = ("Ninguna ruta pasa cerca de tu origen o de tu destino: en estas opciones hay que "
+                                     "caminar más de lo normal."), "caminata_larga"
 
-        opciones = sorted(planificar(en_servicio, estaciones, origen, destino,
-                                     con_transbordos=criterio != "sin_transbordo"),
-                          key=costo_percibido)
+        return Sugerencias(
+            opciones=[(self._etiquetar(opcion, estaciones, nombre_origen, nombre_destino), riesgo)
+                      for opcion, riesgo in evaluadas[:self.MAX_OPCIONES]],
+            salida=en_colombia(salida), criterio=criterio, aviso=aviso, motivo_del_aviso=motivo,
+        )
+
+    def _buscar(self, origen, destino, criterio: Criterio, salida: datetime, caminata_maxima_m: int | None,
+                horarios, estaciones):
+        """Las rutas cerca, las que operan a esa hora y las opciones ordenadas, con su riesgo."""
+        radio = max(CAMINATA_MAXIMA_DE_ACCESO_M, caminata_maxima_m or 0)
+        areas = [circulo(*origen, radio), circulo(*destino, radio)]
+        cercanas = self.transit.routes_intersecting_any(areas)
+        en_servicio = [r for r in cercanas if opera(horarios.get(r.id), salida)]
+
+        carril = carril_de_la_troncal(self.transit.list_routes("troncal"))
+        muestras = [m for r in en_servicio if r.cortes_en_osm <= MAX_CORTES_CONFIABLES
+                    if (m := muestrear(r, estaciones, carril)) is not None]
+        opciones = el_que_pase_primero(planificar(en_servicio, estaciones, origen, destino,
+                                                  con_transbordos=criterio != "sin_transbordo",
+                                                  caminata_maxima_m=caminata_maxima_m, muestras=muestras), estaciones)
+        # Además, en cada bus de un transbordo, las otras rutas que sirven igual en ese tramo.
+        opciones = sorted((con_alternativas(o, muestras, estaciones) for o in opciones), key=costo_percibido)
         ahora = datetime.now(timezone.utc)
         evaluadas = []
         for opcion in opciones[:self.CANDIDATAS_A_EVALUAR]:
@@ -78,17 +126,7 @@ class TripService:
             evaluadas.append((opcion, evaluar_riesgo(self.incidents.find_active_within(corredor, ahora))))
         peso = PESO_DEL_RIESGO[criterio]
         evaluadas.sort(key=lambda par: costo_percibido(par[0]) + peso * PENALIZACION_RIESGO_MIN[par[1].nivel])
-
-        aviso = None
-        if not any(opcion.rutas for opcion, _ in evaluadas):
-            aviso = self._aviso_de_horario(cercanas, en_servicio, horarios, estaciones, origen, destino,
-                                           criterio, salida)
-
-        return Sugerencias(
-            opciones=[(self._etiquetar(opcion, estaciones, nombre_origen, nombre_destino), riesgo)
-                      for opcion, riesgo in evaluadas[:self.MAX_OPCIONES]],
-            salida=en_colombia(salida), criterio=criterio, aviso=aviso,
-        )
+        return cercanas, en_servicio, evaluadas
 
     def _aviso_de_horario(self, cercanas, en_servicio, horarios, estaciones, origen, destino,
                           criterio: Criterio, salida: datetime) -> str | None:
@@ -129,6 +167,30 @@ class TripService:
         """Caso de Uso: Ver estaciones de Transcaribe cercanas, de la más cercana a la más lejana."""
         return self.transit.stations_near(lon, lat, radio_m, limite)
 
+    def nearby_routes(self, lat: float, lon: float, radio_m: float, limite: int) -> list[tuple[PasoCercano, str]]:
+        """
+        Caso de Uso: Ver las rutas que pasan cerca y por dónde tomarlas («Paradero Av. Kennedy con Calle 18»).
+        Los paraderos oficiales no tienen coordenadas publicadas: es el punto de la vía más cercano donde la ruta
+        recoge pasajeros, nombrado por el cruce de calles.
+        """
+        estaciones = self.transit.list_stations()
+        cercanas = self.transit.routes_intersecting_any([circulo(lon, lat, radio_m)])
+        pasos = sorted((p for r in cercanas if r.cortes_en_osm <= MAX_CORTES_CONFIABLES
+                        if (p := donde_pasa_cerca(r, estaciones, (lon, lat), radio_m))),
+                       key=lambda p: p.distancia_m)[:limite]
+        oficiales = [o for o in self.transit.official_stops([p.ruta.id for p in pasos]) if o.precision == "direccion"]
+
+        def nombre(paso: PasoCercano) -> str:
+            # El paradero oficial de esa ruta, si hay uno ubicado por su dirección a pocos metros.
+            cerca = [(distancia_m((paso.longitud, paso.latitud), (o.longitud, o.latitud)), o)
+                     for o in oficiales if o.ruta == paso.ruta.id]
+            distancia, oficial = min(cerca, key=lambda par: par[0], default=(None, None))
+            if oficial and distancia <= self.RADIO_PARADERO_OFICIAL_M:
+                return f"Paradero {oficial.nombre}"
+            return self._parada((paso.longitud, paso.latitud), paso.ruta, estaciones)[0]
+
+        return [(p, nombre(p)) for p in pasos]
+
     def _etiquetar(self, opcion: OpcionViaje, estaciones: list[Estacion],
                    nombre_origen: str | None, nombre_destino: str | None) -> OpcionViaje:
         """Pone nombres legibles a los puntos de subida, bajada y transbordo ("Estación Bazurto")."""
@@ -139,19 +201,35 @@ class TripService:
             tramos[0] = replace(tramos[0], desde=inicio, hasta=fin)
             return OpcionViaje(tramos=tuple(tramos))
 
+        paraderos = self.transit.official_stops([r.id for k in buses for r in (tramos[k].ruta, *tramos[k].alternativas)])
+        hacia = self.transit.directions()
         for k in buses:
             ruta = tramos[k].ruta
             subida, estacion_subida = self._parada(tramos[k].coordenadas[0], ruta, estaciones)
             bajada, estacion_bajada = self._parada(tramos[k].coordenadas[-1], ruta, estaciones)
             # Si se sube o se baja en una estación, la caminata llega a la estación misma: así su distancia
             # coincide con la que muestra /stops/nearby para esa estación.
-            if estacion_subida:
+            # Las caminatas de una integración (Santa Lucía ↔ Madre Bernarda) ya miden lo que se camina de verdad.
+            if estacion_subida and not tramos[k - 1].integrado:
                 tramos[k - 1] = caminata_entre(tramos[k - 1].coordenadas[0],
                                                (estacion_subida.longitud, estacion_subida.latitud))
-            if estacion_bajada:
+            if estacion_bajada and not tramos[k + 1].integrado:
                 tramos[k + 1] = caminata_entre((estacion_bajada.longitud, estacion_bajada.latitud),
                                                tramos[k + 1].coordenadas[-1])
-            tramos[k] = replace(tramos[k], desde=subida, hasta=bajada, paradas=paradas_del_tramo(tramos[k], estaciones))
+            # Con «el que pase primero», el módulo solo se dice si todas las rutas paran en el mismo.
+            comos = [abordaje(r.id, estacion_subida.id if estacion_subida else None,
+                              estacion_bajada.id if estacion_bajada else None, paraderos, hacia)
+                     for r in (ruta, *tramos[k].alternativas)]
+            modulos = {c.modulo if c else None for c in comos}
+            destinos = list(dict.fromkeys(c.hacia for c in comos if c and c.hacia))  # «Bocagrande o el Centro»
+            # Quien llega desde la calle (no de un transbordo integrado) puede entrar a la estación de enfrente.
+            advertencia = (advertencia_de_estacion(estacion_subida.id, ruta.tipo)
+                           if estacion_subida and not tramos[k - 1].integrado else None)
+            modulo = modulos.pop() if len(modulos) == 1 else None
+            vagones = self._vagones(estacion_subida, modulo, estaciones) if estacion_subida and modulo else ()
+            tramos[k] = replace(tramos[k], desde=subida, hasta=bajada, paradas=paradas_del_tramo(tramos[k], estaciones),
+                                modulo=modulo, hacia=" o ".join(destinos) if destinos else None, advertencia=advertencia,
+                                vagones=vagones)
 
         # Cada caminata va del punto anterior al siguiente: el origen, una bajada, una subida o el destino.
         for k, tramo in enumerate(tramos):
@@ -160,6 +238,38 @@ class TripService:
                 hasta = tramos[k + 1].desde if k + 1 < len(tramos) else fin
                 tramos[k] = replace(tramo, desde=desde, hasta=hasta)
         return OpcionViaje(tramos=tuple(tramos))
+
+    def _vagones(self, estacion: Estacion, modulo: str, estaciones: list[Estacion]) -> tuple[LadoDeModulo, ...]:
+        """De qué lado de la estación queda el vagón del módulo, y el otro, según las subidas de los viajeros (D18).
+        Vacío si los viajeros aún no lo enseñaron."""
+        if self.subidas is None or estacion.id not in ESTACIONES_DOBLES:
+            return ()
+        hacia_el_centro = self._hacia_el_centro(estacion, estaciones)
+        if hacia_el_centro is None:
+            return ()
+        if self._subidas_por_vagon is None:
+            self._subidas_por_vagon = self.subidas.station_boardings()
+        por_vagon = {letra: puntos for (id_estacion, letra), puntos in self._subidas_por_vagon.items()
+                     if id_estacion == estacion.id}
+        lados = lados_de_la_estacion(por_vagon, hacia_el_centro)
+        if modulo[0] not in lados:
+            return ()
+        return lados[modulo[0]], *(lado for letra, lado in lados.items() if letra != modulo[0])
+
+    def _hacia_el_centro(self, estacion: Estacion, estaciones: list[Estacion]) -> tuple[float, float] | None:
+        """Un punto hacia el Centro desde la estación: la estación siguiente por la que pasa la T101 en su ida (del
+        Portal al Centro), o, en la última, el reflejo de la anterior."""
+        troncal = self.transit.route("T101")
+        orden = estaciones_en_orden(troncal, estaciones, solo_propias=False) if troncal else []
+        ids = [e.id for e in orden]
+        if estacion.id not in ids:
+            return None
+        k = ids.index(estacion.id)
+        if k + 1 < len(orden):
+            return orden[k + 1].longitud, orden[k + 1].latitud
+        if k > 0:
+            return 2 * estacion.longitud - orden[k - 1].longitud, 2 * estacion.latitud - orden[k - 1].latitud
+        return None
 
     def _parada(self, punto: tuple[float, float], ruta: RutaTransporte,
                 estaciones: list[Estacion]) -> tuple[str, Estacion | None]:

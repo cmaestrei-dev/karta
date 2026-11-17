@@ -21,12 +21,16 @@ Instruccion instruccionDe(SeguidorDeViaje seguidor, String destino) {
         icono: Icons.directions_walk,
         titulo: 'Camina a ${actual.hasta}',
         detalle: '${metros(falta)} · ${minutos(minutosAPie(falta))} a pie',
-        luego: siguiente != null ? 'sube al ${siguiente.ruta}' : null,
+        luego: siguiente != null ? 'sube al ${siguiente.rutas.join(' o al ')}' : null,
       ),
     Fase.esperando => (
         icono: Icons.directions_bus,
-        titulo: 'Sube al ${actual.ruta}',
-        detalle: 'en ${actual.desde}',
+        titulo: 'Sube al ${actual.rutas.join(' o al ')}',
+        detalle: [
+          'en ${actual.desde}',
+          if (actual.alternativas.isNotEmpty) 'el que pase primero',
+          ?actual.comoAbordar,
+        ].join(' · '),
         luego: _bajarse(actual),
       ),
     Fase.aBordo => (
@@ -42,7 +46,8 @@ Instruccion instruccionDe(SeguidorDeViaje seguidor, String destino) {
     Fase.transbordo => (
         icono: Icons.sync_alt,
         titulo: 'Cambia al ${siguiente?.ruta ?? 'siguiente bus'}',
-        detalle: falta < 30 ? 'aquí mismo, en ${actual.hasta}' : 'camina ${metros(falta)} hasta ${actual.hasta}',
+        detalle: actual.indicacionCorta ??
+            (falta < 30 ? 'aquí mismo, en ${actual.hasta}' : 'camina ${metros(falta)} hasta ${actual.hasta}'),
         luego: siguiente != null ? _bajarse(siguiente) : null,
       ),
     Fase.caminandoAlDestino => (
@@ -122,10 +127,20 @@ String textoDeLoQueSeSabe(ComoSePideAqui sabido) {
 
 /// Cultura ciudadana mientras se espera: un recordatorio amable en el momento justo, sin regañar ni premiar
 /// (docs/plan-comunidad.md). En la estación, la fila de la ruta; cuando el bus ya llega, dejar bajar.
+/// Mientras se camina a la estación, lo que conviene saber antes de entrar: «Ojo: Santa Lucía, la estación de
+/// enfrente, es solo de alimentadoras».
+String? consejoAlCaminar(Leg? bus) => bus?.advertencia;
+
 String? consejoDeEspera(Leg bus, Llegada? llegada) {
   final m = llegada?.minutos;
   if (m != null && m <= 1 && !llegada!.sinConexion) return 'Deja bajar primero y sube en orden.';
-  if (bus.subeEnEstacion && bus.ruta != null) return 'Haz la fila del ${bus.ruta}: se sube en orden.';
+  if (bus.subeEnEstacion && bus.ruta != null) {
+    if (bus.modulo == null) return 'Haz la fila del ${bus.ruta}: se sube en orden.';
+    final lado = bus.lado == null
+        ? ''
+        : ', en el ${bus.lado} (según ${bus.ladoSegun} ${bus.ladoSegun == 1 ? 'viajero' : 'viajeros'})';
+    return 'Haz la fila del ${bus.ruta} en el módulo ${bus.modulo}$lado: se sube en orden.';
+  }
   return null;
 }
 

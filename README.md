@@ -34,7 +34,12 @@ Cartagena de Indias.
 | Llegada estimada «según N viajeros» y qué tan lleno va el bus | ✅ avistamientos y viajes compartidos; siempre dice de cuándo es el dato, y sin conexión lo envejece y lo avisa |
 | Bus varado: a bordo, 4 min quieto lejos de una estación, «¿El T103 se varó?»; quien espera lo ve y ese bus no cuenta en la llegada | ✅ |
 | «¿Cómo pediste la parada?» al bajarse en un paradero; con 3 respuestas que coinciden, el aviso dice qué funciona allí | ✅ una pregunta por viaje, siempre se puede saltar |
-| Cultura ciudadana: «Haz la fila del T103: se sube en orden», «Deja bajar primero» | ✅ sin regañar ni premiar |
+| Cultura ciudadana: «Haz la fila del T103 en el módulo A1: se sube en orden», «Deja bajar primero» | ✅ sin regañar ni premiar |
+| Transbordos integrados: Santa Lucía ↔ Madre Bernarda (40 m por la cebra) y el Patio Portal, con cómo hacerlos y sin volver a pagar | ✅ [análisis de toda la red](docs/analisis-transbordos.md) |
+| Módulo y sentido de cada bus en las estaciones («Sube al T101 en Madre Bernarda · módulo A1, hacia el Centro») | ✅ de los paraderos oficiales de 2025 |
+| «El que pase primero»: «T103 o T101» con la espera de las dos, y a bordo «¿En cuál vas?» | ✅ el expreso T100E queda aparte |
+| Rutas que pasan cerca, con el punto de la calle donde se toman | ✅ en el inicio, debajo de las estaciones |
+| Límite de caminata elegible | ✅ 300, 500 u 800 m, o hasta 1 km |
 | Compartir dónde va el bus (anónimo, solo a bordo, vence a los 5 min) | ✅ activado por defecto, se apaga en Perfil › Privacidad |
 
 ## Arquitectura
@@ -73,6 +78,8 @@ El backend sigue una arquitectura hexagonal (puertos y adaptadores):
 | `transit_routes` | `nombre`, `tipo`, `desde`, `hasta`, `geometria` (LineString) | `2dsphere` en `geometria` |
 | `route_schedules` | `_id` = código de ruta; primer y último despacho de `lunes_a_viernes`, `sabado` y `domingo_y_festivos` | — |
 | `intersections` | `nombre` («Av. Pedro de Heredia con Cra. 28»), `ubicacion` (Point) | `2dsphere` |
+| `route_stops` | Paraderos oficiales ubicados (`scripts/importar_paraderos.py`): `ruta`, `sentido`, `orden`, `nombre`, `estacion`, `modulo` («A1»), `precision` (`estacion` o `direccion`), `ubicacion` | (`ruta`, `sentido`, `orden`); `2dsphere` |
+| `route_directions` | `_id` = «T101-ida», `hacia` («el Centro») | — |
 | `address_crossings` | `nombre`, `vias` (`calle:9`, `carrera:3`), `ubicacion`: cruces de vías numeradas para ubicar direcciones | `vias` |
 
 El riesgo de una ruta se calcula trazando un corredor de 500 m alrededor de la polilínea
@@ -182,6 +189,7 @@ firewall del computador permita conexiones entrantes al puerto 8000.
 | DELETE | `/api/v1/trips/{viaje}` | ✅ | Dejar de compartir; el viaje se borra en el acto |
 | POST | `/api/v1/routes/risk` | — | Calcular el riesgo de una ruta a partir de sus puntos (lat/lon) |
 | POST | `/api/v1/routes/suggest` | — | Formas de llegar entre dos puntos, con tramos GeoJSON, transbordo y riesgo. `criterio`: `rapida`, `segura` o `sin_transbordo`; `salida`: hora de salida (por defecto, ahora). Si a esa hora no opera ninguna ruta útil, `aviso` dice cuándo sale la primera |
+| GET | `/api/v1/routes/nearby?lat=&lon=` | — | Rutas que pasan a menos de 500 m y el punto de la calle donde se toman (o su paradero oficial) |
 | GET | `/api/v1/places/search?q=` | — | Buscar lugares de Cartagena (sin tildes, por prefijo de palabra) o una dirección («Calle 9 # 3-50»), que sale primero |
 | GET | `/api/v1/places/reverse?lat=&lon=` | — | Nombre del punto elegido en el mapa |
 | GET | `/api/v1/stops/nearby?lat=&lon=` | — | Estaciones cercanas, con sus rutas y la distancia a pie |

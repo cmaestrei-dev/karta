@@ -7,6 +7,7 @@ import '../../../../core/format.dart';
 import '../../../../core/map/capa_bahia.dart';
 import '../../../../core/widgets/karta_map.dart';
 import '../../../../core/widgets/route_capsule.dart';
+import '../../../mapeo/presentation/paraderos_de_ruta.dart';
 import '../../data/trip_repository.dart';
 import '../../domain/trip_models.dart';
 
@@ -67,6 +68,8 @@ class _RoutePageScreenState extends State<RoutePageScreen> {
                   if (pagina.tieneHorario) _Horario(pagina: pagina) else const _SinHorario(),
                   const SizedBox(height: 24),
                   _Estaciones(pagina: pagina),
+                  const SizedBox(height: 28),
+                  ParaderosDeLaRuta(ruta: pagina.codigo, tipoRuta: pagina.tipo, recorrido: pagina.puntos),
                   const SizedBox(height: 24),
                   Text(
                     'Recorrido y estaciones: © colaboradores de OpenStreetMap (ODbL). Horarios: «Rutas_Transcaribe '
@@ -263,20 +266,23 @@ class _FilaDeHorario extends StatelessWidget {
         child: Row(
           children: [
             Expanded(
-              child: Row(
+              // En un teléfono angosto «Domingos y festivos» y «Hoy» no caben junto al horario: «Hoy» baja de línea.
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   Text(nombreDeDia[dia]!, style: esHoy ? texto.titleSmall : texto.bodyMedium),
-                  if (esHoy) ...[
-                    const SizedBox(width: 8),
+                  if (esHoy)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(color: b.acentoSuave, borderRadius: BorderRadius.circular(8)),
                       child: Text('Hoy', style: texto.labelMedium?.copyWith(color: b.acento)),
                     ),
-                  ],
                 ],
               ),
             ),
+            const SizedBox(width: 12),
             Text(
               valor,
               style: (esHoy ? texto.titleSmall : texto.bodyMedium)?.copyWith(

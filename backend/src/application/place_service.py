@@ -6,8 +6,9 @@ from src.domain.texto import normalizar, tokens
 
 # Al empatar, primero lo que más se usa como origen o destino de un viaje.
 PRIORIDAD_POR_TIPO = {
-    "Estación Transcaribe": 0, "Barrio": 1, "Sitio turístico": 2, "Centro comercial": 3,
-    "Universidad": 4, "Hospital": 5, "Terminal / estación": 6, "Aeropuerto": 6,
+    "Estación Transcaribe": 0, "Barrio": 1, "Corregimiento": 1, "Sector": 2, "Sitio turístico": 2,
+    "Centro comercial": 3, "Zona comercial": 3, "Mercado": 3, "Universidad": 4, "Hospital": 5, "Clínica": 5,
+    "Terminal / estación": 6, "Aeropuerto": 6, "Hotel": 7,
 }
 
 # Cómo llama la gente a sitios que en OpenStreetMap tienen otro nombre (normalizado → nombre oficial).

@@ -5,6 +5,8 @@ from typing import Protocol
 from src.domain.horarios import HorarioRuta
 from src.domain.conocimiento import ComoSePidio, RespuestaDeParada
 from src.domain.direcciones import Cruce
+from src.domain.mapeo import EstadoDeMarca, Marca, Voto
+from src.domain.paraderos import ParaderoOficial
 from src.domain.models import (
     Estacion, IconoLugar, Incidente, Lugar, LugarGuardado, RutaTransporte, TipoViajero, Usuario,
 )
@@ -132,6 +134,14 @@ class TransitRepository(Protocol):
 
     def list_stations(self) -> list[Estacion]: ...
 
+    def official_stops(self, rutas: list[str] | None = None) -> list[ParaderoOficial]:
+        """Los paraderos oficiales ubicados (todas las rutas, o solo esas)."""
+        ...
+
+    def directions(self) -> dict[str, str]:
+        """Hacia dónde va cada ruta en cada sentido («T103-ida» → «Bocagrande»)."""
+        ...
+
     def stations_near(self, lon: float, lat: float, radio_m: float, limite: int) -> list[tuple[Estacion, float]]: ...
 
     def list_routes(self, tipo: str | None = None) -> list[RutaTransporte]: ...
@@ -171,6 +181,42 @@ class TokenIssuer(Protocol):
 class RateLimiter(Protocol):
     def hit(self, clave: str, limite: int, ventana: timedelta) -> int | None:
         """Cuenta una petición; si la ventana ya llegó al límite devuelve los segundos que faltan."""
+        ...
+
+
+class StopMappingRepository(Protocol):
+    """«Marca este paradero»: las marcas de la comunidad y las subidas anónimas que sirven de pista."""
+
+    def route_stop_list(self, ruta: str) -> list[ParaderoOficial]:
+        """Todos los paraderos oficiales de la ruta, en orden, con los que ubicó la comunidad."""
+        ...
+
+    def official_stop(self, paradero_id: str) -> ParaderoOficial | None: ...
+
+    def pending_mark(self, paradero_id: str) -> Marca | None: ...
+
+    def pending_marks(self, ruta: str) -> list[Marca]: ...
+
+    def get_mark(self, marca_id: str) -> Marca | None: ...
+
+    def add_mark(self, *, paradero: str, ruta: str, longitud: float, latitud: float, propuesto_por: str,
+                 peso: int, en: datetime) -> Marca: ...
+
+    def add_vote(self, marca_id: str, voto: Voto) -> Marca | None:
+        """Suma el voto si ese viajero no había votado ni es quien marcó; None si no se pudo."""
+        ...
+
+    def resolve(self, marca_id: str, estado: EstadoDeMarca, en: datetime) -> None: ...
+
+    def add_boarding(self, ruta: str, longitud: float, latitud: float, en: datetime,
+                     estacion: str | None = None, modulo: str | None = None) -> None: ...
+
+    def boardings(self, ruta: str) -> list[tuple[float, float]]:
+        """Las subidas fuera de las estaciones: pistas de paraderos."""
+        ...
+
+    def station_boardings(self) -> dict[tuple[str, str], list[tuple[float, float]]]:
+        """Las subidas en estaciones, por (estación, vagón): «("madre-bernarda", "A")»."""
         ...
 
 

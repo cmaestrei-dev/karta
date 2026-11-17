@@ -51,6 +51,18 @@ class SavedPlaceResponse(BaseModel):
     latitud: float
     longitud: float
 
+class RutaCercanaResponse(BaseModel):
+    """Una ruta que pasa cerca y dónde tomarla, fuera de las estaciones."""
+    ruta: str = Field(..., examples=["A107"])
+    nombre: str
+    tipo: str
+    paradero: str = Field(..., description="Dónde tomarla, por el cruce de calles («Paradero Av. Kennedy con Calle 18»)")
+    latitud: float
+    longitud: float
+    distancia_m: int = Field(..., description="Distancia en línea recta")
+    caminata_m: int
+    caminata_min: int
+
 class StopResponse(BaseModel):
     """Estación de Transcaribe cercana."""
     id: str

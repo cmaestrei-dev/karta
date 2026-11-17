@@ -1,3 +1,4 @@
+import math
 from datetime import datetime, timezone
 from typing import List, Literal
 
@@ -9,9 +10,11 @@ from src.domain.route_risk import ResultadoRiesgo
 from src.domain.schemas.route_schema import (
     EstacionDeRuta, FranjaDeServicio, HorarioDeRuta, IncidentRiskDetail, LineaGeoJSON, ParadaDelTramo, RiesgoResumen,
     RouteGeometryResponse, RouteOptionResponse, RoutePageResponse, RouteRiskRequest, RouteRiskResponse,
-    RouteSuggestRequest, RouteSuggestResponse, TramoResponse,
+    RouteSuggestRequest, RouteSuggestResponse, TramoResponse, VagonResponse,
 )
-from src.domain.trip_planning import OpcionViaje
+from src.domain.geo import MENSAJE_FUERA_DE_COBERTURA, en_cobertura
+from src.domain.schemas.place_schema import RutaCercanaResponse
+from src.domain.trip_planning import FACTOR_RODEO, OpcionViaje, minutos_caminando
 from src.domain.schemas.realtime_schema import ComoSePideResponse, LlegadaResponse, VaradoResponse
 from src.infrastructure.dependencies import get_incident_service, get_realtime_service, get_trip_service
 
@@ -29,6 +32,25 @@ def list_routes(tipo: Literal["troncal", "pretroncal", "alimentadora", "compleme
     return [RouteGeometryResponse(codigo=r.id, nombre=r.nombre, tipo=r.tipo,
                                   geometria={"type": "LineString", "coordinates": [list(c) for c in r.coordenadas]})
             for r in service.routes(tipo)]
+
+@router.get("/nearby", summary="Rutas que pasan cerca", response_model=List[RutaCercanaResponse],
+            responses={422: {"description": "Fuera de la cobertura de Cartagena"}})
+def nearby_routes(lat: float = Query(..., ge=-90, le=90), lon: float = Query(..., ge=-180, le=180),
+                  radio_m: int = Query(500, ge=100, le=1000), limite: int = Query(8, ge=1, le=20),
+                  service: TripService = Depends(get_trip_service)):
+    """
+    Las rutas que pasan a menos de `radio_m` y el punto de la vía donde se toman, nombrado por el cruce de calles.
+    No incluye las estaciones (para eso, `/stops/nearby`) ni el carril de la troncal, donde las T y X no paran.
+    """
+    if not en_cobertura(lat, lon):
+        raise HTTPException(status_code=422, detail=MENSAJE_FUERA_DE_COBERTURA)
+    return [
+        RutaCercanaResponse(ruta=p.ruta.id, nombre=p.ruta.nombre, tipo=p.ruta.tipo, paradero=paradero,
+                            latitud=round(p.latitud, 6), longitud=round(p.longitud, 6),
+                            distancia_m=round(p.distancia_m), caminata_m=round(p.distancia_m * FACTOR_RODEO),
+                            caminata_min=max(1, math.ceil(minutos_caminando(p.distancia_m))))
+        for p, paradero in service.nearby_routes(lat, lon, radio_m, limite)
+    ]
 
 @router.get("/{codigo}", summary="Página de una ruta", response_model=RoutePageResponse,
             responses={404: {"description": "No existe esa ruta"}})
@@ -121,7 +143,7 @@ def suggest_routes(request: RouteSuggestRequest, service: TripService = Depends(
     sugerencias = service.suggest(
         (request.origen.lon, request.origen.lat), (request.destino.lon, request.destino.lat),
         request.origen.nombre, request.destino.nombre,
-        criterio=request.criterio, salida=request.salida,
+        criterio=request.criterio, salida=request.salida, caminata_maxima_m=request.caminata_maxima_m,
     )
     if sugerencias.opciones:
         nota = NOTA_ESTIMACION
@@ -134,6 +156,7 @@ def suggest_routes(request: RouteSuggestRequest, service: TripService = Depends(
         criterio=sugerencias.criterio,
         salida=sugerencias.salida,
         aviso=sugerencias.aviso,
+        motivo_del_aviso=sugerencias.motivo_del_aviso,
         nota=nota,
         fuente=FUENTE_RUTAS,
     )
@@ -142,7 +165,7 @@ def _minutos(valor: float) -> int:
     return max(1, round(valor)) if valor > 0 else 0
 
 def _a_respuesta(opcion: OpcionViaje, riesgo: ResultadoRiesgo) -> RouteOptionResponse:
-    codigos = [r.id for r in opcion.rutas]
+    codigos = [" o ".join([t.ruta.id, *(r.id for r in t.alternativas)]) for t in opcion.tramos if t.ruta]
     return RouteOptionResponse(
         resumen=f"Transcaribe {' y '.join(codigos)}" if codigos else "A pie",
         tiempo_total_min=_minutos(opcion.tiempo_total_min),
@@ -157,6 +180,12 @@ def _a_respuesta(opcion: OpcionViaje, riesgo: ResultadoRiesgo) -> RouteOptionRes
                 nombre_ruta=t.ruta.nombre if t.ruta else None,
                 tipo_ruta=t.ruta.tipo if t.ruta else None,
                 paradas=[ParadaDelTramo(nombre=e.nombre, latitud=e.latitud, longitud=e.longitud) for e in t.paradas],
+                indicacion=t.indicacion, modulo=t.modulo, hacia=t.hacia, advertencia=t.advertencia,
+                lado_del_modulo=t.vagones[0].hacia if t.vagones else None,
+                lado_segun=t.vagones[0].viajeros if t.vagones else 0,
+                vagones=[VagonResponse(letra=v.letra, hacia=v.hacia, latitud=v.centro[1], longitud=v.centro[0])
+                         for v in t.vagones],
+                alternativas=[r.id for r in t.alternativas],
                 geometria=LineaGeoJSON(coordinates=[[round(lon, 6), round(lat, 6)] for lon, lat in t.coordenadas]),
             )
             for t in opcion.tramos

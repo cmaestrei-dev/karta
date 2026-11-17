@@ -32,12 +32,14 @@ void main() {
       'criterio': 'sin_transbordo',
       'salida': '2026-10-23T23:30:00-05:00',
       'aviso': 'A esta hora no pasa ninguna ruta de Transcaribe que te sirva.',
+      'motivo_del_aviso': 'horario',
       'nota': 'n',
       'fuente': 'f',
     });
     expect(s.criterio, CriterioDeRuta.sinTransbordo);
     expect(s.salida, DateTime.utc(2026, 10, 24, 4, 30));
     expect(s.aviso, startsWith('A esta hora'));
+    expect(s.motivoDelAviso, 'horario');
     expect(CriterioDeRuta.deApi('otra'), CriterioDeRuta.rapida);
   });
 
