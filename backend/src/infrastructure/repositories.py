@@ -9,12 +9,14 @@ from pymongo import DESCENDING, ReturnDocument
 from pymongo.database import Database
 from pymongo.errors import DuplicateKeyError
 
+from src.domain.conocimiento import ComoSePidio, RespuestaDeParada
+from src.domain.direcciones import Cruce, Via
 from src.domain.models import (
-    ALIAS_SIN_CUENTA, REPUTACION_INICIAL, EmailYaRegistrado, Estacion, IconoLugar, Incidente, LimiteLugaresGuardados,
+    ALIAS_SIN_CUENTA, REPUTACION_INICIAL, EmailYaRegistrado, Impacto, Estacion, IconoLugar, Incidente, LimiteLugaresGuardados,
     Lugar, LugarGuardado, LugarGuardadoNoEncontrado, RutaTransporte, TipoViajero, Usuario,
 )
 from src.domain.horarios import HorarioRuta
-from src.domain.reportes import TipoReporte, VotoRepetido, alias_publico
+from src.domain.reportes import GraciasRepetidas, TipoReporte, VotoRepetido, alias_publico
 from src.domain.tiempo_real import Observacion, Ocupacion
 
 
@@ -53,6 +55,10 @@ class MongoUserRepository:
     def ajustar_reputacion(self, user_id: str, delta: int) -> None:
         if ObjectId.is_valid(user_id):
             self._users.update_one({"_id": ObjectId(user_id)}, {"$inc": {"reputacion": delta}})
+
+    def sumar_impacto(self, user_id: str, campo: str, cantidad: int = 1) -> None:
+        if ObjectId.is_valid(user_id) and campo in Impacto.__dataclass_fields__:
+            self._users.update_one({"_id": ObjectId(user_id)}, {"$inc": {f"impacto.{campo}": cantidad}})
 
     def add_invisible(self, *, huella: str, creado_en: datetime) -> Usuario:
         doc = {
@@ -103,10 +109,44 @@ class MongoIncidentRepository:
     def __init__(self, db: Database):
         self._incidents = db.incidents
         self._votes = db.incident_votes
+        self._thanks = db.incident_thanks
+        self._views = db.incident_views
+
+    def reward_voters(self, incidente_id: str, sigue: bool, excepto: str | None = None) -> list[str]:
+        filtro: dict = {"incidente": ObjectId(incidente_id), "sigue": sigue, "premiado": {"$ne": True}}
+        if excepto and ObjectId.is_valid(excepto):
+            filtro["usuario"] = {"$ne": ObjectId(excepto)}
+        votantes = [str(v["usuario"]) for v in self._votes.find(filtro, {"usuario": 1})]
+        self._votes.update_many(filtro, {"$set": {"premiado": True}})
+        return votantes
+
+    def register_thanks(self, incidente_id: str, usuario_id: str, ahora: datetime) -> Incidente:
+        try:
+            self._thanks.insert_one({"incidente": ObjectId(incidente_id), "usuario": ObjectId(usuario_id),
+                                     "en": ahora, "expira_en": ahora + self.VIDA_DE_LOS_VOTOS})
+        except DuplicateKeyError:
+            raise GraciasRepetidas()
+        doc = self._incidents.find_one_and_update({"_id": ObjectId(incidente_id)}, {"$inc": {"gracias": 1}},
+                                                  return_document=ReturnDocument.AFTER)
+        return _to_incidente(doc)
+
+    def thanks_of(self, incidente_id: str, usuario_id: str) -> bool:
+        if not (ObjectId.is_valid(incidente_id) and ObjectId.is_valid(usuario_id)):
+            return False
+        return self._thanks.count_documents(
+            {"incidente": ObjectId(incidente_id), "usuario": ObjectId(usuario_id)}, limit=1) > 0
+
+    def register_view(self, incidente_id: str, usuario_id: str, ahora: datetime) -> bool:
+        try:
+            self._views.insert_one({"incidente": ObjectId(incidente_id), "usuario": ObjectId(usuario_id),
+                                    "en": ahora, "expira_en": ahora + self.VIDA_DE_LOS_VOTOS})
+            return True
+        except DuplicateKeyError:
+            return False
 
     def add(self, *, reportado_por: str, tipo: TipoReporte, detalles: dict[str, str], latitud: float,
             longitud: float, lugar: str | None, creado_en: datetime, expira_en: datetime,
-            sin_cuenta: bool = False) -> Incidente:
+            sin_cuenta: bool = False, nivel_autor: int = 1) -> Incidente:
         doc = {
             "reportado_por": ObjectId(reportado_por),
             "grupo": tipo.grupo.value,
@@ -119,6 +159,8 @@ class MongoIncidentRepository:
             "votos_no": 0,
             "no_seguidos": 0,
             "sin_cuenta": sin_cuenta,
+            "nivel_autor": nivel_autor,
+            "gracias": 0,
             "creado_en": creado_en,
             "expira_en": expira_en,
         }
@@ -139,6 +181,10 @@ class MongoIncidentRepository:
             lon_min, lat_min, lon_max, lat_max = caja
             filtro["ubicacion"] = {"$geoWithin": {"$box": [[lon_min, lat_min], [lon_max, lat_max]]}}
         cursor = self._incidents.find(filtro).sort("creado_en", DESCENDING).limit(limite)
+        return [_to_incidente(doc) for doc in cursor]
+
+    def active_for_route(self, tipo: str, ruta: str, ahora: datetime) -> list[Incidente]:
+        cursor = self._incidents.find({"tipo": tipo, "detalles.ruta": ruta, "expira_en": {"$gt": ahora}})
         return [_to_incidente(doc) for doc in cursor]
 
     def find_active_within(self, area: dict, ahora: datetime) -> list[Incidente]:
@@ -186,6 +232,12 @@ class MongoIncidentRepository:
 class MongoPlaceRepository:
     def __init__(self, db: Database):
         self._places = db.places
+        self._crossings = db.address_crossings
+
+    def crossings_on(self, via_clave: str) -> list[Cruce]:
+        return [Cruce(nombre=d["nombre"], vias=tuple(Via(*v.split(":", 1)) for v in d["vias"]),
+                      longitud=d["ubicacion"]["coordinates"][0], latitud=d["ubicacion"]["coordinates"][1])
+                for d in self._crossings.find({"vias": via_clave})]
 
     def search(self, tokens: list[str], limite: int) -> list[Lugar]:
         # Cada token debe ser el comienzo de alguna palabra del nombre ("boca" → "bocagrande").
@@ -193,8 +245,8 @@ class MongoPlaceRepository:
         filtro = {"tokens": {"$all": [re.compile("^" + re.escape(t)) for t in tokens]}}
         return [_to_lugar(doc) for doc in self._places.find(filtro).limit(limite)]
 
-    def nearest(self, lon: float, lat: float, radio_m: float) -> tuple[Lugar, float] | None:
-        docs = list(self._places.aggregate(_cercanos(lon, lat, radio_m, 1)))
+    def nearest(self, lon: float, lat: float, radio_m: float, tipo: str | None = None) -> tuple[Lugar, float] | None:
+        docs = list(self._places.aggregate(_cercanos(lon, lat, radio_m, 1, {"tipo": tipo} if tipo else None)))
         return (_to_lugar(docs[0]), docs[0]["distancia_m"]) if docs else None
 
 
@@ -303,7 +355,7 @@ class MongoSavedPlaceRepository:
             raise LugarGuardadoNoEncontrado()
 
 
-def _cercanos(lon: float, lat: float, radio_m: float, limite: int) -> list[dict]:
+def _cercanos(lon: float, lat: float, radio_m: float, limite: int, filtro: dict | None = None) -> list[dict]:
     """Etapas de agregación: documentos dentro del radio, del más cercano al más lejano, con su distancia."""
     return [
         {"$geoNear": {
@@ -311,6 +363,7 @@ def _cercanos(lon: float, lat: float, radio_m: float, limite: int) -> list[dict]
             "distanceField": "distancia_m",
             "maxDistance": radio_m,
             "spherical": True,
+            **({"query": filtro} if filtro else {}),
         }},
         {"$limit": limite},
     ]
@@ -352,6 +405,7 @@ def _to_usuario(doc: dict) -> Usuario:
         creado_en=doc["creado_en"],
         # Usuarios creados antes de que existiera el alias lo derivan de su nombre.
         alias=doc.get("alias") or (alias_publico(doc["nombre"]) if doc.get("nombre") else ALIAS_SIN_CUENTA),
+        impacto=Impacto(**{k: v for k, v in doc.get("impacto", {}).items() if k in Impacto.__dataclass_fields__}),
     )
 
 
@@ -371,6 +425,8 @@ def _to_incidente(doc: dict) -> Incidente:
         creado_en=doc["creado_en"],
         expira_en=doc["expira_en"],
         por_confirmar=doc.get("sin_cuenta", False) and doc.get("votos_si", 0) == 0,
+        nivel_autor=doc.get("nivel_autor", 1),
+        gracias=doc.get("gracias", 0),
     )
 
 
@@ -405,10 +461,13 @@ class MongoRealtimeRepository:
     """
     VIGENCIA_AVISTAMIENTO = timedelta(minutes=30)
     VIGENCIA_VIAJE = timedelta(minutes=5)
+    # Cómo se pide la parada cambia poco, pero cambia (un paradero nuevo, otra regla): un año basta.
+    VIGENCIA_RESPUESTA_DE_PARADA = timedelta(days=365)
 
     def __init__(self, db: Database):
         self._sightings = db.sightings
         self._trips = db.live_trips
+        self._stop_answers = db.stop_answers
 
     def add_sighting(self, ruta: str, longitud: float, latitud: float, ocupacion: Ocupacion | None,
                      en: datetime) -> None:
@@ -447,3 +506,14 @@ class MongoRealtimeRepository:
         filtro = {"ruta": ruta, "en": {"$gte": desde}}
         return ([observacion(d, True) for d in self._trips.find({**filtro, "expira_en": {"$gt": desde}})]
                 + [observacion(d, False) for d in self._sightings.find(filtro)])
+
+    def add_stop_answer(self, ruta: str, longitud: float, latitud: float, como: ComoSePidio, en: datetime) -> None:
+        self._stop_answers.insert_one({
+            "ruta": ruta, "ubicacion": {"type": "Point", "coordinates": [longitud, latitud]}, "como": como.value,
+            "en": en, "expira_en": en + self.VIGENCIA_RESPUESTA_DE_PARADA,
+        })
+
+    def stop_answers(self, ruta: str, longitud: float, latitud: float, radio_m: float) -> list[RespuestaDeParada]:
+        cerca = {"$near": {"$geometry": {"type": "Point", "coordinates": [longitud, latitud]}, "$maxDistance": radio_m}}
+        return [RespuestaDeParada(ComoSePidio(d["como"]), *d["ubicacion"]["coordinates"], d["en"])
+                for d in self._stop_answers.find({"ruta": ruta, "ubicacion": cerca}).limit(500)]

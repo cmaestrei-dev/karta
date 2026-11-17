@@ -80,7 +80,11 @@ def test_confirmar_renueva_el_reporte_y_reparte_reputacion(api, registrar):
     assert cuerpo["incidente"]["expira_en"] >= reporte["expira_en"]
 
     assert _yo(api, token_autor)["reputacion"] == 102  # 100 + 2 por la confirmación
-    assert _yo(api, token_viajero)["reputacion"] == 101  # 100 + 1 por ayudar a validar
+    # Votar no da puntos por sí solo: llegan cuando otro viajero le da la razón.
+    assert _yo(api, token_viajero)["reputacion"] == 100
+    assert _votar(api, registrar()[0], reporte["id"], sigue=True).status_code == 200
+    assert _yo(api, token_viajero)["reputacion"] == 101
+    assert _yo(api, token_autor)["impacto"]["confirmaciones"] == 2
     detalle = api.get(f"/api/v1/incidents/{reporte['id']}", headers=_auth(token_viajero)).json()
     assert detalle["mi_voto"] is True
 
@@ -99,10 +103,13 @@ def test_dos_ya_no_seguidos_retiran_el_reporte_y_restan_reputacion(api, registra
     token_autor, _ = registrar()
     reporte = _reportar(api, token_autor).json()
 
-    primero = _votar(api, registrar()[0], reporte["id"], sigue=False).json()
+    token_primero, token_segundo = registrar()[0], registrar()[0]
+    primero = _votar(api, token_primero, reporte["id"], sigue=False).json()
     assert primero["retirado"] is False
-    segundo = _votar(api, registrar()[0], reporte["id"], sigue=False).json()
+    segundo = _votar(api, token_segundo, reporte["id"], sigue=False).json()
     assert segundo["retirado"] is True
+    # Los dos tenían razón: cada uno gana su punto.
+    assert (_yo(api, token_primero)["reputacion"], _yo(api, token_segundo)["reputacion"]) == (101, 101)
 
     vigentes = {i["id"] for i in api.get("/api/v1/incidents/").json()}
     assert reporte["id"] not in vigentes
@@ -152,3 +159,35 @@ def test_la_troncal_se_puede_dibujar_en_el_mapa(api):
     assert {"T101", "T103"} <= codigos and all(c.startswith("T") for c in codigos)
     assert troncales[0]["geometria"]["type"] == "LineString"
     assert len(troncales[0]["geometria"]["coordinates"]) > 10
+
+
+def test_con_nivel_de_confianza_un_solo_ya_no_retira_el_reporte(api, registrar):
+    from bson import ObjectId
+    from src.infrastructure.database import get_database
+    reporte = _reportar(api, registrar()[0]).json()
+    token, usuario = registrar()
+    get_database().users.update_one({"_id": ObjectId(usuario["id"])}, {"$set": {"reputacion": 200}})  # nivel 3
+    assert _votar(api, token, reporte["id"], sigue=False).json()["retirado"] is True
+
+
+def test_gracias_y_vistas_suman_al_impacto_de_quien_reporto(api, registrar):
+    token_autor, _ = registrar()
+    reporte = _reportar(api, token_autor).json()
+    token_viajero, _ = registrar()
+
+    # Abrir el reporte cuenta una vez por persona; el autor no se cuenta a sí mismo.
+    for _ in range(2):
+        api.get(f"/api/v1/incidents/{reporte['id']}", headers=_auth(token_viajero))
+    api.get(f"/api/v1/incidents/{reporte['id']}", headers=_auth(token_autor))
+
+    gracias = api.post(f"/api/v1/incidents/{reporte['id']}/thanks", headers=_auth(token_viajero))
+    assert gracias.status_code == 200, gracias.text
+    assert gracias.json()["gracias"] == 1
+    assert api.post(f"/api/v1/incidents/{reporte['id']}/thanks", headers=_auth(token_viajero)).status_code == 409
+    assert api.post(f"/api/v1/incidents/{reporte['id']}/thanks", headers=_auth(token_autor)).status_code == 403
+    detalle = api.get(f"/api/v1/incidents/{reporte['id']}", headers=_auth(token_viajero)).json()
+    assert detalle["mis_gracias"] is True
+
+    impacto = _yo(api, token_autor)["impacto"]
+    assert (impacto["reportes"], impacto["vistas"], impacto["gracias"]) == (1, 1, 1)
+

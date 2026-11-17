@@ -4,13 +4,19 @@ backend/data/cruces.json los que quedan cerca de las rutas de Transcaribe. Sirve
 de subida fuera de la troncal («Paradero Av. Pedro de Heredia con Cra. 28»): el archivo oficial de paraderos
 no trae coordenadas.
 
+Con --nomenclatura descarga solo las vías numeradas (calles, carreras, transversales y diagonales) de toda la
+ciudad y guarda en backend/data/nomenclatura.json todos sus cruces, con todas las vías de cada uno: sirven para
+ubicar direcciones como «Calle 9 # 3-50» (src/domain/direcciones.py).
+
 Uso (desde backend/, después de scripts/importar_osm.py):
     python -m scripts.importar_cruces
+    python -m scripts.importar_cruces --nomenclatura
 
 Datos © colaboradores de OpenStreetMap, disponibles bajo la licencia ODbL.
 """
 import json
 import re
+import sys
 from collections import defaultdict
 from pathlib import Path
 from urllib.parse import urlencode
@@ -37,6 +43,14 @@ JERARQUIA = ["trunk", "primary", "secondary", "tertiary", "unclassified", "resid
 CONSULTA = f"""[out:json][timeout:180];
 area["name"="Cartagena de Indias"]["admin_level"]->.a;
 way["highway"~"^({'|'.join(JERARQUIA)})$"]["name"](area.a);
+out body;
+>;
+out skel qt;"""
+
+# Solo las vías numeradas: es mucho menos que todas las calles con nombre.
+CONSULTA_NOMENCLATURA = """[out:json][timeout:180];
+area["name"="Cartagena de Indias"]["admin_level"]->.a;
+way["highway"]["name"~"^(Calle|Carrera|Transversal|Diagonal) [0-9]"](area.a);
 out body;
 >;
 out skel qt;"""
@@ -84,6 +98,28 @@ def cruces(elementos: list[dict]) -> list[dict]:
     return resultado
 
 
+def nomenclatura(elementos: list[dict]) -> list[dict]:
+    """Todos los nodos donde se cruzan dos o más vías numeradas distintas, con todas sus vías."""
+    coordenadas = {e["id"]: (e["lon"], e["lat"]) for e in elementos if e["type"] == "node"}
+    nombres_por_nodo: dict[int, set[str]] = defaultdict(set)
+    for via in (e for e in elementos if e["type"] == "way"):
+        for nodo in via["nodes"]:
+            nombres_por_nodo[nodo].add(abreviar(via["tags"]["name"]))
+    resultado, vistos = [], set()
+    for nodo, nombres in nombres_por_nodo.items():
+        if len(nombres) < 2 or nodo not in coordenadas:
+            continue
+        lon, lat = coordenadas[nodo]
+        clave = (frozenset(nombres), round(lon, 4), round(lat, 4))  # doble calzada: un cruce por cuadra
+        if clave in vistos:
+            continue
+        vistos.add(clave)
+        vias = sorted(nombres)
+        resultado.append({"_id": f"n{nodo}", "nombre": " con ".join(vias[:2]), "vias": vias,
+                          "ubicacion": {"type": "Point", "coordinates": [round(lon, 6), round(lat, 6)]}})
+    return resultado
+
+
 def cerca_de_las_rutas(cruces_: list[dict], rutas: list[dict]) -> list[dict]:
     lineas = shapely.STRtree([a_metros(LineString(r["geometria"]["coordinates"])) for r in rutas])
     puntos = [a_metros(shapely.Point(c["ubicacion"]["coordinates"])) for c in cruces_]
@@ -91,10 +127,10 @@ def cerca_de_las_rutas(cruces_: list[dict], rutas: list[dict]) -> list[dict]:
     return [cruces_[k] for k in sorted(set(np.asarray(cercanos).tolist()))]
 
 
-def descargar() -> list[dict]:
+def descargar(consulta: str = CONSULTA) -> list[dict]:
     errores = []
     for servidor in SERVIDORES:
-        peticion = Request(servidor, data=urlencode({"data": CONSULTA}).encode(), headers={"User-Agent": USER_AGENT})
+        peticion = Request(servidor, data=urlencode({"data": consulta}).encode(), headers={"User-Agent": USER_AGENT})
         try:
             with urlopen(peticion, timeout=300) as respuesta:
                 return json.load(respuesta)["elements"]
@@ -104,6 +140,13 @@ def descargar() -> list[dict]:
 
 
 def main() -> None:
+    if "--nomenclatura" in sys.argv:
+        todos = nomenclatura(descargar(CONSULTA_NOMENCLATURA))
+        salida = DATA_DIR / "nomenclatura.json"
+        salida.write_text(json.dumps({"atribucion": "Datos © colaboradores de OpenStreetMap (ODbL)", "cruces": todos},
+                                     ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+        print(f"{len(todos)} cruces de vías numeradas en {salida}")
+        return
     elementos = descargar()
     rutas = json.loads((DATA_DIR / "transcaribe.json").read_text(encoding="utf-8"))["rutas"]
     todos = cruces(elementos)

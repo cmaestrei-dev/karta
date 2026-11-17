@@ -155,6 +155,20 @@ class IncidentDetailCubit extends Cubit<IncidentDetailState> {
     }
   }
 
+  /// «Gracias» a quien reportó: no cambia el voto ni el estado; si falla, lo dice sin perder lo demás.
+  Future<void> darGracias() async {
+    final detalle = state.detalle;
+    if (detalle == null || !detalle.puedeAgradecer) return;
+    try {
+      final actualizado = await repository.thank(detalle.incidente.id);
+      if (!isClosed) emit(IncidentDetailState(estado: state.estado, detalle: detalle.conGracias(actualizado)));
+    } on SessionExpiredException catch (e) {
+      emit(IncidentDetailState(estado: state.estado, detalle: detalle, mensaje: e.toString(), sesionExpirada: true));
+    } catch (e) {
+      emit(IncidentDetailState(estado: state.estado, detalle: detalle, mensaje: e.toString()));
+    }
+  }
+
   Future<void> votar({required bool sigue}) async {
     final detalle = state.detalle;
     if (detalle == null || !detalle.puedeVotar || state.estado == EstadoDelDetalle.votando) return;

@@ -129,7 +129,11 @@ Con eso el servidor estima «sale en ~6 min, según 3 viajeros». Todo vence sol
   - si la bajada es una estación, el bus para solo: se queda «Bájate en la próxima»;
   - si es un paradero, «¡Toca el timbre!»;
   - «¡Grita parada!» queda listo para cuando haya busetas en los datos.
-- **El manual no menciona el timbre.** La práctica la confirma la comunidad (D12).
+- **El manual no menciona el timbre. Lo confirmó Camilo como usuario** (25 de octubre):
+  - en las estaciones de su ruta el bus para siempre, sin timbre;
+  - en los paraderos se toca el timbre en el tramo entre la última parada y la tuya.
+
+  El aviso a 200 m del paradero cae dentro de esa ventana. Para las demás rutas y las busetas, la comunidad lo confirma (D12).
 
 **D12 · Lo que la comunidad sabe de las rutas.** Preguntar cuando algo se sale de lo normal, para armar una base de conocimiento:
 - **Desvíos:**
@@ -163,6 +167,8 @@ Con eso el servidor estima «sale en ~6 min, según 3 viajeros». Todo vence sol
   - Precisión esperada: 20 a 60 m, suficiente para planificar.
 - **Calles completas:** escribir «Calle 30» muestra la vía en el mapa.
 - **Respaldo externo**, solo si el piloto muestra huecos: evaluar un servicio con plan gratuito que tenga mejores direcciones colombianas, revisando antes sus términos de uso. Nominatim no sirve para autocompletar porque su política de uso lo prohíbe.
+- **Nombres populares:** «Torre del Reloj» encuentra la «Puerta del Reloj» y «Plaza de Bolívar» el «Parque de Bolívar» (hecho en la fase 3b). La lista crece con lo que se busque sin resultado en el piloto.
+- **Lugares que faltan (fase 3c):** en una prueba del 25 de octubre no aparecieron el Mercado de Bazurto, el Centro de Convenciones, la Plaza de la Aduana, Caribe Plaza ni el Convento de La Popa. No están en los lugares importados: hay que ampliar la importación de OpenStreetMap a mercados, plazas, centros de convenciones, centros comerciales y sitios religiosos históricos, y revisar los que sigan faltando.
 
 **D16 · Lo que está cerca: estaciones, rutas y paraderos.** El inicio solo muestra estaciones. Los paraderos no tienen coordenadas oficiales, y OpenStreetMap tiene apenas 103 en Cartagena (38 con nombre).
 - **«Rutas que pasan cerca»:** para cada ruta a menos de ~150 m, por dónde pasa y a qué distancia. Por ejemplo: «A107 pasa por la Av. Kennedy con Calle 18 · 120 m». Es honesto, porque no inventa un paradero exacto.
@@ -208,6 +214,10 @@ Con eso el servidor estima «sale en ~6 min, según 3 viajeros». Todo vence sol
   - **Guardianes de estación** (niveles 4 y 5): corrigen el plano.
   - **Fuente oficial:** pedirle a Transcaribe los planos de módulos de sus estaciones.
 - **Primer paso, sin depender de la comunidad:** importar Patio Portal, Santa Lucía y las plataformas por ruta desde OpenStreetMap.
+- **Lo que se sabe por experiencia** (Camilo, 25 de octubre):
+  - **Patio Portal:** dos plataformas unidas por un puente. Cada una tiene dos mitades donde paran rutas distintas, y en cada mitad se hace la fila. Los letreros dicen el código de cada ruta (X103, T101, T100E).
+  - **De Santa Lucía a Madre Bernarda** hay que salir de la estación y cruzar por la cebra. El aviso lo dice así: «Sal de Santa Lucía y cruza por la cebra hasta Madre Bernarda».
+- **Cultura ciudadana:** en las plataformas, un mensaje breve y amable en el momento justo: «Haz la fila del T103: se sube en orden». Ver [plan-comunidad.md](plan-comunidad.md).
 
 **D19 · «El que pase primero».** Varias rutas sirven el mismo trayecto (en la troncal, el T101, el T102 y el T103 comparten estaciones).
 - **Opciones agrupadas:** «Toma el T101 o el T103, el que pase primero», con la llegada de cada uno.
@@ -291,8 +301,8 @@ Cada fase termina con una demostración en el teléfono y un PR fusionado.
 | 1 · Mapa y reportes | mié 28 oct – mar 3 nov | Inicio con mapa propio; reportes v2 (catálogo, dos pasos, detalles); «¿Sigue ahí?», votos y reputación; límite de peticiones | En el teléfono se reporta «el bus no pasa», otro usuario lo confirma y la reputación cambia |
 | 2 · Planificar | mié 4 – mar 10 nov | Búsqueda; puntos de subida nombrados por cruce; opciones comparadas en el mapa; criterios; transbordo; horarios de servicio | De Bazurto a Bocagrande salen opciones con y sin transbordo, ordenadas por criterio |
 | 3 · Viaje activo y tiempo real | mié 11 – mar 17 nov | Máquina de estados; avisos de subir, bajar y transbordar; alertas y re-enrutar; avistamientos, ocupación y posición compartida; estimación «según N viajeros»; cuenta invisible (D9); «¡Toca el timbre!» en paraderos (D11); «¿El bus se desvió?» (D12) | Un viaje real en el T103 avanza solo y avisa antes de bajarse |
-| 3b · Comunidad y datos | — | Buscar direcciones (D15); buses varados (D14); pesos por reputación (D9); premios visuales, «Gracias» y «Tu impacto» (D10, D20); base de conocimiento (D12); antigüedad del dato y «no paró» (D21) | Escribir «Calle 9 # 3-50» encuentra la dirección; un bus varado se pregunta, se reporta y deja de contar en las llegadas |
-| 3c · Encontrar y abordar | — | Patio Portal, Santa Lucía y plataformas por ruta (D18); sentido en cada bus; rutas y paraderos cerca (D16); «el que pase primero» (D19); límite de caminata (D21) | En Madre Bernarda, Karta dice la plataforma y el sentido del T103 y advierte que Santa Lucía es de alimentadores | Un reporte sin cuenta queda «por confirmar» hasta que otro lo confirma; al bajarse en un paradero, Karta pregunta cómo se pidió la parada |
+| 3b · Comunidad y datos | — | Buscar direcciones (D15); buses varados (D14); pesos por reputación (D9); premios visuales, «Gracias» y «Tu impacto» (D10, D20); base de conocimiento (D12); antigüedad del dato y «no paró» (D21) | Escribir «Calle 9 # 3-50» encuentra la dirección; un bus varado se pregunta, se reporta y deja de contar en las llegadas; al bajarse en un paradero, Karta pregunta cómo se pidió la parada |
+| 3c · Encontrar y abordar | — | Patio Portal, Santa Lucía y plataformas por ruta (D18); sentido en cada bus; rutas y paraderos cerca (D16); «el que pase primero» (D19); límite de caminata (D21) | En Madre Bernarda, Karta dice la plataforma y el sentido del T103 y advierte que Santa Lucía es de alimentadores |
 | 4 · Despliegue y piloto | mié 18 – lun 23 nov | API en la nube con HTTPS; APK firmado; piloto con compañeros durante 4–5 días; corrección de errores, rendimiento y accesibilidad; modo ligero y prueba en teléfonos económicos (D13); pruebas comparativas con Google Maps y Moovit (D17); política de tratamiento de datos escrita (Ley 1581) | Hay datos reales del piloto y no queda ningún error crítico abierto |
 | 5 · Cierre | mar 24 – vie 27 nov | Documentación final (diagramas, modelo de datos, API, DESIGN.md), resultados del piloto, presentación y video demo | Entrega lista con un día de margen |
 

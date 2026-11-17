@@ -87,6 +87,7 @@ flutter:
   # Ilustraciones de reporte y estilos del mapa vectorial (tool/estilo_mapa.py los genera).
   assets:
     - assets/ilustraciones/
+    - assets/marcos/
     - assets/mapa/
     - assets/fonts/OFL-Manrope.txt
 

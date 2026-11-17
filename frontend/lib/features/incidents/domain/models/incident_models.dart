@@ -73,7 +73,7 @@ class TipoDeReporte extends Equatable {
     final ruta = respuestas['ruta'];
     return switch (clave) {
       'bus_no_pasa' => ruta != null ? 'el $ruta no pasa' : 'el bus no pasa',
-      'bus_lleno' => ruta != null ? 'el $ruta va lleno' : 'bus lleno',
+      'bus_lleno' => ruta != null ? 'el $ruta no paró' : 'el bus no paró',
       _ => nombre.isEmpty ? nombre : nombre[0].toLowerCase() + nombre.substring(1),
     };
   }
@@ -176,6 +176,9 @@ class Incident extends Equatable {
   /// Lo reportó alguien sin cuenta y nadie lo ha confirmado: se ve, pero no cuenta en el riesgo de las rutas.
   final bool porConfirmar;
 
+  /// «Gracias» de quienes usaron el reporte.
+  final int gracias;
+
   const Incident({
     required this.id,
     required this.grupo,
@@ -189,6 +192,7 @@ class Incident extends Equatable {
     this.creadoEn,
     this.expiraEn,
     this.porConfirmar = false,
+    this.gracias = 0,
   });
 
   LatLng get punto => LatLng(latitud, longitud);
@@ -207,11 +211,12 @@ class Incident extends Equatable {
         creadoEn: DateTime.tryParse(json['creado_en'] as String? ?? '')?.toLocal(),
         expiraEn: DateTime.tryParse(json['expira_en'] as String? ?? '')?.toLocal(),
         porConfirmar: json['por_confirmar'] as bool? ?? false,
+        gracias: json['gracias'] as int? ?? 0,
       );
 
   @override
   List<Object?> get props =>
-      [id, grupo, tipo, detalles, latitud, longitud, lugar, votosSi, votosNo, creadoEn, expiraEn, porConfirmar];
+      [id, grupo, tipo, detalles, latitud, longitud, lugar, votosSi, votosNo, creadoEn, expiraEn, porConfirmar, gracias];
 }
 
 /// Lo que se ve al tocar un reporte: quién lo hizo y si el viajero ya lo validó.
@@ -220,21 +225,40 @@ class IncidentDetail extends Equatable {
   final String aliasAutor;
   final bool esMio;
   final bool? miVoto;
+  final bool misGracias;
 
-  const IncidentDetail({required this.incidente, required this.aliasAutor, required this.esMio, this.miVoto});
+  /// El nivel de quien reportó, al reportar: una señal de confianza junto a su alias.
+  final int nivelAutor;
+
+  const IncidentDetail({
+    required this.incidente,
+    required this.aliasAutor,
+    required this.esMio,
+    this.miVoto,
+    this.misGracias = false,
+    this.nivelAutor = 1,
+  });
 
   bool get puedeVotar => !esMio && miVoto == null;
+  bool get puedeAgradecer => !esMio && !misGracias;
 
   factory IncidentDetail.fromJson(Map<String, dynamic> json) => IncidentDetail(
         incidente: Incident.fromJson(json),
         aliasAutor: json['reportado_por_alias'] as String? ?? 'Un viajero',
         esMio: json['es_mio'] as bool? ?? false,
         miVoto: json['mi_voto'] as bool?,
+        misGracias: json['mis_gracias'] as bool? ?? false,
+        nivelAutor: json['nivel_autor'] as int? ?? 1,
       );
 
-  IncidentDetail conVoto(Incident actualizado, bool sigue) =>
-      IncidentDetail(incidente: actualizado, aliasAutor: aliasAutor, esMio: esMio, miVoto: sigue);
+  IncidentDetail conVoto(Incident actualizado, bool sigue) => IncidentDetail(
+      incidente: actualizado, aliasAutor: aliasAutor, esMio: esMio, miVoto: sigue, misGracias: misGracias,
+      nivelAutor: nivelAutor);
+
+  IncidentDetail conGracias(Incident actualizado) => IncidentDetail(
+      incidente: actualizado, aliasAutor: aliasAutor, esMio: esMio, miVoto: miVoto, misGracias: true,
+      nivelAutor: nivelAutor);
 
   @override
-  List<Object?> get props => [incidente, aliasAutor, esMio, miVoto];
+  List<Object?> get props => [incidente, aliasAutor, esMio, miVoto, misGracias, nivelAutor];
 }

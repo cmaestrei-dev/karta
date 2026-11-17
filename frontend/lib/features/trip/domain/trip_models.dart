@@ -57,6 +57,10 @@ class Leg extends Equatable {
   bool get bajaEnEstacion =>
       paradas.isNotEmpty && puntos.isNotEmpty && const Distance().as(LengthUnit.Meter, paradas.last.punto, puntos.last) <= 150;
 
+  /// Sube en una estación de la troncal, donde se hace la fila de cada ruta.
+  bool get subeEnEstacion =>
+      paradas.isNotEmpty && puntos.isNotEmpty && const Distance().as(LengthUnit.Meter, paradas.first.punto, puntos.first) <= 150;
+
   factory Leg.fromJson(Map<String, dynamic> json) => Leg(
         modo: json['modo'] as String,
         desde: json['desde'] as String,

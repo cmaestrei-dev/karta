@@ -45,7 +45,7 @@ def get_trip_service(db: Database = Depends(get_db)) -> TripService:
 
 
 def get_realtime_service(db: Database = Depends(get_db)) -> RealtimeService:
-    return RealtimeService(MongoRealtimeRepository(db), MongoTransitRepository(db))
+    return RealtimeService(MongoRealtimeRepository(db), MongoTransitRepository(db), MongoIncidentRepository(db))
 
 
 def get_current_user(

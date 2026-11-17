@@ -33,4 +33,5 @@ LIMITE_REPORTES = (int(os.getenv("LIMITE_REPORTES_POR_10_MIN", "6")), 600)  # po
 LIMITE_VOTOS = (int(os.getenv("LIMITE_VOTOS_POR_10_MIN", "30")), 600)  # por viajero
 LIMITE_AVISTAMIENTOS = (int(os.getenv("LIMITE_AVISTAMIENTOS_POR_10_MIN", "20")), 600)  # por viajero
 # Un viaje compartido envía una posición cada ~30 s: 40 en 10 min dejan margen sin permitir abuso.
+LIMITE_RESPUESTAS_PARADA = (int(os.getenv("LIMITE_RESPUESTAS_PARADA_POR_10_MIN", "5")), 600)  # por viajero
 LIMITE_POSICIONES = (int(os.getenv("LIMITE_POSICIONES_POR_10_MIN", "40")), 600)  # por viajero

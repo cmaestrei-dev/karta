@@ -223,6 +223,7 @@ void main() {
 
   test('el lector de pantalla no lee doble puntuación', () {
     expect(frase('¡Toca el timbre!', 'Te bajas en el próximo paradero'), '¡Toca el timbre! Te bajas en el próximo paradero');
-    expect(frase('Sube al T103', 'en Estación Bazurto'), 'Sube al T103. en Estación Bazurto');
+    expect(frase('Sube al T103', 'en Estación Bazurto'), 'Sube al T103, en Estación Bazurto');
+    expect(frase('Camina a Bazurto', '350 m · 5 min a pie'), 'Camina a Bazurto. 350 m · 5 min a pie');
   });
 }

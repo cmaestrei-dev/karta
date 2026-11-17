@@ -22,6 +22,7 @@ import '../../../trip/domain/trip_models.dart';
 import '../../../trip/presentation/cubit/trip_cubits.dart';
 import '../../../trip/presentation/screens/plan_route_screen.dart';
 import '../widgets/accesos_guardados.dart';
+import '../widgets/avatar_de_viajero.dart';
 import '../widgets/nearby_stops_sheet.dart';
 import '../widgets/profile_sheet.dart';
 

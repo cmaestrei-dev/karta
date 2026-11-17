@@ -4,7 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from src.application.incident_service import IncidentService
 from src.domain.models import Usuario
-from src.domain.reportes import NOMBRE_GRUPO, DetallesInvalidos, Grupo, IncidenteNoEncontrado, VotoPropio, VotoRepetido
+from src.domain.reconocimiento import marco
+from src.domain.reportes import (
+    NOMBRE_GRUPO, DetallesInvalidos, GraciasRepetidas, Grupo, IncidenteNoEncontrado, VotoPropio, VotoRepetido,
+)
 from src.domain.schemas.incident_schema import (
     GrupoReporteResponse, IncidentCreate, IncidentDetailResponse, IncidentResponse, VoteRequest, VoteResponse,
 )
@@ -78,7 +81,29 @@ def get_incident(incidente_id: str, usuario: Usuario | None = Depends(get_option
         raise NO_ENCONTRADO
     return IncidentDetailResponse(**IncidentResponse.model_validate(detalle.incidente).model_dump(),
                                   reportado_por_alias=detalle.alias_autor, es_mio=detalle.es_mio,
-                                  mi_voto=detalle.mi_voto)
+                                  nivel_autor=detalle.incidente.nivel_autor,
+                                  marco_autor=marco(detalle.incidente.nivel_autor),
+                                  mi_voto=detalle.mi_voto, mis_gracias=detalle.mis_gracias)
+
+
+@router.post("/{incidente_id}/thanks", summary="Gracias", response_model=IncidentResponse,
+             responses={**SIN_SESION, 403: error("No puedes agradecer tu propio reporte."),
+                        404: error("No existe o ya venció."), 409: error("Ya le diste las gracias."),
+                        **DEMASIADOS})
+def thank_incident(
+    incidente_id: str,
+    usuario: Usuario = Depends(por_viajero("votar", "LIMITE_VOTOS")),
+    service: IncidentService = Depends(get_incident_service),
+):
+    """Quien usó el reporte se lo agradece a quien lo hizo. Suma a «Tu impacto» del autor; no da reputación."""
+    try:
+        return service.thank(usuario, incidente_id)
+    except IncidenteNoEncontrado:
+        raise NO_ENCONTRADO
+    except VotoPropio:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No puedes agradecer tu propio reporte.")
+    except GraciasRepetidas:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Ya le diste las gracias.")
 
 
 @router.post("/{incidente_id}/votes", summary="¿Sigue ahí?", response_model=VoteResponse,

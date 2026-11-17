@@ -20,6 +20,30 @@ class LoginRequest(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=1, max_length=128)
 
+class ImpactoResponse(BaseModel):
+    """«Tu impacto»: lo que el viajero le ha aportado a la comunidad."""
+    model_config = ConfigDict(from_attributes=True)
+
+    reportes: int = 0
+    confirmaciones: int = Field(0, description="Veces que otros confirmaron sus reportes")
+    gracias: int = Field(0, description="«Gracias» recibidos")
+    vistas: int = Field(0, description="Personas que abrieron sus reportes")
+
+class InsigniaResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    clave: str
+    nombre: str
+    descripcion: str
+
+class AvanceResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    insignia: InsigniaResponse
+    llevas: int
+    meta: int
+    unidad: str = Field(..., description="Cómo se lee el avance: «3 de 10 confirmaciones»")
+
 class UserResponse(BaseModel):
     """Perfil público del viajero. Nunca incluye el hash de la contraseña."""
     model_config = ConfigDict(from_attributes=True)
@@ -32,6 +56,10 @@ class UserResponse(BaseModel):
     reputacion: int
     nivel: int = Field(..., description="Nivel según la reputación (1 a 5)")
     sin_cuenta: bool = Field(..., description="true: cuenta invisible del teléfono, sin correo")
+    impacto: ImpactoResponse = ImpactoResponse()
+    marco: str | None = Field(None, description="Marco del avatar por nivel: Muralla, Bahía, Castillo o La Popa")
+    insignias: list[InsigniaResponse] = []
+    siguiente_insignia: AvanceResponse | None = Field(None, description="La insignia sin ganar más cercana")
 
 class TokenResponse(BaseModel):
     access_token: str

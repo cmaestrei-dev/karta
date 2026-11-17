@@ -19,6 +19,7 @@ from src.domain.models import RutaTransporte
 from src.domain.trip_planning import PASO_DE_MUESTREO_M, VELOCIDAD_BUS_KMH
 
 CERCA_DE_LA_RUTA_M = 120          # un punto más lejos que esto de la ruta no se puede ubicar en ella
+CERCA_DEL_VARADO_M = 250          # lo que se ve a esta distancia de un bus varado es ese mismo bus
 HORIZONTE_M = 12_000              # un bus a más de esto, aguas arriba, aún no cuenta para la llegada
 YA_PASO_M = 150                   # un bus más allá de la parada ya pasó
 COINCIDENCIA_MIN = 5              # observaciones que llegan con menos de esto de diferencia hablan del mismo bus
@@ -38,6 +39,16 @@ class Observacion:
     en: datetime
     en_vivo: bool
     ocupacion: Ocupacion | None = None
+
+
+@dataclass(frozen=True)
+class BusVarado:
+    """Un bus de la ruta reportado como varado por los viajeros."""
+    longitud: float
+    latitud: float
+    en: datetime
+    confirmaciones: int
+    lugar: str | None = None
 
 
 @dataclass(frozen=True)
@@ -75,23 +86,41 @@ def pasadas(posiciones: np.ndarray, puntos: np.ndarray, lonlat: tuple[float, flo
     return resultado
 
 
-def estimar_llegada(ruta: RutaTransporte, subida: tuple[float, float], bajada: tuple[float, float],
-                    observaciones: list[Observacion], ahora: datetime) -> Estimacion | None:
-    """
-    Cuánto le falta al próximo bus de la ruta para llegar a [subida] yendo hacia [bajada], según lo visto.
-    Los buses recorren la relación de OSM en los dos sentidos: el sentido lo da el par subida → bajada más corto.
-    """
-    posiciones, puntos = _muestreo(ruta)
+def _parada_y_sentido(posiciones: np.ndarray, puntos: np.ndarray, subida: tuple[float, float],
+                      bajada: tuple[float, float]) -> tuple[float, int] | None:
+    """Dónde queda la subida sobre la ruta y en qué sentido se viaja (el par subida → bajada más corto)."""
     candidatos = [(s, b) for s in pasadas(posiciones, puntos, subida) for b in pasadas(posiciones, puntos, bajada)
                   if b != s]
     if not candidatos:
         return None
     parada, hacia = min(candidatos, key=lambda par: abs(par[1] - par[0]))
-    sentido = 1 if hacia > parada else -1
+    return parada, (1 if hacia > parada else -1)
+
+
+def _cerca(a: tuple[float, float], b: tuple[float, float], metros: float) -> bool:
+    pa, pb = a_metros(Point(a)), a_metros(Point(b))
+    return pa.distance(pb) <= metros
+
+
+def estimar_llegada(ruta: RutaTransporte, subida: tuple[float, float], bajada: tuple[float, float],
+                    observaciones: list[Observacion], ahora: datetime,
+                    varados: list[BusVarado] = ()) -> Estimacion | None:
+    """
+    Cuánto le falta al próximo bus de la ruta para llegar a [subida] yendo hacia [bajada], según lo visto.
+    Los buses recorren la relación de OSM en los dos sentidos: el sentido lo da el par subida → bajada más corto.
+    Lo que se ve junto a un bus varado es ese bus: no cuenta como uno que viene.
+    """
+    posiciones, puntos = _muestreo(ruta)
+    ubicada = _parada_y_sentido(posiciones, puntos, subida, bajada)
+    if ubicada is None:
+        return None
+    parada, sentido = ubicada
     velocidad = VELOCIDAD_BUS_KMH[ruta.tipo] * 1000 / 60  # m/min
 
     llegadas: list[tuple[float, Observacion]] = []
     for obs in observaciones:
+        if any(_cerca((obs.longitud, obs.latitud), (v.longitud, v.latitud), CERCA_DEL_VARADO_M) for v in varados):
+            continue
         transcurrido = max(0.0, (ahora - obs.en).total_seconds() / 60)
         posibles = []
         for b in pasadas(posiciones, puntos, (obs.longitud, obs.latitud)):
@@ -114,3 +143,23 @@ def estimar_llegada(ruta: RutaTransporte, subida: tuple[float, float], bajada: t
         ocupacion=next((o.ocupacion for o in recientes if o.ocupacion), None),
         visto_hace_min=max(0, round((ahora - recientes[0].en).total_seconds() / 60)),
     )
+
+
+def varado_antes_de_la_parada(ruta: RutaTransporte, subida: tuple[float, float], bajada: tuple[float, float],
+                              varados: list[BusVarado]) -> tuple[BusVarado, float] | None:
+    """El bus varado más cercano que viene hacia la subida (aguas arriba, en el sentido del viaje), y a cuántos
+    metros está. Uno que ya pasó la parada, o que va en el otro sentido, no afecta a quien espera."""
+    posiciones, puntos = _muestreo(ruta)
+    ubicada = _parada_y_sentido(posiciones, puntos, subida, bajada)
+    if ubicada is None:
+        return None
+    parada, sentido = ubicada
+    cercanos = []
+    for v in varados:
+        detras = [(parada - b) * sentido for b in pasadas(posiciones, puntos, (v.longitud, v.latitud))]
+        if validos := [d for d in detras if 0 <= d <= HORIZONTE_M]:
+            cercanos.append((min(validos), v))
+    if not cercanos:
+        return None
+    metros, varado = min(cercanos, key=lambda par: par[0])
+    return varado, metros

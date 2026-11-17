@@ -13,10 +13,14 @@ Cartagena de Indias.
 |---|---|
 | Usar Karta sin registrarse: cuenta invisible del teléfono, sin nombre ni correo | ✅ registrarse le pone correo a la misma cuenta |
 | Registro e inicio de sesión (JWT, sesión guardada en almacenamiento seguro) | ✅ desde el perfil |
-| Reportar en dos pasos: 9 tipos ilustrados en 3 grupos y sus detalles («el T103 no pasa · 20 min») | ✅ sin cuenta salen «por confirmar» |
+| Reportar en dos pasos: 10 tipos ilustrados en 3 grupos y sus detalles («el T103 no pasa · 20 min», «el X103 no paró: iba lleno») | ✅ sin cuenta salen «por confirmar» |
 | Ver los reportes vigentes en el mapa | ✅ cada tipo vive de 30 min a 12 h; cada confirmación lo renueva |
-| «¿Sigue ahí?»: confirmar o desmentir reportes ajenos, reputación y niveles | ✅ un voto por viajero; dos «ya no está» seguidos lo retiran |
-| Buscar un lugar de Cartagena o elegir el punto en el mapa | ✅ 453 lugares de OpenStreetMap |
+| «¿Sigue ahí?»: confirmar o desmentir reportes ajenos, reputación y niveles | ✅ un voto por viajero; dos «ya no está» seguidos lo retiran, o uno desde el nivel 3 |
+| Reputación justa: puntos solo por aportes que la comunidad valida; desde el nivel 3, los reportes pesan más | ✅ votar da puntos solo si la comunidad coincide |
+| «Gracias» a quien reportó y «Tu impacto» (vistas, confirmaciones, gracias, buses compartidos) | ✅ |
+| Marcos del avatar por nivel (Muralla, Bahía, Castillo, La Popa) e insignias; el nivel de quien reporta, junto a su alias | ✅ solo visuales: nada se compra |
+| Buscar un lugar de Cartagena o elegir el punto en el mapa | ✅ 453 lugares de OpenStreetMap y nombres populares («Torre del Reloj») |
+| Buscar direcciones con la nomenclatura colombiana («Calle 9 # 3-50», «Cra. 3 No. 8-129», «Tv 54 #21») | ✅ 4.671 cruces numerados de OpenStreetMap, 20 a 60 m de precisión |
 | Rutas sugeridas de Transcaribe con su riesgo, comparadas en el mapa | ✅ 24 rutas y 17 estaciones de OpenStreetMap |
 | Transbordo entre dos rutas y criterio: más rápida, más segura o sin transbordo | ✅ |
 | Solo rutas que operan a la hora de salida (horarios oficiales, festivos incluidos) | ✅ avisa cuándo sale la primera |
@@ -27,7 +31,10 @@ Cartagena de Indias.
 | Viaje activo paso a paso, que avanza solo con el GPS (también con la pantalla apagada) | ✅ «Sube al T103», «Bájate en 3 paradas» |
 | Avisos para bajarse: en una estación el bus para solo; en un paradero, «¡Toca el timbre!» a 200 m | ✅ notificación y pantalla completa |
 | «¿El T103 se desvió?» cuando el bus sale de su recorrido | ✅ |
-| Llegada estimada «según N viajeros» y qué tan lleno va el bus | ✅ avistamientos y viajes compartidos |
+| Llegada estimada «según N viajeros» y qué tan lleno va el bus | ✅ avistamientos y viajes compartidos; siempre dice de cuándo es el dato, y sin conexión lo envejece y lo avisa |
+| Bus varado: a bordo, 4 min quieto lejos de una estación, «¿El T103 se varó?»; quien espera lo ve y ese bus no cuenta en la llegada | ✅ |
+| «¿Cómo pediste la parada?» al bajarse en un paradero; con 3 respuestas que coinciden, el aviso dice qué funciona allí | ✅ una pregunta por viaje, siempre se puede saltar |
+| Cultura ciudadana: «Haz la fila del T103: se sube en orden», «Deja bajar primero» | ✅ sin regañar ni premiar |
 | Compartir dónde va el bus (anónimo, solo a bordo, vence a los 5 min) | ✅ activado por defecto, se apaga en Perfil › Privacidad |
 
 ## Arquitectura
@@ -53,15 +60,20 @@ El backend sigue una arquitectura hexagonal (puertos y adaptadores):
 
 | Colección | Documento | Índices |
 |---|---|---|
-| `users` | `email`, `password_hash` (Argon2id), `nombre`, `alias` («Ana P.»), `tipo_viajero`, `reputacion`, `terminos_aceptados_en`, `creado_en`, `lugares_guardados` (embebidos, máx. 10) | único en `email` |
-| `incidents` | `reportado_por` (ObjectId), `grupo`, `tipo`, `detalles`, `lugar`, `ubicacion` (GeoJSON Point), `votos_si`, `votos_no`, `no_seguidos`, `creado_en`, `expira_en` | `2dsphere` en `ubicacion`; TTL en `expira_en` |
+| `users` | `email`, `password_hash` (Argon2id), `nombre`, `alias` («Ana P.»), `tipo_viajero`, `reputacion`, `impacto` (`reportes`, `confirmaciones`, `gracias`, `vistas`), `terminos_aceptados_en`, `creado_en`, `lugares_guardados` (embebidos, máx. 10). La cuenta invisible: `anonimo`, `secreto` (huella SHA-256) y `visto_en` | único parcial en `email` y en `secreto`; TTL de 180 días en `visto_en` de las cuentas invisibles |
+| `incidents` | `reportado_por` (ObjectId), `grupo`, `tipo`, `detalles`, `lugar`, `ubicacion` (GeoJSON Point), `votos_si`, `votos_no`, `no_seguidos`, `sin_cuenta`, `nivel_autor`, `gracias`, `creado_en`, `expira_en` | `2dsphere` en `ubicacion`; TTL en `expira_en` |
 | `incident_votes` | `incidente`, `usuario`, `sigue` (sí / no), `creado_en`, `expira_en` | único en (`incidente`, `usuario`); TTL |
+| `incident_thanks`, `incident_views` | `incidente`, `usuario`, `en`, `expira_en`: un «Gracias» y una vista por viajero y reporte | único en (`incidente`, `usuario`); TTL |
+| `sightings` | `ruta`, `ubicacion`, `ocupacion`, `en`, `expira_en` (30 min); sin quién lo envió | (`ruta`, `en`); TTL |
+| `live_trips` | `_id` aleatorio, `ruta`, `ubicacion`, `ocupacion`, `en`, `expira_en` (5 min sin posiciones); sin quién lo envió | (`ruta`, `en`); TTL |
+| `stop_answers` | `ruta`, `ubicacion` del paradero, `como` (`timbre`, `paro_solo`, `conductor`), `en`, `expira_en` (1 año); sin quién respondió | `2dsphere` con `ruta`; TTL |
 | `rate_limits` | `_id` = acción, clave y ventana; `conteo`, `expira_en` | TTL en `expira_en` |
 | `places` | `nombre`, `tipo`, `ubicacion` (Point), `tokens` (palabras normalizadas) | `2dsphere`; `tokens` |
 | `stations` | `nombre`, `ubicacion` (Point), `rutas` | `2dsphere` |
 | `transit_routes` | `nombre`, `tipo`, `desde`, `hasta`, `geometria` (LineString) | `2dsphere` en `geometria` |
 | `route_schedules` | `_id` = código de ruta; primer y último despacho de `lunes_a_viernes`, `sabado` y `domingo_y_festivos` | — |
 | `intersections` | `nombre` («Av. Pedro de Heredia con Cra. 28»), `ubicacion` (Point) | `2dsphere` |
+| `address_crossings` | `nombre`, `vias` (`calle:9`, `carrera:3`), `ubicacion`: cruces de vías numeradas para ubicar direcciones | `vias` |
 
 El riesgo de una ruta se calcula trazando un corredor de 500 m alrededor de la polilínea
 (en UTM 18N, EPSG:32618, para medir en metros) y consultándolo con `$geoWithin` sobre el índice `2dsphere`.
@@ -152,22 +164,25 @@ firewall del computador permita conexiones entrantes al puerto 8000.
 | POST | `/api/v1/auth/anonymous` | — | Cuenta invisible del teléfono: manda su `secreto` aleatorio y recibe la sesión (siempre la misma cuenta). Máx. 60 por hora por IP |
 | POST | `/api/v1/auth/register` | opcional | Registrar un viajero (exige `acepta_terminos: true`); con la sesión de la cuenta invisible, le pone correo a esa misma cuenta. Máx. 10 por hora por IP |
 | POST | `/api/v1/auth/login` | — | Iniciar sesión; devuelve un token Bearer (JWT). Máx. 10 por minuto por IP |
-| GET | `/api/v1/users/me` | ✅ | Perfil del viajero autenticado, con su alias, reputación y nivel (1 a 5) |
+| GET | `/api/v1/users/me` | ✅ | Perfil del viajero autenticado: alias, reputación, nivel (1 a 5), `impacto`, `marco`, `insignias` y `siguiente_insignia` con su avance |
 | GET | `/api/v1/incidents/types` | — | Catálogo de reportes: grupos, tipos, preguntas y vigencia |
 | POST | `/api/v1/incidents/` | ✅ | Reportar (`tipo`, `detalles`, `latitud`, `longitud`); el autor sale del token. Máx. 6 cada 10 min |
 | GET | `/api/v1/incidents/` | — | Reportes vigentes, opcionalmente dentro de una caja (`lon_min`, `lat_min`, `lon_max`, `lat_max`) |
-| GET | `/api/v1/incidents/{id}` | opcional | Detalle con el alias del autor; con sesión dice si es tuyo y cómo votaste |
+| GET | `/api/v1/incidents/{id}` | opcional | Detalle con el alias, el nivel y el marco del autor; con sesión dice si es tuyo, cómo votaste y si ya diste las gracias |
+| POST | `/api/v1/incidents/{id}/thanks` | ✅ | «Gracias» a quien reportó (suma a su «Tu impacto», no a su reputación). 403 si es tuyo, 409 si ya agradeciste |
 | POST | `/api/v1/incidents/{id}/votes` | ✅ | «¿Sigue ahí?» (`sigue: true/false`). 403 si es tuyo, 409 si ya votaste. Máx. 30 cada 10 min |
 | GET | `/api/v1/routes/?tipo=` | — | Rutas de Transcaribe con su trazado GeoJSON (para dibujarlas en el mapa) |
 | GET | `/api/v1/routes/{codigo}` | — | Página de una ruta: trazado, estaciones en el orden del recorrido, horario por tipo de día y si opera ahora |
 | GET | `/api/v1/routes/{codigo}/live?desde_lat=&desde_lon=&hasta_lat=&hasta_lon=` | — | Cuándo llega el próximo bus a la subida, en el sentido de la bajada, según los viajeros; sin observaciones, `minutos` es null |
+| GET | `/api/v1/routes/{codigo}/stop-request?latitud=&longitud=` | — | Cómo se pide la parada en ese paradero según los viajeros; `como` es null sin 3 respuestas y una mayoría clara |
+| POST | `/api/v1/stop-requests` | ✅ | «¿Cómo pediste la parada?» (`ruta`, `como`, punto del paradero). Anónimo; vence al año. Máx. 5 cada 10 min |
 | POST | `/api/v1/sightings` | ✅ | «Vi pasar el T103» o qué tan lleno va (`ocupacion`). Anónimo: no guarda quién; vence a los 30 min. Máx. 20 cada 10 min |
 | POST | `/api/v1/trips` | ✅ | Empezar a compartir dónde va el bus; devuelve un identificador aleatorio de viaje, sin relación con el viajero |
 | PUT | `/api/v1/trips/{viaje}` | ✅ | Nueva posición del bus (y ocupación); 404 si el viaje venció (5 min sin posiciones). Máx. 40 cada 10 min |
 | DELETE | `/api/v1/trips/{viaje}` | ✅ | Dejar de compartir; el viaje se borra en el acto |
 | POST | `/api/v1/routes/risk` | — | Calcular el riesgo de una ruta a partir de sus puntos (lat/lon) |
 | POST | `/api/v1/routes/suggest` | — | Formas de llegar entre dos puntos, con tramos GeoJSON, transbordo y riesgo. `criterio`: `rapida`, `segura` o `sin_transbordo`; `salida`: hora de salida (por defecto, ahora). Si a esa hora no opera ninguna ruta útil, `aviso` dice cuándo sale la primera |
-| GET | `/api/v1/places/search?q=` | — | Buscar lugares de Cartagena (sin tildes, por prefijo de palabra) |
+| GET | `/api/v1/places/search?q=` | — | Buscar lugares de Cartagena (sin tildes, por prefijo de palabra) o una dirección («Calle 9 # 3-50»), que sale primero |
 | GET | `/api/v1/places/reverse?lat=&lon=` | — | Nombre del punto elegido en el mapa |
 | GET | `/api/v1/stops/nearby?lat=&lon=` | — | Estaciones cercanas, con sus rutas y la distancia a pie |
 | GET | `/api/v1/users/me/places` | ✅ | Listar los lugares guardados |
@@ -179,7 +194,7 @@ Documentación interactiva (Swagger): <http://127.0.0.1:8000/api/v1/docs>. Para 
 con sesión, inicia sesión, copia el `access_token` y pégalo en el botón **Authorize**.
 
 **Privacidad (Ley 1581 de 2012):**
-- **Lo que no se guarda:** ningún documento del tiempo real guarda quién lo envió. Los avistamientos vencen a los 30 minutos y los viajes compartidos a los 5 minutos sin posiciones, con índices TTL.
+- **Lo que no se guarda:** ningún documento del tiempo real guarda quién lo envió. Los avistamientos vencen a los 30 minutos y los viajes compartidos a los 5 minutos sin posiciones, con índices TTL. Las respuestas a «¿Cómo pediste la parada?» guardan solo el paradero y la respuesta, y vencen al año.
 - **Historial:** no existe historial de ubicaciones de nadie.
 - **Cuenta invisible:** solo se guarda la huella SHA-256 de su secreto. Las que no se usan en 180 días se borran solas.
 
