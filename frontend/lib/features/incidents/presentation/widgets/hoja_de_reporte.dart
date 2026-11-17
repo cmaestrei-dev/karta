@@ -61,7 +61,7 @@ class _HojaDeReporte extends StatelessWidget {
       listener: (context, state) {
         if (state.sesionExpirada) {
           Navigator.of(context).pop();
-          context.read<AuthBloc>().add(const LogoutRequested(message: 'Tu sesión expiró. Inicia sesión para reportar.'));
+          context.read<AuthBloc>().add(const LogoutRequested(message: 'Tu sesión expiró. Entra de nuevo con tu correo desde tu perfil.'));
         } else {
           Navigator.of(context).pop(state.creado);
         }

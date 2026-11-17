@@ -49,6 +49,12 @@ class LineaGeoJSON(BaseModel):
     type: Literal["LineString"] = "LineString"
     coordinates: List[List[float]] = Field(..., description="Pares [longitud, latitud]")
 
+class ParadaDelTramo(BaseModel):
+    nombre: str
+    latitud: float
+    longitud: float
+
+
 class TramoResponse(BaseModel):
     modo: Literal["caminata", "bus"]
     desde: str
@@ -59,6 +65,9 @@ class TramoResponse(BaseModel):
     ruta: str | None = Field(None, description='Código de la ruta, ej. "T101"')
     nombre_ruta: str | None = None
     tipo_ruta: str | None = None
+    paradas: List[ParadaDelTramo] = Field(
+        default_factory=list,
+        description="Estaciones por las que pasa el bus en este tramo, en orden (vacía fuera de la troncal)")
     geometria: LineaGeoJSON
 
 class RiesgoResumen(BaseModel):

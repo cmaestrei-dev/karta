@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
@@ -8,19 +9,47 @@ import '../../domain/models/usuario.dart';
 
 /// Inicia, recupera y cierra la sesión. El token se guarda en el almacenamiento
 /// seguro de cada plataforma (Keystore en Android, Keychain en iOS, libsecret en Linux).
+///
+/// Sin registrarse se usa la cuenta invisible del teléfono: un secreto aleatorio, generado la primera vez y
+/// guardado aquí, que el servidor cambia por la sesión de esa cuenta (la misma siempre).
 class AuthRepository {
   static const _tokenKey = 'karta_access_token';
   static const _usuarioKey = 'karta_usuario';
+  static const _secretoKey = 'karta_secreto_del_telefono';
   static const _timeout = Duration(seconds: 15);
   static const _timeoutAlAbrir = Duration(seconds: 6);
 
   final FlutterSecureStorage _storage;
   String? _token;
+  Usuario? _actual;
 
   AuthRepository({FlutterSecureStorage storage = const FlutterSecureStorage()}) : _storage = storage;
 
   /// Token de la sesión activa, o null si no hay sesión.
   String? get token => _token;
+
+  /// Entra con la cuenta invisible del teléfono (la crea la primera vez).
+  Future<Usuario> entrarSinCuenta() async => _startSession('/auth/anonymous', {'secreto': await _secreto()});
+
+  /// Si la sesión que venció era la invisible, la renueva sin molestar al viajero. Devuelve si lo logró.
+  Future<bool> renovarSiEsInvisible() async {
+    if (_actual?.sinCuenta != true) return false;
+    try {
+      await entrarSinCuenta();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<String> _secreto() async {
+    final guardado = await _storage.read(key: _secretoKey);
+    if (guardado != null) return guardado;
+    final azar = Random.secure();
+    final nuevo = base64UrlEncode([for (var i = 0; i < 32; i++) azar.nextInt(256)]).replaceAll('=', '');
+    await _storage.write(key: _secretoKey, value: nuevo);
+    return nuevo;
+  }
 
   Future<Usuario> login({required String email, required String password}) {
     return _startSession('/auth/login', {'email': email, 'password': password});
@@ -38,7 +67,7 @@ class AuthRepository {
       'password': password,
       'tipo_viajero': tipoViajero,
       'acepta_terminos': true,
-    });
+    }, conSesion: _actual?.sinCuenta == true);
   }
 
   /// Recupera la sesión guardada. Devuelve null si no hay sesión o el servidor la rechazó.
@@ -57,7 +86,7 @@ class AuthRepository {
     } catch (_) {
       if (usuarioGuardado == null) throw Exception('No se pudo conectar con el servidor de Karta.');
       _token = saved;
-      return usuarioGuardado;
+      return _actual = usuarioGuardado;
     }
 
     if (response.statusCode == 401) {
@@ -68,7 +97,7 @@ class AuthRepository {
       throw Exception(apiErrorMessage(response));
     }
     _token = saved;
-    final usuario = Usuario.fromJson(json.decode(utf8.decode(response.bodyBytes)));
+    final usuario = _actual = Usuario.fromJson(json.decode(utf8.decode(response.bodyBytes)));
     await _storage.write(key: _usuarioKey, value: json.encode(usuario.toJson()));
     return usuario;
   }
@@ -88,21 +117,23 @@ class AuthRepository {
     }
     if (response.statusCode == 401) throw const SesionVencida();
     if (response.statusCode != 200) return null;
-    final usuario = Usuario.fromJson(json.decode(utf8.decode(response.bodyBytes)));
+    final usuario = _actual = Usuario.fromJson(json.decode(utf8.decode(response.bodyBytes)));
     await _storage.write(key: _usuarioKey, value: json.encode(usuario.toJson()));
     return usuario;
   }
 
+  /// Cierra la sesión; el secreto del teléfono se queda para volver a su cuenta invisible.
   Future<void> logout() async {
     _token = null;
+    _actual = null;
     await _storage.delete(key: _tokenKey);
     await _storage.delete(key: _usuarioKey);
   }
 
-  Future<Usuario> _startSession(String path, Map<String, dynamic> body) async {
+  Future<Usuario> _startSession(String path, Map<String, dynamic> body, {bool conSesion = false}) async {
     final response = await _send(() => http.post(
           Uri.parse('$apiBaseUrl$path'),
-          headers: {'Content-Type': 'application/json'},
+          headers: {'Content-Type': 'application/json', if (conSesion && _token != null) 'Authorization': 'Bearer $_token'},
           body: jsonEncode(body),
         ));
 
@@ -111,7 +142,7 @@ class AuthRepository {
     }
     final data = json.decode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
     _token = data['access_token'] as String;
-    final usuario = Usuario.fromJson(data['usuario']);
+    final usuario = _actual = Usuario.fromJson(data['usuario']);
     await _storage.write(key: _tokenKey, value: _token);
     await _storage.write(key: _usuarioKey, value: json.encode(usuario.toJson()));
     return usuario;

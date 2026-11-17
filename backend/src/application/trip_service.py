@@ -8,7 +8,8 @@ from src.domain.models import Estacion, RutaTransporte
 from src.domain.ports import IncidentRepository, PlaceRepository, TransitRepository
 from src.domain.route_risk import PENALIZACION_RIESGO_MIN, RADIO_BUSQUEDA_M, ResultadoRiesgo, evaluar_riesgo
 from src.domain.trip_planning import (
-    CAMINATA_MAXIMA_DE_ACCESO_M, OpcionViaje, caminata_entre, costo_percibido, estaciones_en_orden, planificar,
+    CAMINATA_MAXIMA_DE_ACCESO_M, OpcionViaje, caminata_entre, costo_percibido, estaciones_en_orden, paradas_del_tramo,
+    planificar,
 )
 
 Criterio = Literal["rapida", "segura", "sin_transbordo"]
@@ -150,7 +151,7 @@ class TripService:
             if estacion_bajada:
                 tramos[k + 1] = caminata_entre((estacion_bajada.longitud, estacion_bajada.latitud),
                                                tramos[k + 1].coordenadas[-1])
-            tramos[k] = replace(tramos[k], desde=subida, hasta=bajada)
+            tramos[k] = replace(tramos[k], desde=subida, hasta=bajada, paradas=paradas_del_tramo(tramos[k], estaciones))
 
         # Cada caminata va del punto anterior al siguiente: el origen, una bajada, una subida o el destino.
         for k, tramo in enumerate(tramos):

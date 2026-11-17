@@ -37,56 +37,63 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return AuthLayout(
-      title: 'Karta',
-      subtitle: 'Muévete por Cartagena con la información de tu comunidad.',
-      children: [
-        Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextFormField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                autofillHints: const [AutofillHints.email],
-                decoration: authInputDecoration('Correo', Icons.mail_outline),
-                validator: validateEmail,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _passwordController,
-                obscureText: true,
-                autofillHints: const [AutofillHints.password],
-                decoration: authInputDecoration('Contraseña', Icons.lock_outline),
-                validator: (value) => (value ?? '').isEmpty ? 'Ingresa tu contraseña.' : null,
-                onFieldSubmitted: (_) => _submit(),
-              ),
-              const SizedBox(height: 24),
-              BlocBuilder<AuthBloc, AuthState>(
-                builder: (context, state) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (_mostrarError && state is AuthUnauthenticated && state.message != null)
-                        AuthErrorText(state.message!),
-                      AuthSubmitButton(label: 'Ingresar', loading: state is AuthInProgress, onPressed: _submit),
-                    ],
-                  );
-                },
-              ),
-            ],
+    return BlocListener<AuthBloc, AuthState>(
+      // Al entrar se vuelve al mapa, ya con la cuenta.
+      listener: (context, state) {
+        if (state is AuthAuthenticated && state.conCuentaLista) {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        }
+      },
+      child: AuthLayout(
+        title: 'Entrar',
+        subtitle: 'Con tu correo recuperas tu reputación y tus lugares en cualquier teléfono.',
+        children: [
+          Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextFormField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  autofillHints: const [AutofillHints.email],
+                  decoration: authInputDecoration('Correo', Icons.mail_outline),
+                  validator: validateEmail,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _passwordController,
+                  obscureText: true,
+                  autofillHints: const [AutofillHints.password],
+                  decoration: authInputDecoration('Contraseña', Icons.lock_outline),
+                  validator: (value) => (value ?? '').isEmpty ? 'Ingresa tu contraseña.' : null,
+                  onFieldSubmitted: (_) => _submit(),
+                ),
+                const SizedBox(height: 24),
+                BlocBuilder<AuthBloc, AuthState>(
+                  builder: (context, state) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (_mostrarError && state is AuthFailure) AuthErrorText(state.message),
+                        AuthSubmitButton(label: 'Ingresar', loading: state is AuthInProgress, onPressed: _submit),
+                      ],
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 16),
-        TextButton(
-          onPressed: () {
-            setState(() => _mostrarError = false);
-            Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RegisterScreen()));
-          },
-          child: const Text('¿No tienes cuenta? Regístrate'),
-        ),
-      ],
+          const SizedBox(height: 16),
+          TextButton(
+            onPressed: () {
+              setState(() => _mostrarError = false);
+              Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const RegisterScreen()));
+            },
+            child: const Text('¿No tienes cuenta? Créala'),
+          ),
+        ],
+      ),
     );
   }
 }

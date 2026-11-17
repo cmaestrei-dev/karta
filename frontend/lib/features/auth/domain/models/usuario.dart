@@ -1,11 +1,14 @@
 import 'package:equatable/equatable.dart';
 
+/// Un viajero. [sinCuenta]: la cuenta invisible del teléfono, sin nombre ni correo; registrarse le pone correo
+/// a esa misma cuenta.
 class Usuario extends Equatable {
   final String id;
-  final String email;
-  final String nombre;
-  final String tipoViajero;
+  final String? email;
+  final String? nombre;
+  final String? tipoViajero;
   final int reputacion;
+  final bool sinCuenta;
 
   /// Nombre corto que ven los demás viajeros en los reportes («Ana P.»).
   final String alias;
@@ -21,11 +24,12 @@ class Usuario extends Equatable {
     required this.reputacion,
     required this.alias,
     required this.nivel,
+    this.sinCuenta = false,
   });
 
-  /// Las iniciales del avatar: «Camilo Maestre» → «CM».
+  /// Las iniciales del avatar: «Camilo Maestre» → «CM». Vacías sin cuenta (el avatar muestra un ícono).
   String get iniciales {
-    final partes = nombre.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    final partes = (nombre ?? '').trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
     if (partes.isEmpty) return '?';
     return partes.take(2).map((p) => p[0].toUpperCase()).join();
   }
@@ -37,17 +41,18 @@ class Usuario extends Equatable {
   }
 
   factory Usuario.fromJson(Map<String, dynamic> json) {
-    final nombre = json['nombre'] as String;
+    final nombre = json['nombre'] as String?;
     final reputacion = json['reputacion'] as int;
     return Usuario(
       id: json['id'] as String,
-      email: json['email'] as String,
+      email: json['email'] as String?,
       nombre: nombre,
-      tipoViajero: json['tipo_viajero'] as String,
+      tipoViajero: json['tipo_viajero'] as String?,
       reputacion: reputacion,
       // Un perfil guardado antes de los reportes v2 no trae alias ni nivel: se calculan igual que el backend.
-      alias: json['alias'] as String? ?? aliasPublico(nombre),
+      alias: json['alias'] as String? ?? (nombre != null ? aliasPublico(nombre) : 'Viajero sin cuenta'),
       nivel: json['nivel'] as int? ?? nivelPorReputacion(reputacion),
+      sinCuenta: json['sin_cuenta'] as bool? ?? json['email'] == null,
     );
   }
 
@@ -59,10 +64,11 @@ class Usuario extends Equatable {
         'reputacion': reputacion,
         'alias': alias,
         'nivel': nivel,
+        'sin_cuenta': sinCuenta,
       };
 
   @override
-  List<Object> get props => [id, email, nombre, tipoViajero, reputacion, alias, nivel];
+  List<Object?> get props => [id, email, nombre, tipoViajero, reputacion, alias, nivel, sinCuenta];
 }
 
 /// Reputación con la que empieza cada nivel, del 2 al 5 (todos arrancan en 100, nivel 1).

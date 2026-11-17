@@ -20,8 +20,12 @@ class ResultadoRiesgo:
 
 
 def evaluar_riesgo(incidentes: list[Incidente]) -> ResultadoRiesgo:
-    """Suma el peso de cada reporte (más si la comunidad lo confirmó) y clasifica el total por umbrales."""
-    total = sum(peso_en_riesgo(CATALOGO[i.tipo], i.votos_si) for i in incidentes if i.tipo in CATALOGO)
+    """
+    Suma el peso de cada reporte (más si la comunidad lo confirmó) y clasifica el total por umbrales.
+    Los que siguen por confirmar (de alguien sin cuenta, sin confirmaciones) no pesan.
+    """
+    total = sum(peso_en_riesgo(CATALOGO[i.tipo], i.votos_si) for i in incidentes
+                if i.tipo in CATALOGO and not i.por_confirmar)
     score = round(total)
     nivel = next((n for umbral, n in UMBRALES_NIVEL if score > umbral), "BAJO")
     return ResultadoRiesgo(score=score, nivel=nivel, incidentes=incidentes)

@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- En release, R8 quitaría el ícono de las notificaciones porque solo se usa por nombre desde Dart. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:keep="@drawable/ic_notificacion" />

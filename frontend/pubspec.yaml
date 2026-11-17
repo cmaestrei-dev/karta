@@ -44,6 +44,7 @@ dependencies:
   flutter_svg: ^2.3.0
   flutter_map_vector_tiles: ^2.10.1
   shared_preferences: ^2.5.6
+  flutter_local_notifications: ^22.3.2
 
 dev_dependencies:
   flutter_test:
@@ -87,6 +88,7 @@ flutter:
   assets:
     - assets/ilustraciones/
     - assets/mapa/
+    - assets/fonts/OFL-Manrope.txt
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

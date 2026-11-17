@@ -71,6 +71,13 @@ def test_rutas_sugeridas_entre_bazurto_y_bocagrande(api):
     assert estacion["nombre"] == "Bazurto"
     assert abs(caminata["distancia_m"] - estacion["caminata_m"]) <= 2
 
+    # El tramo en bus trae las estaciones que pasa, de la subida a la bajada.
+    t103 = next(o for o in opciones if o["resumen"] == "Transcaribe T103")
+    bus = next(t for t in t103["tramos"] if t["modo"] == "bus")
+    nombres = [p["nombre"] for p in bus["paradas"]]
+    assert nombres[0] == "Bazurto"
+    assert len(nombres) >= 2 and len(set(nombres)) == len(nombres)
+
 
 def test_rutas_sugeridas_con_transbordo_y_por_criterio(api):
     # De Mandela a Bocagrande ninguna ruta llega sola: hay que cambiar de bus.

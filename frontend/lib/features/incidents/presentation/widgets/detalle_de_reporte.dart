@@ -46,7 +46,7 @@ class _Detalle extends StatelessWidget {
       listenWhen: (_, actual) => actual.sesionExpirada,
       listener: (context, _) {
         Navigator.of(context).pop();
-        context.read<AuthBloc>().add(const LogoutRequested(message: 'Tu sesión expiró. Inicia sesión para validar reportes.'));
+        context.read<AuthBloc>().add(const LogoutRequested(message: 'Tu sesión expiró. Entra de nuevo con tu correo desde tu perfil.'));
       },
       builder: (context, state) {
         final detalle = state.detalle;
@@ -136,6 +136,7 @@ class _Detalle extends StatelessWidget {
         ? 'Lo reportó un viajero'
         : (detalle.esMio ? 'Lo reportaste tú' : 'Lo reportó ${detalle.aliasAutor}');
     final confirmaciones = switch (incidente.votosSi) {
+      0 when incidente.porConfirmar => 'por confirmar: no cuenta en el riesgo de las rutas hasta que alguien lo vea',
       0 => 'nadie lo ha confirmado todavía',
       1 => 'lo confirmó 1 viajero',
       final n => 'lo confirmaron $n viajeros',
@@ -155,7 +156,14 @@ class _Detalle extends StatelessWidget {
       return [const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator()))];
     }
     if (detalle.esMio) {
-      return [const _Aviso(icono: Icons.person_outline, texto: 'Es tu reporte: otros viajeros que pasen por aquí lo confirmarán.')];
+      return [
+        _Aviso(
+          icono: Icons.person_outline,
+          texto: detalle.incidente.porConfirmar
+              ? 'Es tu reporte: queda por confirmar hasta que otro viajero lo vea. Con cuenta, tus reportes salen al instante.'
+              : 'Es tu reporte: otros viajeros que pasen por aquí lo confirmarán.',
+        ),
+      ];
     }
     if (detalle.miVoto != null) {
       return [
