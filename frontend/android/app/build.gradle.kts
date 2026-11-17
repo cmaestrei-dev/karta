@@ -41,6 +41,13 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // Compilación para grabar demostraciones (KARTA_DEMO=1): se instala al lado de la app real, como «Karta demo».
+        if (System.getenv("KARTA_DEMO") == "1") {
+            applicationIdSuffix = ".demo"
+            manifestPlaceholders["etiqueta"] = "Karta demo"
+        } else {
+            manifestPlaceholders["etiqueta"] = "Karta"
+        }
     }
 
     signingConfigs {

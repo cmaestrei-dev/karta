@@ -12,7 +12,13 @@ class LocationService {
   static const LatLng _devFallback = LatLng(10.4225, -75.5410);
   static const Duration _timeout = Duration(seconds: 10);
 
+  /// Ubicación fija para grabar demostraciones sin mostrar dónde está quien graba:
+  /// `--dart-define=KARTA_UBICACION_DEMO=10.413958,-75.524358`. Solo existe en compilaciones hechas a propósito.
+  static const String _ubicacionDemo = String.fromEnvironment('KARTA_UBICACION_DEMO');
+
   static Future<({LatLng point, bool isFallback})> getCurrentLocation() async {
+    final demo = ubicacionDemo(_ubicacionDemo);
+    if (demo != null) return (point: demo, isFallback: false);
     if (!await Geolocator.isLocationServiceEnabled()) {
       throw Exception('El GPS está apagado. Enciéndelo para continuar.');
     }
@@ -45,6 +51,16 @@ class LocationService {
       debugPrint('GPS no disponible ($e). Usando coordenada de respaldo.');
       return (point: _devFallback, isFallback: true);
     }
+  }
+
+  /// Lee «latitud,longitud»; null si está vacío o mal escrito.
+  @visibleForTesting
+  static LatLng? ubicacionDemo(String texto) {
+    final partes = texto.split(',');
+    if (partes.length != 2) return null;
+    final lat = double.tryParse(partes[0].trim()), lon = double.tryParse(partes[1].trim());
+    if (lat == null || lon == null || lat.abs() > 90 || lon.abs() > 180) return null;
+    return LatLng(lat, lon);
   }
 
   static Future<Position?> _lastKnownPosition() async {
