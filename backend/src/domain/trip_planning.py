@@ -13,6 +13,7 @@ que Transcaribe integra frente a frente (Santa Lucía, de las alimentadoras, y M
 que está en el separador de la avenida, obliga a cruzarla: eso suma minutos que la línea recta no ve.
 """
 from dataclasses import dataclass, field, replace
+from functools import cached_property
 
 import numpy as np
 import shapely
@@ -176,6 +177,9 @@ def opcion_caminando(origen: tuple[float, float], destino: tuple[float, float]) 
 # ---------------------------------------------------------------- rutas muestreadas
 
 
+_CODIGOS_DE_ESTACION: dict[str, int] = {}
+
+
 @dataclass(frozen=True, eq=False)
 class RutaMuestreada:
     ruta: RutaTransporte
@@ -186,6 +190,24 @@ class RutaMuestreada:
     velocidad: float         # m/min
     estacion: np.ndarray = field(default_factory=lambda: np.array([], dtype=object))  # id de la estación propia o ""
     minutos: np.ndarray = field(default_factory=lambda: np.array([]))  # minutos acumulados desde el inicio, con paradas
+    # Dónde se puede cambiar a cada otra ruta (ver `_transbordos_hacia`): depende solo de los dos recorridos, así que
+    # se calcula una vez por par mientras se reutilice el muestreo.
+    transbordos: dict = field(default_factory=dict, repr=False)
+
+    @cached_property
+    def geometrias(self) -> np.ndarray:
+        """Los puntos como geometrías, para cruzar esta ruta con las demás."""
+        return shapely.points(self.puntos)
+
+    @cached_property
+    def arbol(self) -> shapely.STRtree:
+        return shapely.STRtree(self.geometrias)
+
+    @cached_property
+    def codigo_de_estacion(self) -> np.ndarray:
+        """`estacion` en números (−1 fuera de las estaciones): comparar millones de pares es mucho más rápido así."""
+        return np.array([_CODIGOS_DE_ESTACION.setdefault(e, len(_CODIGOS_DE_ESTACION)) if e else -1
+                         for e in self.estacion], dtype=np.int32)
 
     @property
     def espera(self) -> float:
@@ -390,23 +412,41 @@ def mejor_opcion_en_ruta(ruta: RutaTransporte, estaciones: list[Estacion],
     return _directa(m, origen, destino, _distancias(m, origen), _distancias(m, destino))
 
 
+def _transbordos_hacia(a: RutaMuestreada, b: RutaMuestreada):
+    """
+    Los pares de puntos (índice en `a`, índice en `b`) a menos de 300 m, su distancia, los minutos de la caminata del
+    cambio y si es integrado. Depende solo de los dos recorridos: se guarda en `a` para las consultas siguientes.
+    """
+    guardado = a.transbordos.get(b.ruta.id)
+    if guardado is not None and guardado[0] is b:
+        return guardado[1:]
+    ia, ib = b.arbol.query(a.geometrias, predicate="dwithin", distance=TRANSBORDO_MAXIMO_M)
+    entre = np.hypot(a.puntos[ia, 0] - b.puntos[ib, 0], a.puntos[ia, 1] - b.puntos[ib, 1])
+    caminar, integrado = (_caminata_de_transbordo(a.estacion[ia], b.estacion[ib], entre,
+                                                  a.codigo_de_estacion[ia], b.codigo_de_estacion[ib]) if len(ia)
+                          else (np.array([]), np.array([], dtype=bool)))
+    a.transbordos[b.ruta.id] = (b, ia, ib, entre, caminar, integrado)
+    return ia, ib, entre, caminar, integrado
+
+
 def _con_transbordo(a: RutaMuestreada, b: RutaMuestreada, origen, destino,
-                    a_origen, b_destino, limite: float = CAMINATA_MAXIMA_DE_ACCESO_M) -> OpcionViaje | None:
+                    a_origen, b_destino, limite: float = CAMINATA_MAXIMA_DE_ACCESO_M,
+                    llegadas=None, salidas=None) -> OpcionViaje | None:
     """La mejor combinación: subir a `a` cerca del origen, bajar donde `b` pasa a menos de 300 m, caminar,
-    subir a `b` y bajar cerca del destino."""
-    arbol = shapely.STRtree(shapely.points(b.puntos))
-    ia, ib = arbol.query(shapely.points(a.puntos), predicate="dwithin", distance=TRANSBORDO_MAXIMO_M)
+    subir a `b` y bajar cerca del destino. `llegadas` y `salidas` (en índices de ruta) se pueden pasar ya
+    calculadas, porque son las mismas para cada par con la misma ruta."""
+    ia, ib, entre, caminar, integrado = _transbordos_hacia(a, b)
     if len(ia) == 0:
         return None
-    entre = np.hypot(a.puntos[ia, 0] - b.puntos[ib, 0], a.puntos[ia, 1] - b.puntos[ib, 1])
-    caminar, integrado = _caminata_de_transbordo(a.estacion[ia], b.estacion[ib], entre)
     cambio = caminar + b.espera + np.where(integrado, PENALIZACION_TRANSBORDO_INTEGRADO_MIN, PENALIZACION_TRANSBORDO_MIN)
+    if llegadas is None:
+        llegadas = [_en_indices_de_ruta(s) for s in _llegadas(a, a_origen, limite)]
+    if salidas is None:
+        salidas = [_en_indices_de_ruta(s) for s in _salidas(b, b_destino, limite)]
 
     mejor = None
-    for llegada in _llegadas(a, a_origen, limite):
-        llega_a, sube_a = _en_indices_de_ruta(llegada)
-        for salida in _salidas(b, b_destino, limite):
-            falta_b, baja_b = _en_indices_de_ruta(salida)
+    for llega_a, sube_a in llegadas:
+        for falta_b, baja_b in salidas:
             total = llega_a[ia] + cambio + falta_b[ib]
             k = int(np.argmin(total))
             if np.isfinite(total[k]) and (mejor is None or total[k] < mejor[0]):
@@ -424,20 +464,29 @@ def _con_transbordo(a: RutaMuestreada, b: RutaMuestreada, origen, destino,
     ))
 
 
-def _caminata_de_transbordo(estacion_a: np.ndarray, estacion_b: np.ndarray,
-                            entre: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def _caminata_de_transbordo(estacion_a: np.ndarray, estacion_b: np.ndarray, entre: np.ndarray,
+                            codigo_a: np.ndarray, codigo_b: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """
     Minutos de la caminata de cada transbordo posible y si es integrado. En la misma estación se cambia de
     andén; en una integración oficial se camina lo que mide de verdad; si no, la línea recta con rodeo y, si
-    se sube en una estación troncal desde la calle, el cruce de la avenida.
+    se sube en una estación troncal desde la calle, el cruce de la avenida. Las estaciones van como texto y como
+    número (`RutaMuestreada.codigo_de_estacion`).
     """
-    misma = (estacion_a != "") & (estacion_a == estacion_b)
-    integracion = [INTEGRACIONES.get(frozenset({x, y})) if x and y and x != y else None
-                   for x, y in zip(estacion_a, estacion_b)]
-    oficial = np.array([i is not None for i in integracion], dtype=bool)
-    por_integracion = np.array([i.caminata_m / VELOCIDAD_CAMINATA_M_POR_MIN + i.cruce_min if i else 0.0
-                                for i in integracion])
-    desde_la_calle = minutos_caminando(entre) + np.where(estacion_b != "", CRUCE_A_ESTACION_MIN, 0.0)
+    misma = (codigo_a >= 0) & (codigo_a == codigo_b)
+    # Solo los pares entre dos estaciones distintas pueden ser una integración: se buscan una vez por par de estaciones.
+    entre_estaciones = np.flatnonzero((codigo_a >= 0) & (codigo_b >= 0) & ~misma)
+    oficial = np.zeros(len(entre), dtype=bool)
+    por_integracion = np.zeros(len(entre))
+    if len(entre_estaciones):
+        pares = list(zip(estacion_a[entre_estaciones], estacion_b[entre_estaciones]))
+        minutos_por_par = {}
+        for par in set(pares):
+            i = INTEGRACIONES.get(frozenset(par))
+            minutos_por_par[par] = i.caminata_m / VELOCIDAD_CAMINATA_M_POR_MIN + i.cruce_min if i else None
+        minutos_del_par = [minutos_por_par[par] for par in pares]
+        oficial[entre_estaciones] = [m is not None for m in minutos_del_par]
+        por_integracion[entre_estaciones] = [m or 0.0 for m in minutos_del_par]
+    desde_la_calle = minutos_caminando(entre) + np.where(codigo_b >= 0, CRUCE_A_ESTACION_MIN, 0.0)
     minutos = np.where(misma, TRANSBORDO_EN_ESTACION_M / VELOCIDAD_CAMINATA_M_POR_MIN,
                        np.where(oficial, por_integracion, desde_la_calle))
     return minutos, misma | oficial
@@ -487,11 +536,15 @@ def planificar(rutas: list[RutaTransporte], estaciones: list[Estacion],
         if m.ruta.id in sirven_al_destino:
             opciones.append(_directa(m, origen, destino, a_origen[m.ruta.id], a_destino[m.ruta.id], limite))
     if con_transbordos:
+        llegadas = {a.ruta.id: [_en_indices_de_ruta(s) for s in _llegadas(a, a_origen[a.ruta.id], limite)]
+                    for a in cerca_del_origen}
+        salidas = {b.ruta.id: [_en_indices_de_ruta(s) for s in _salidas(b, a_destino[b.ruta.id], limite)]
+                   for b in cerca_del_destino}
         for a in cerca_del_origen:
             for b in cerca_del_destino:
                 if a.ruta.id != b.ruta.id:
                     opciones.append(_con_transbordo(a, b, origen, destino, a_origen[a.ruta.id], a_destino[b.ruta.id],
-                                                    limite))
+                                                    limite, llegadas[a.ruta.id], salidas[b.ruta.id]))
     utiles = _depurar([o for o in opciones
                        if o and (caminando is None or o.tiempo_total_min < caminando.tiempo_total_min)])
     if caminando:

@@ -1,3 +1,4 @@
+import threading
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from typing import Literal
@@ -10,7 +11,7 @@ from src.domain.paraderos import abordaje
 from src.domain.ports import IncidentRepository, PlaceRepository, StopMappingRepository, TransitRepository
 from src.domain.route_risk import PENALIZACION_RIESGO_MIN, RADIO_BUSQUEDA_M, ResultadoRiesgo, evaluar_riesgo
 from src.domain.trip_planning import (
-    CAMINATA_MAXIMA_DE_ACCESO_M, MAX_CORTES_CONFIABLES, OpcionViaje, PasoCercano, advertencia_de_estacion,
+    CAMINATA_MAXIMA_DE_ACCESO_M, MAX_CORTES_CONFIABLES, OpcionViaje, PasoCercano, RutaMuestreada, advertencia_de_estacion,
     caminata_entre, carril_de_la_troncal, costo_percibido, con_alternativas, donde_pasa_cerca, el_que_pase_primero,
     estaciones_en_orden, muestrear, paradas_del_tramo, planificar,
 )
@@ -21,6 +22,46 @@ Criterio = Literal["rapida", "segura", "sin_transbordo"]
 PESO_DEL_RIESGO = {"rapida": 1, "segura": 3, "sin_transbordo": 1}
 CAMINATA_LARGA_M = 2500   # si ninguna ruta pasa cerca, se busca caminando hasta esto (a pie de verdad), y se avisa
 MotivoDelAviso = Literal["horario", "caminata", "caminata_larga"]
+
+
+def _huella_de_ruta(r: RutaTransporte) -> int:
+    return hash((r.id, r.nombre, r.tipo, r.desde, r.hasta, r.cortes_en_osm, tuple(map(tuple, r.coordenadas))))
+
+
+class _Muestreos:
+    """
+    Muestrear una ruta, y cruzarla con las demás para los transbordos, es lo más pesado de planificar y depende solo
+    de su recorrido, de las estaciones y del carril de la troncal. Se guarda entre consultas y se rehace si esos datos
+    cambian (al recargar los datos de referencia).
+    """
+
+    def __init__(self):
+        self._candado = threading.Lock()
+        self._comun: int | None = None
+        self._carril = None
+        self._por_ruta: dict[str, tuple[int, RutaMuestreada | None]] = {}
+
+    def de(self, rutas: list[RutaTransporte], troncales: list[RutaTransporte],
+           estaciones: list[Estacion]) -> list[RutaMuestreada]:
+        comun = hash((tuple((e.id, e.longitud, e.latitud, tuple(e.rutas)) for e in estaciones),
+                      tuple(_huella_de_ruta(t) for t in troncales)))
+        with self._candado:
+            if comun != self._comun:
+                self._comun, self._carril, self._por_ruta = comun, carril_de_la_troncal(troncales), {}
+            muestras = []
+            for r in rutas:
+                if r.cortes_en_osm > MAX_CORTES_CONFIABLES:
+                    continue
+                huella = _huella_de_ruta(r)
+                guardado = self._por_ruta.get(r.id)
+                if guardado is None or guardado[0] != huella:
+                    guardado = self._por_ruta[r.id] = (huella, muestrear(r, estaciones, self._carril))
+                if guardado[1] is not None:
+                    muestras.append(guardado[1])
+            return muestras
+
+
+_MUESTREOS = _Muestreos()
 
 
 @dataclass(frozen=True)
@@ -86,7 +127,8 @@ class TripService:
             motivo = "horario" if aviso else None
             if aviso is None and caminata_maxima_m and any(
                     o.rutas for o in planificar(en_servicio, estaciones, origen, destino,
-                                                con_transbordos=criterio != "sin_transbordo")):
+                                                con_transbordos=criterio != "sin_transbordo",
+                                                muestras=self._muestras(en_servicio, estaciones))):
                 aviso, motivo = (f"Caminando hasta {caminata_maxima_m} m no hay rutas que te sirvan. "
                                  "Si puedes caminar un poco más, sí las hay."), "caminata"
             elif aviso is None and caminata_maxima_m is None:
@@ -111,9 +153,7 @@ class TripService:
         cercanas = self.transit.routes_intersecting_any(areas)
         en_servicio = [r for r in cercanas if opera(horarios.get(r.id), salida)]
 
-        carril = carril_de_la_troncal(self.transit.list_routes("troncal"))
-        muestras = [m for r in en_servicio if r.cortes_en_osm <= MAX_CORTES_CONFIABLES
-                    if (m := muestrear(r, estaciones, carril)) is not None]
+        muestras = self._muestras(en_servicio, estaciones)
         opciones = el_que_pase_primero(planificar(en_servicio, estaciones, origen, destino,
                                                   con_transbordos=criterio != "sin_transbordo",
                                                   caminata_maxima_m=caminata_maxima_m, muestras=muestras), estaciones)
@@ -128,6 +168,9 @@ class TripService:
         evaluadas.sort(key=lambda par: costo_percibido(par[0]) + peso * PENALIZACION_RIESGO_MIN[par[1].nivel])
         return cercanas, en_servicio, evaluadas
 
+    def _muestras(self, rutas: list[RutaTransporte], estaciones: list[Estacion]) -> list[RutaMuestreada]:
+        return _MUESTREOS.de(rutas, self.transit.list_routes("troncal"), estaciones)
+
     def _aviso_de_horario(self, cercanas, en_servicio, horarios, estaciones, origen, destino,
                           criterio: Criterio, salida: datetime) -> str | None:
         """Si no hay opciones en bus porque las rutas que servirían no operan a esa hora, cuándo sale la primera.
@@ -135,7 +178,8 @@ class TripService:
         fuera_de_horario = [r for r in cercanas if r not in en_servicio]
         if not fuera_de_horario:
             return None
-        servirian = planificar(cercanas, estaciones, origen, destino, con_transbordos=criterio != "sin_transbordo")
+        servirian = planificar(cercanas, estaciones, origen, destino, con_transbordos=criterio != "sin_transbordo",
+                               muestras=self._muestras(cercanas, estaciones))
         rutas_utiles = {r.id for opcion in servirian for r in opcion.rutas}
         proximo = proximo_servicio([horarios[r.id] for r in fuera_de_horario
                                     if r.id in rutas_utiles and r.id in horarios], salida)

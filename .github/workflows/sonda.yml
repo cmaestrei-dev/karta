@@ -1,0 +1,24 @@
+# Sonda externa de la API (plan de calidad, D1): pide /health cada 10 minutos desde fuera de AWS. Si falla, GitHub le
+# escribe a quien editó este horario por última vez, y el historial de corridas mide la disponibilidad del mes.
+# La dirección va en el secreto KARTA_API_URL (…/api/v1). GitHub solo corre horarios de la rama principal, y los
+# pausa tras 60 días sin actividad en el repositorio.
+name: Sonda de la API
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  salud:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: GET /health
+        env:
+          URL: ${{ secrets.KARTA_API_URL }}
+        run: |
+          if [ -z "$URL" ]; then echo "::notice::Falta el secreto KARTA_API_URL; no hay nada que probar."; exit 0; fi
+          curl -fsS --max-time 20 --retry 2 --retry-delay 15 --retry-all-errors "$URL/health"

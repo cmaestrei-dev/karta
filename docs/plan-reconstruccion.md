@@ -86,9 +86,12 @@ Con eso el servidor estima «sale en ~6 min, según 3 viajeros». Todo vence sol
 - **Animaciones:** el recorrido que se dibuja, los reportes que caen y las hojas que suben, respetando la opción de reducir movimiento del sistema.
 - **Documentación:** reemplaza a «Cal y azulejo»; DESIGN.md se reescribe al final de la fase 1.
 
-**D7 · Despliegue.**
-- **Datos:** MongoDB Atlas M0, gratis.
-- **API:** el contenedor de la API en un servicio gratuito con HTTPS. Render es la primera opción; en la fase 0 se verifican sus condiciones actuales.
+**D7 · Despliegue.** Actualizado el 26 de octubre: AWS en vez de Render. Detalle en [despliegue-aws.md](despliegue-aws.md).
+- **Datos:** MongoDB Atlas M0, gratis, alojado en AWS (`us-east-1`).
+- **API:** la misma app de FastAPI en AWS Lambda, con una Function URL que da HTTPS.
+  - Cabe en la capa siempre gratuita de AWS, así que cuesta USD 0 y no gasta los créditos de la cuenta.
+  - Usa AWS, una de las nubes que se vieron en clase.
+  - Un calentador de EventBridge la invoca cada 5 minutos para que no se apague.
 - **Distribución:** APK de *release* firmado para el piloto.
 - **Desarrollo:** se mantiene Docker Compose y la prueba en el teléfono por cable (`adb reverse`).
 
@@ -194,7 +197,7 @@ Con eso el servidor estima «sale en ~6 min, según 3 viajeros». Todo vence sol
 
 **D17 · Aprender de los demás y medirnos.** Google Maps es un competidor directo: muy completo, pero con quejas por su navegación y por las rutas y los tiempos de transporte.
 - **Estudio de las reseñas** de las tiendas (Google Play y App Store) de Google Maps, Moovit, Waze, MiBus y las apps de Transcaribe y TransMilenio: los dolores más frecuentes, lo que se valora y qué adoptar y evitar (en curso).
-- **Pruebas comparativas en el piloto** (fase 4):
+- **Pruebas comparativas en el piloto** (fase 4; cómo se hace todo el piloto: [plan del piloto](piloto/plan-del-piloto.md)):
   - **Recorridos:** 10 trayectos típicos, planificados en Karta, Google Maps y Moovit.
   - **Qué se mide:**
     - el error de la hora de llegada estimada frente a la real;
@@ -202,6 +205,10 @@ Con eso el servidor estima «sale en ~6 min, según 3 viajeros». Todo vence sol
     - cuántos toques hacen falta para empezar un viaje;
     - batería y datos móviles por hora de viaje.
 - **Primera comparación (25 de octubre):** 10 trayectos en Karta, Google Maps y Moovit el lunes a las 8:00; ver [comparacion-apps.md](comparacion-apps.md). Karta llega primero, o a menos de 6 minutos de la mejor, en 7 de 10. De ahí salieron tres arreglos: la caminata larga cuando ninguna ruta pasa cerca, las X fuera del carril de la troncal y el motivo de cada aviso.
+- **Medición automática (fase 4, 26 de octubre):** al llegar, la app muestra «Tardaste 37 min, 3 más de lo que estimó Karta».
+  - Si el viajero comparte sus viajes, envía lo estimado y lo real, en total y por bus (espera y tiempo a bordo), sin puntos ni paraderos (`POST /api/v1/trip-results`, se borra a los 180 días).
+  - `python -m scripts.informe_de_precision` arma el informe: la mediana del error, cuánto se equivoca el 90 % y qué parte queda a menos de 5 minutos. Lo da en total, por hora y por ruta, y solo con grupos de 10 viajes o más.
+  - Así el error de la hora de llegada de Karta se mide en cada viaje del piloto, no solo en los 10 trayectos comparados a mano.
 - **Trazas para pruebas:** con permiso expreso de quienes hagan el piloto, se graban los recorridos GPS reales. Se usan para reproducir viajes en las pruebas automáticas y para afinar el seguidor. Nunca salen del equipo de desarrollo y se borran al terminar.
 
 **D18 · Estaciones por dentro: plataformas, sentido y estaciones confusas** (propuesto el 25 de octubre).
@@ -366,17 +373,19 @@ Cada fase termina con una demostración en el teléfono y un PR fusionado.
 | Xiaomi cierra el viaje activo en segundo plano | Servicio en primer plano, guía de permisos en la app y prueba en el POCO desde la fase 3. |
 | Al principio no hay datos de la comunidad | Piloto con compañeros en la fase 4. Para la presentación, un modo demo **claramente etiquetado** como tal; nunca se mezcla con datos reales. |
 | Reportes falsos o abuso | Votos, reputación, vigencias cortas, límite de peticiones y un voto por usuario. |
-| Privacidad de la ubicación (Ley 1581) | Compartir por defecto con aviso claro una vez y revocable en Privacidad; solo el tramo en bus; viajes anónimos, TTL corto y sin historial. Falta la política de tratamiento de datos escrita (fase 4). |
+| Privacidad de la ubicación (Ley 1581) | Compartir por defecto con aviso claro una vez y revocable en Privacidad; solo el tramo en bus; viajes anónimos, TTL corto y sin historial. Desde la fase 4: [política de tratamiento](../backend/data/legal/politica-de-tratamiento.md) en la app y en la web, aviso de privacidad antes de recoger cualquier dato (con prueba de la autorización), «Borrar mi cuenta y mis datos» y [manual interno](legal/manual-de-datos-personales.md). |
 | Datos abiertos incompletos o desactualizados | Contrastar con OpenStreetMap y mostrar la fuente y la fecha. |
 | Falta de tiempo | Recortes en este orden: (1) posición compartida en vivo, (2) transbordos, (3) niveles de reputación. El resto es el núcleo. |
 
 ## 11. Fuera de alcance (después de la entrega final)
 
-- Busetas y rutas tradicionales: datos abiertos del distrito o mapeo comunitario. Con ellas llega «¡Grita parada!» (D11).
+- Busetas, corredores intermunicipales y lanchas: [plan de otros transportes](plan-otros-transportes.md). Con las busetas llega «¡Grita parada!» (D11).
 - Marcar los paraderos reales: los niveles 4 y 5 los proponen sobre el mapa (D10, D12).
 - iOS y web.
 - Saldo de la tarjeta: depende de los sistemas de Transcaribe.
-- Monetización: [plan de sostenibilidad sin anuncios](plan-sostenibilidad.md).
+- Monetización: [plan de sostenibilidad sin anuncios](plan-sostenibilidad.md) y [qué datos guardar y vender](plan-datos-y-monetizacion.md).
+- Calidad (escalabilidad, disponibilidad, latencia, seguridad y consistencia): [plan de calidad](plan-calidad.md).
+- Todo lo pendiente, y de qué depende: [pendientes](pendientes.md).
 - Datos de tráfico externos: [plan de datos de tráfico](plan-datos-de-trafico.md).
 - Licencias y publicación: [plan de código abierto](plan-codigo-abierto.md) (AGPL en el servidor, Apache en la app).
 - Transporte privado: excluido.

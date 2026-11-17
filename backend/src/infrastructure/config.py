@@ -20,6 +20,13 @@ if len(JWT_SECRET) < 32:
     raise ValueError("Error Crítico: JWT_SECRET debe tener al menos 32 caracteres.")
 JWT_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", "10080"))  # 7 días
 
+# Política de tratamiento de datos: fecha de vigencia y contacto del responsable. Van en la configuración del
+# servidor, no en el repositorio público.
+POLITICA_VIGENTE_DESDE = os.getenv("POLITICA_VIGENTE_DESDE", "[por definir]")
+RESPONSABLE_CORREO = os.getenv("RESPONSABLE_CORREO", "[por definir]")
+RESPONSABLE_TELEFONO = os.getenv("RESPONSABLE_TELEFONO", "[por definir]")
+RESPONSABLE_DIRECCION = os.getenv("RESPONSABLE_DIRECCION", "[por definir]")
+
 # Orígenes permitidos separados por coma (ej: "https://karta.app,http://localhost:5173").
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
 
@@ -37,3 +44,20 @@ LIMITE_RESPUESTAS_PARADA = (int(os.getenv("LIMITE_RESPUESTAS_PARADA_POR_10_MIN",
 LIMITE_MARCAS = (int(os.getenv("LIMITE_MARCAS_POR_10_MIN", "10")), 600)  # por viajero
 LIMITE_VIAJES_DE_MAPEO = (int(os.getenv("LIMITE_VIAJES_DE_MAPEO_POR_HORA", "6")), 3600)  # por viajero
 LIMITE_POSICIONES = (int(os.getenv("LIMITE_POSICIONES_POR_10_MIN", "40")), 600)  # por viajero
+LIMITE_RESULTADOS_DE_VIAJE = (int(os.getenv("LIMITE_RESULTADOS_DE_VIAJE_POR_HORA", "6")), 3600)  # por viajero
+
+# Por IP, en memoria y para todas las rutas (limite_en_memoria.py): (por minuto, ráfaga). Un viajero activo hace
+# menos de 10 peticiones por minuto (la llegada y la posición, cada 30 s); planificar y buscar cuestan más.
+LIMITE_IP_GENERAL = (int(os.getenv("LIMITE_IP_POR_MINUTO", "240")), 60)
+LIMITE_IP_PLANIFICAR = (int(os.getenv("LIMITE_IP_PLANIFICAR_POR_MINUTO", "30")), 10)
+LIMITE_IP_BUSCAR = (int(os.getenv("LIMITE_IP_BUSCAR_POR_MINUTO", "120")), 30)
+
+# Cada cuántos segundos se guardan en la base los conteos del piloto (0: en cada petición). En Lambda se juntan en
+# memoria para no escribir en Atlas por cada consulta de llegada.
+CONTADORES_CADA_S = int(os.getenv("CONTADORES_CADA_S", "0"))
+
+# La clave de las huellas que cuentan personas distintas por estadística (aportes.py). La pone el despliegue.
+CLAVE_DE_APORTES = os.getenv("CLAVE_DE_APORTES", "")
+
+# El bucket privado de S3 de la copia diaria (respaldo.py). Lo pone el despliegue.
+RESPALDOS_BUCKET = os.getenv("RESPALDOS_BUCKET", "")

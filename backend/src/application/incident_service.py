@@ -3,7 +3,9 @@ from datetime import datetime, timezone
 
 from src.domain.geo import corredor_de_ruta
 from src.domain.models import Incidente, Usuario
-from src.domain.ports import IncidentRepository, PlaceRepository, TransitRepository, UserRepository
+from src.domain.indicadores import dia, inicio_del_dia
+from src.domain.politica import VERSION_POLITICA
+from src.domain.ports import Contadores, IncidentRepository, PlaceRepository, TransitRepository, UserRepository
 from src.domain.reportes import (
     CATALOGO, REPUTACION_POR_CONFIRMACION, REPUTACION_POR_RETIRO, REPUTACION_POR_VOTAR, DetallesInvalidos,
     IncidenteNoEncontrado, TipoReporte, VotoPropio, debe_retirarse, expiracion_al_confirmar, validar_detalles,
@@ -34,11 +36,22 @@ class IncidentService:
     MISMO_LUGAR_M = 75
 
     def __init__(self, incidents: IncidentRepository, users: UserRepository,
-                 places: PlaceRepository, transit: TransitRepository):
+                 places: PlaceRepository, transit: TransitRepository, contadores: Contadores | None = None):
         self.incidents = incidents
         self.users = users
         self.places = places
         self.transit = transit
+        self.contadores = contadores
+
+    def _contar(self, ahora: datetime, campos: dict[str, int]) -> None:
+        """Los indicadores del piloto (docs/plan-comunidad.md, §5), sin quién."""
+        if self.contadores:
+            self.contadores.sumar(dia(ahora), campos)
+
+    def _contar_persona(self, accion: str, usuario: Usuario, ahora: datetime, campo: str) -> None:
+        """Una persona más en el día si es su primera vista o su primer «Gracias» de hoy."""
+        if self.contadores and self.incidents.actions_since(accion, usuario.id, inicio_del_dia(ahora)) == 1:
+            self._contar(ahora, {campo: 1})
 
     @staticmethod
     def catalogo() -> list[TipoReporte]:
@@ -58,6 +71,7 @@ class IncidentService:
             sin_cuenta=usuario.sin_cuenta, nivel_autor=usuario.nivel,
         )
         self.users.sumar_impacto(usuario.id, "reportes")
+        self._contar(ahora, {"reportes.creados": 1})
         return creado
 
     def list_active(self, caja: tuple[float, float, float, float] | None = None) -> list[Incidente]:
@@ -69,8 +83,12 @@ class IncidentService:
         incidente = self._vigente(incidente_id)
         autor = self.users.get_by_id(incidente.reportado_por)
         es_mio = usuario is not None and usuario.id == incidente.reportado_por
-        if usuario and not es_mio and self.incidents.register_view(incidente_id, usuario.id, datetime.now(timezone.utc)):
+        ahora = datetime.now(timezone.utc)
+        autorizado = usuario is not None and usuario.autorizacion == VERSION_POLITICA
+        if autorizado and not es_mio and self.incidents.register_view(incidente_id, usuario.id, ahora):
             self.users.sumar_impacto(incidente.reportado_por, "vistas")
+            self._contar(ahora, {"vistas": 1})
+            self._contar_persona("vista", usuario, ahora, "personas.vieron_reportes")
         return DetalleDeIncidente(
             incidente=incidente,
             alias_autor=autor.alias if autor else "Un viajero",
@@ -84,8 +102,11 @@ class IncidentService:
         incidente = self._vigente(incidente_id)
         if incidente.reportado_por == usuario.id:
             raise VotoPropio()
-        actualizado = self.incidents.register_thanks(incidente_id, usuario.id, datetime.now(timezone.utc))
+        ahora = datetime.now(timezone.utc)
+        actualizado = self.incidents.register_thanks(incidente_id, usuario.id, ahora)
         self.users.sumar_impacto(incidente.reportado_por, "gracias")
+        self._contar(ahora, {"gracias": 1})
+        self._contar_persona("gracias", usuario, ahora, "personas.agradecieron")
         return actualizado
 
     def vote(self, usuario: Usuario, incidente_id: str, sigue: bool) -> ResultadoDeVoto:
@@ -100,6 +121,7 @@ class IncidentService:
         if incidente.reportado_por == usuario.id:
             raise VotoPropio()
         self.incidents.register_vote(incidente_id, usuario.id, sigue, ahora)  # VotoRepetido si ya votó
+        self._contar(ahora, {"reportes.confirmaciones" if sigue else "reportes.desmentidos": 1})
 
         if sigue:
             nueva = expiracion_al_confirmar(CATALOGO[incidente.tipo], incidente.expira_en, ahora)

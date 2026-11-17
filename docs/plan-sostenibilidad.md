@@ -17,7 +17,7 @@ Cifras de orden de magnitud, que se verifican antes de cada etapa:
 
 | Etapa | Usuarios | Infraestructura | Costo aproximado |
 |---|---|---|---|
-| Piloto (fase 4) | Decenas | MongoDB Atlas M0 (512 MB, gratis), servidor gratis con HTTPS y teselas de OpenFreeMap | **USD 0** al mes; el servidor gratis se «duerme» sin uso y la primera petición tarda |
+| Piloto (fase 4) | Decenas | MongoDB Atlas M0 (512 MB, gratis), la API en AWS Lambda con su Function URL (capa siempre gratuita) y teselas de OpenFreeMap | **USD 0** al mes; tras un arranque en frío, la primera petición tarda unos segundos más |
 | Ciudad | Algunos miles | Un servidor pequeño siempre encendido y una base de datos pagada (o MongoDB en el mismo servidor) | **USD 20–80** al mes |
 | Tiendas | — | Google Play: pago único de USD 25. Apple: USD 99 al año. Dominio: ~USD 15 al año | Pagos fijos |
 

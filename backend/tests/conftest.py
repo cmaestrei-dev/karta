@@ -9,6 +9,9 @@ os.environ.setdefault("JWT_SECRET", "secreto-solo-para-pruebas-0123456789abcdef"
 os.environ.setdefault("LIMITE_REGISTRO_POR_HORA", "100000")
 os.environ.setdefault("LIMITE_LOGIN_POR_MINUTO", "100000")
 os.environ.setdefault("LIMITE_CUENTAS_INVISIBLES_POR_HORA", "100000")
+# Y el límite por IP en memoria: aquí todas las peticiones vienen de la misma «IP» del cliente de pruebas.
+for limite in ("LIMITE_IP_POR_MINUTO", "LIMITE_IP_PLANIFICAR_POR_MINUTO", "LIMITE_IP_BUSCAR_POR_MINUTO"):
+    os.environ.setdefault(limite, "100000000")
 # Siempre una base aislada y desechable, nunca la de desarrollo.
 os.environ["MONGO_DB"] = f"karta_test_{uuid.uuid4().hex[:8]}"
 

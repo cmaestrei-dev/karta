@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' show max;
 
 import 'package:equatable/equatable.dart';
 import 'package:flutter/services.dart';
@@ -9,6 +10,7 @@ import '../../trip/domain/trip_models.dart';
 import '../data/avisos.dart';
 import '../data/preferencia_de_compartir.dart';
 import '../data/tiempo_real_repository.dart';
+import '../domain/resultado_del_viaje.dart';
 import '../domain/seguidor_de_viaje.dart';
 import 'instrucciones.dart';
 
@@ -55,6 +57,9 @@ class ViajeState extends Equatable {
   final String? rutaQueLlega;
   final String? rutaABordo;
 
+  /// Al llegar: cuánto estimó Karta y cuánto tardó.
+  final ResultadoDelViaje? resultado;
+
   const ViajeState({
     required this.estado,
     this.posicion,
@@ -71,6 +76,7 @@ class ViajeState extends Equatable {
     this.comoSePideAqui,
     this.rutaQueLlega,
     this.rutaABordo,
+    this.resultado,
   });
 
   /// Los campos que pueden volver a null se pasan como función: `llegada: () => null`.
@@ -90,6 +96,7 @@ class ViajeState extends Equatable {
     ComoSePideAqui? Function()? comoSePideAqui,
     String? Function()? rutaQueLlega,
     String? Function()? rutaABordo,
+    ResultadoDelViaje? Function()? resultado,
   }) =>
       ViajeState(
         estado: estado ?? this.estado,
@@ -107,12 +114,13 @@ class ViajeState extends Equatable {
         comoSePideAqui: comoSePideAqui != null ? comoSePideAqui() : this.comoSePideAqui,
         rutaQueLlega: rutaQueLlega != null ? rutaQueLlega() : this.rutaQueLlega,
         rutaABordo: rutaABordo != null ? rutaABordo() : this.rutaABordo,
+        resultado: resultado != null ? resultado() : this.resultado,
       );
 
   @override
   List<Object?> get props => [
         estado, posicion, ultimoEvento, error, llegada, compartiendo, ocupacion, pedirLaParada, desvioDelBus,
-        preguntarVarado, varadoReportado, preguntarComoPediste, comoSePideAqui, rutaQueLlega, rutaABordo,
+        preguntarVarado, varadoReportado, preguntarComoPediste, comoSePideAqui, rutaQueLlega, rutaABordo, resultado,
       ];
 }
 
@@ -158,6 +166,13 @@ class ViajeCubit extends Cubit<ViajeState> {
   bool _quiereCompartir = false;
   String? _viajeCompartido;
   DateTime? _ultimoEnvio;
+
+  // Para el resultado del viaje (D17): cuándo empezó, desde cuándo espera, cuándo subió y lo medido de cada bus.
+  DateTime? _inicio;
+  DateTime? _esperaDesde;
+  int? _esperaMedida;
+  DateTime? _subioEn;
+  final _medidos = <BusMedido>[];
 
   ViajeCubit({
     required this.opcion,
@@ -212,6 +227,8 @@ class ViajeCubit extends Cubit<ViajeState> {
   }
 
   Future<void> iniciar() async {
+    _inicio = reloj();
+    if (seguidor.estado.fase == Fase.esperando) _esperaDesde = _inicio;
     if (tiempoReal != null) _quiereCompartir = await preferencia.compartir() && await preferencia.avisoVisto();
     await avisos.pedirPermiso();
     if (isClosed) return;
@@ -244,12 +261,20 @@ class ViajeCubit extends Cubit<ViajeState> {
     _seMovio(punto);
     if (seguidor.estado.desviado && seguidor.estado.fase == Fase.aBordo) _huboPregunta = true; // «¿Se desvió?»
     for (final evento in eventos) {
-      if (evento == EventoDelViaje.bajaste) _alBajar(tramoAntes);
-      if (evento == EventoDelViaje.subiste) _alSubir();
+      if (evento == EventoDelViaje.bajaste) {
+        _medirBajada(tramoAntes);
+        _alBajar(tramoAntes);
+      }
+      if (evento == EventoDelViaje.subiste) {
+        _medirSubida();
+        _alSubir();
+      }
       if (evento == EventoDelViaje.pideLaParada) {
         emit(state.copyWith(pedirLaParada: () => comoPedirLaParada(seguidor.tramoActual)));
       }
     }
+    if (seguidor.estado.fase == Fase.esperando) _esperaDesde ??= reloj();
+    if (eventos.contains(EventoDelViaje.llegaste)) _alLlegar();
     _seguirLlegada();
     _enviarPosicion(punto);
     if (seguidor.estado.fase == Fase.llegaste) _suscripcion?.cancel();
@@ -501,6 +526,45 @@ class ViajeCubit extends Cubit<ViajeState> {
       }
     } catch (_) {
       // Sin conexión o demasiados envíos: se reintenta con la próxima posición.
+    }
+  }
+
+  // Qué tan bien estimó Karta (D17) -------------------------------------------------------------------------------
+
+  void _medirSubida() {
+    final desde = _esperaDesde;
+    _esperaMedida = desde == null ? null : minutosDe(reloj().difference(desde));
+    _esperaDesde = null;
+    _subioEn = reloj();
+  }
+
+  /// Antes de [_alBajar], que olvida en cuál ruta iba.
+  void _medirBajada(Leg bus) {
+    final subio = _subioEn, ruta = state.rutaABordo ?? _rutaPrevista ?? bus.ruta;
+    _subioEn = null;
+    if (subio == null || ruta == null || bus.esCaminata) return;
+    _medidos.add(BusMedido(
+      ruta: ruta,
+      esperaEstimadaMin: bus.esperaMin,
+      esperaRealMin: _esperaMedida,
+      aBordoEstimadoMin: bus.duracionMin,
+      aBordoRealMin: minutosDe(reloj().difference(subio)),
+    ));
+  }
+
+  /// Llegó: cuánto estimó Karta al empezar y cuánto tardó. Si comparte sus viajes, se envía con ese mismo permiso,
+  /// sin puntos ni paraderos.
+  void _alLlegar() {
+    final inicio = _inicio;
+    if (inicio == null || state.resultado != null) return;
+    final resultado = ResultadoDelViaje(
+      estimadoMin: opcion.tiempoTotalMin,
+      realMin: max(1, minutosDe(reloj().difference(inicio))),
+      buses: List.unmodifiable(_medidos),
+    );
+    emit(state.copyWith(resultado: () => resultado));
+    if (_quiereCompartir && haySesion() && tiempoReal != null && resultado.buses.isNotEmpty) {
+      tiempoReal!.resultadoDelViaje(resultado).catchError((_) {});
     }
   }
 

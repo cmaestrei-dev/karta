@@ -58,6 +58,8 @@ Se revisó el [Portal de Datos Abiertos de Cartagena](https://datosabiertos.cart
 
 ## F0-3 · Despliegue para el piloto
 
+> **Reemplazada el 26 de octubre:** la API va en AWS Lambda con una Function URL, y la base en Atlas M0 alojado en AWS. Cuesta USD 0, no se duerme como Render y usa AWS, una de las nubes vistas en clase. Ver [despliegue-aws.md](despliegue-aws.md). Lo que sigue es la decisión original.
+
 - **API:** el contenedor Docker actual en el plan gratuito de Render.
   - 512 MB de RAM, 0,1 vCPU y 750 h al mes.
   - Se duerme tras 15 min sin uso y tarda de 30 a 60 s en despertar.

@@ -1,6 +1,8 @@
 """La cuenta invisible: entrar sin registrarse, registrarse desde ella y los reportes «por confirmar»."""
 import secrets
 
+from src.domain.politica import VERSION_POLITICA
+
 BAZURTO = {"latitud": 10.4139, "longitud": -75.5244}
 # Un tramo de la Pedro de Heredia que pasa por Bazurto, para el riesgo de la ruta.
 TRAMO = [{"lat": 10.4120, "lon": -75.5225}, {"lat": 10.4139, "lon": -75.5244}, {"lat": 10.4155, "lon": -75.5262}]
@@ -10,8 +12,9 @@ def _auth(token):
     return {"Authorization": f"Bearer {token}"}
 
 
-def _invisible(api, secreto=None):
-    respuesta = api.post("/api/v1/auth/anonymous", json={"secreto": secreto or secrets.token_urlsafe(32)})
+def _invisible(api, secreto=None, politica=VERSION_POLITICA):
+    cuerpo = {"secreto": secreto or secrets.token_urlsafe(32), "politica": politica}
+    respuesta = api.post("/api/v1/auth/anonymous", json=cuerpo)
     assert respuesta.status_code == 200, respuesta.text
     return respuesta.json()
 
@@ -92,3 +95,26 @@ def test_los_reportes_sin_cuenta_quedan_por_confirmar_y_no_pesan_hasta_que_otro_
     directo = api.post("/api/v1/incidents/", headers=_auth(con_cuenta),
                        json={"tipo": "bus_no_pasa", "detalles": {"ruta": "T103"}, **BAZURTO})
     assert directo.json()["por_confirmar"] is False
+
+
+def test_sin_aceptar_la_politica_no_se_recibe_ningun_dato(api):
+    """Ley 1581, art. 9: la cuenta existe, pero ningún dato suyo entra sin la prueba de la autorización."""
+    secreto = secrets.token_urlsafe(32)
+    sin_aceptar = _invisible(api, secreto, politica=None)
+    assert sin_aceptar["usuario"]["autorizacion"] is None
+    token = sin_aceptar["access_token"]
+    escrituras = [
+        ("/api/v1/incidents/", {"tipo": "trancon", "detalles": {"estado": "lento"}, **BAZURTO}),
+        ("/api/v1/sightings", {"ruta": "X104", **BAZURTO}),
+        ("/api/v1/users/me/places", {"nombre": "Casa", "icono": "casa", **BAZURTO}),
+    ]
+    for ruta, cuerpo in escrituras:
+        respuesta = api.post(ruta, headers=_auth(token), json=cuerpo)
+        assert respuesta.status_code == 403 and "política" in respuesta.json()["detail"], ruta
+    # Una versión vieja no vale; la vigente, en la misma petición de la sesión, sí.
+    assert _invisible(api, secreto, politica="0.9")["usuario"]["autorizacion"] is None
+    renovada = _invisible(api, secreto)
+    assert renovada["usuario"]["autorizacion"] == VERSION_POLITICA
+    # (otra ruta que la T103: las pruebas de la llegada la consultan desde Bazurto)
+    assert api.post("/api/v1/sightings", headers=_auth(renovada["access_token"]),
+                    json={"ruta": "X104", **BAZURTO}).status_code == 201

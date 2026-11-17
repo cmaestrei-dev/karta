@@ -298,6 +298,7 @@ class _CeldaDeTipo extends StatelessWidget {
       button: true,
       label: tipo.nombre,
       excludeSemantics: true,
+      onTap: () => context.read<ReportCubit>().elegir(tipo),
       child: Material(
         color: b.tarjeta,
         borderRadius: radio,
@@ -557,6 +558,7 @@ class _Opcion extends StatelessWidget {
       selected: elegida,
       label: etiqueta,
       excludeSemantics: true,
+      onTap: onTap,
       child: Material(
         color: Colors.transparent,
         child: InkWell(

@@ -9,9 +9,10 @@ from pymongo.errors import PyMongoError
 from src.infrastructure import config
 from src.infrastructure.database import ensure_indexes, get_database
 from src.infrastructure.dependencies import get_db
+from src.infrastructure.limite_en_memoria import LimitarPorIp
 from src.infrastructure.reference_data import cargar_datos_de_referencia
 from src.infrastructure.routers import (
-    auth_router, user_router, incident_router, mapping_router, route_router, place_router, stop_router,
+    auth_router, user_router, incident_router, legal_router, mapping_router, route_router, place_router, stop_router,
     realtime_router,
 )
 
@@ -50,6 +51,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Límite por IP en memoria para todas las rutas (OWASP API4): va por fuera de todo, así un abuso no llega ni a CORS.
+app.add_middleware(LimitarPorIp)
+
 app.include_router(auth_router.router)
 app.include_router(user_router.router)
 app.include_router(incident_router.router)
@@ -58,6 +62,7 @@ app.include_router(place_router.router)
 app.include_router(stop_router.router)
 app.include_router(realtime_router.router)
 app.include_router(mapping_router.router)
+app.include_router(legal_router.router)
 
 @app.get("/", include_in_schema=False)
 async def root():

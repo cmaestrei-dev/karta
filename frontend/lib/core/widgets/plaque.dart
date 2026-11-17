@@ -92,6 +92,8 @@ class MiniPlaque extends StatelessWidget {
       button: true,
       label: label == null ? tooltip : [label, detalle].whereType<String>().join(', '),
       excludeSemantics: true,
+      onTap: onTap,
+      onLongPress: onLongPress,
       child: Material(
         color: b.tarjeta,
         borderRadius: radio,

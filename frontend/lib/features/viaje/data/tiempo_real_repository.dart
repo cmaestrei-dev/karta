@@ -4,6 +4,7 @@ import 'package:equatable/equatable.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../core/api_client.dart';
+import '../domain/resultado_del_viaje.dart';
 
 /// Qué tan lleno va un bus, según quien va en él.
 enum Ocupacion {
@@ -175,6 +176,11 @@ class TiempoRealRepository {
     final como = ComoSePidio.deApi(data['como'] as String?);
     return como == null ? null : ComoSePideAqui(como: como, viajeros: data['viajeros'] as int? ?? 0);
   }
+
+  /// Al llegar al destino: cuánto estimó Karta y cuánto se tardó, en total y en cada bus. Sin puntos ni paraderos;
+  /// sirve para medir qué tan bien estima Karta (D17).
+  Future<void> resultadoDelViaje(ResultadoDelViaje resultado) =>
+      api.post('/trip-results', resultado.toJson(), auth: true);
 
   /// Un reporte de la comunidad desde el viaje («bus_varado» del T103, «trancon» detenido).
   Future<void> reportar(String tipo, Map<String, String> detalles, LatLng punto) => api.post('/incidents/', {

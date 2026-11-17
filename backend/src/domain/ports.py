@@ -7,6 +7,7 @@ from src.domain.conocimiento import ComoSePidio, RespuestaDeParada
 from src.domain.direcciones import Cruce
 from src.domain.mapeo import EstadoDeMarca, Marca, Voto
 from src.domain.paraderos import ParaderoOficial
+from src.domain.precision import ResultadoDeViaje
 from src.domain.models import (
     Estacion, IconoLugar, Incidente, Lugar, LugarGuardado, RutaTransporte, TipoViajero, Usuario,
 )
@@ -35,6 +36,17 @@ class UserRepository(Protocol):
         ...
 
     def get_by_secret(self, huella: str) -> Usuario | None: ...
+
+    def autorizar(self, user_id: str, version: str, en: datetime) -> None:
+        """Guarda que el viajero aceptó esa versión de la política de datos, y cuándo (prueba de la autorización)."""
+        ...
+
+    def erase(self, user_id: str) -> None:
+        """
+        Borra la cuenta y todo lo que la identifica (derecho de supresión, Ley 1581). Lo que aportó al mapa común
+        (reportes y marcas de paraderos) queda, sin nada que lo ligue a la persona.
+        """
+        ...
 
     def touch(self, user_id: str, ahora: datetime) -> None:
         """Marca que la cuenta invisible sigue en uso (las abandonadas se borran solas)."""
@@ -91,6 +103,10 @@ class IncidentRepository(Protocol):
         ...
 
     def thanks_of(self, incidente_id: str, usuario_id: str) -> bool: ...
+
+    def actions_since(self, accion: str, usuario_id: str, desde: datetime) -> int:
+        """Cuántas vistas («vista») o «Gracias» («gracias») dio el viajero desde ese momento."""
+        ...
 
     def register_view(self, incidente_id: str, usuario_id: str, ahora: datetime) -> bool:
         """Anota que el viajero abrió el reporte. True si es la primera vez."""
@@ -237,8 +253,8 @@ class RealtimeRepository(Protocol):
 
     def end_trip(self, viaje: str) -> None: ...
 
-    def observations(self, ruta: str, desde: datetime) -> list[Observacion]:
-        """Avistamientos y viajes compartidos de la ruta desde ese momento."""
+    def observations(self, ruta: str, desde: datetime, ahora: datetime) -> list[Observacion]:
+        """Avistamientos desde ese momento y los viajes compartidos que siguen vivos."""
         ...
 
     def add_stop_answer(self, ruta: str, longitud: float, latitud: float, como: ComoSePidio, en: datetime) -> None:
@@ -247,3 +263,26 @@ class RealtimeRepository(Protocol):
 
     def stop_answers(self, ruta: str, longitud: float, latitud: float, radio_m: float) -> list[RespuestaDeParada]:
         ...
+
+    def add_trip_result(self, resultado: ResultadoDeViaje, en: datetime, aportante: str) -> None:
+        """
+        Cuánto estimó Karta y cuánto tardó el viaje, sin quién lo hizo ni por dónde. El aportante solo cuenta, aparte,
+        como una persona más detrás de cada cifra.
+        """
+        ...
+
+    def contributors(self, desde: datetime) -> dict[str, int]:
+        """Cuántas personas distintas aportaron a cada cifra (celdas_de) desde ese mes."""
+        ...
+
+    def trip_results(self, desde: datetime) -> list[ResultadoDeViaje]: ...
+
+
+class Contadores(Protocol):
+    """Los indicadores del piloto: conteos por día de Colombia («2026-11-18»), sin cuentas ni puntos."""
+
+    def sumar(self, dia: str, campos: dict[str, int]) -> None:
+        """Suma cada campo («reportes.creados», «llegadas.troncal.consultas.7») en el día."""
+        ...
+
+    def dias(self, desde: str, hasta: str) -> list[dict]: ...

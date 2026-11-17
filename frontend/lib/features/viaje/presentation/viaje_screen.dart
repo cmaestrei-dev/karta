@@ -22,6 +22,7 @@ import '../data/preferencia_de_compartir.dart';
 import '../data/rastreo.dart';
 import '../data/tiempo_real_repository.dart';
 import '../domain/plano_de_estacion.dart';
+import '../domain/resultado_del_viaje.dart';
 import '../domain/seguidor_de_viaje.dart';
 import 'dibujo_del_plano.dart';
 import 'instrucciones.dart';
@@ -356,7 +357,7 @@ class _ViajeViewState extends State<_ViajeView> {
                                     ),
                         ),
                       state.estado.fase == Fase.llegaste
-                          ? _Llegaste(destino: cubit.destino, onTerminar: _terminar)
+                          ? _Llegaste(destino: cubit.destino, resultado: state.resultado, onTerminar: _terminar)
                           : _BarraDeLlegada(seguidor: seguidor, arriba: arriba, onTerminar: _terminar),
                     ],
                   ),
@@ -1051,9 +1052,12 @@ class _Pildora extends StatelessWidget {
 
 class _Llegaste extends StatelessWidget {
   final String destino;
+
+  /// Cuánto estimó Karta y cuánto tardó (D17).
+  final ResultadoDelViaje? resultado;
   final VoidCallback onTerminar;
 
-  const _Llegaste({required this.destino, required this.onTerminar});
+  const _Llegaste({required this.destino, required this.resultado, required this.onTerminar});
 
   @override
   Widget build(BuildContext context) {
@@ -1074,6 +1078,12 @@ class _Llegaste extends StatelessWidget {
               Brote(child: Icon(Icons.check_circle, size: 56, color: b.enVivo)),
               const SizedBox(height: 8),
               Text('Llegaste a $destino', textAlign: TextAlign.center, style: texto.headlineSmall),
+              if (resultado case final resultado?) ...[
+                const SizedBox(height: 6),
+                Text(resultado.enPalabras,
+                    textAlign: TextAlign.center,
+                    style: texto.bodyLarge?.copyWith(fontFeatures: tabularFigures)),
+              ],
               const SizedBox(height: 4),
               Text(
                 '¿Viste algo en el camino? Repórtalo desde el inicio: le sirve a quien viene detrás.',
@@ -1272,6 +1282,9 @@ class _AvisoDeCompartir extends StatelessWidget {
             punto(Icons.person_off_outlined, 'Sin tu nombre: el viaje lleva un código al azar.'),
             punto(Icons.directions_bus_outlined, 'Solo el tramo en bus, nunca la caminata desde o hasta tu casa.'),
             punto(Icons.timer_outlined, 'Se borra 5 minutos después de la última posición.'),
+            punto(Icons.insights_outlined,
+                'Al llegar, cuánto tardaste frente a lo que estimó Karta, sin puntos ni paraderos: así medimos qué tan '
+                'bien estima.'),
             const SizedBox(height: 14),
             Text('Puedes apagarlo cuando quieras en Perfil › Privacidad.',
                 style: texto.bodySmall?.copyWith(color: b.textoSuave)),

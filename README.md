@@ -123,6 +123,11 @@ python -m src.infrastructure.seed  # opcional: datos de demostración
 uvicorn src.infrastructure.main:app --reload
 ```
 
+### En la nube (AWS)
+
+Para el piloto, la API corre en AWS Lambda con una Function URL y la base en MongoDB Atlas M0, todo en capas
+gratuitas. Cómo instalarla y actualizarla: [docs/despliegue-aws.md](docs/despliegue-aws.md).
+
 ### App Flutter
 
 Desde la carpeta `frontend/`:

@@ -17,8 +17,9 @@ def anonymous(datos: InvisibleRequest, auth: AuthService = Depends(get_auth_serv
     """
     Entra sin registrarse: el teléfono manda su secreto y recibe la sesión de su cuenta invisible (la misma
     siempre). Sin nombre ni correo. Si se borra la app, la cuenta queda huérfana y se borra a los 180 días.
+    Con `politica`, la versión del aviso que se aceptó en el teléfono, queda la prueba de la autorización.
     """
-    usuario, token = auth.invisible(secreto=datos.secreto)
+    usuario, token = auth.invisible(secreto=datos.secreto, politica=datos.politica)
     return TokenResponse(access_token=token, usuario=UserResponse.model_validate(usuario))
 
 @router.post("/register", summary="Registrarse", response_model=TokenResponse, status_code=status.HTTP_201_CREATED,
@@ -46,7 +47,7 @@ def register(datos: RegisterRequest, auth: AuthService = Depends(get_auth_servic
 def login(datos: LoginRequest, auth: AuthService = Depends(get_auth_service)):
     """Valida las credenciales y devuelve un token Bearer (JWT)."""
     try:
-        usuario, token = auth.login(email=datos.email, password=datos.password)
+        usuario, token = auth.login(email=datos.email, password=datos.password, politica=datos.politica)
     except CredencialesInvalidas:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Correo o contraseña incorrectos.")
     return TokenResponse(access_token=token, usuario=UserResponse.model_validate(usuario))

@@ -76,6 +76,8 @@ Los **beneficios económicos** quedan para después: por ejemplo, alianzas o cos
 
 ## 5. Cómo se mide
 
+El servidor los cuenta por día, sin cuentas ni puntos, y `python -m scripts.indicadores_del_piloto` (en `backend/`) los pone frente a estas metas. El porcentaje de viajes compartidos sale de la encuesta, porque un viaje sin compartir no envía nada ([plan del piloto](piloto/plan-del-piloto.md)).
+
 | Indicador | Meta del piloto |
 |---|---|
 | Viajes con la posición del bus compartida | ≥ 60 % de los viajes activos |

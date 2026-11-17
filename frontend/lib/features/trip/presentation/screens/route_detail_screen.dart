@@ -354,6 +354,7 @@ class _FilaDeTramo extends StatelessWidget {
                       ? 'Ruta ${tramo.ruta}, ${tramo.nombreRuta ?? ''}. Toca para ver su horario y estaciones'
                       : 'Rutas ${tramo.rutasEnTexto}: toma la que pase primero. Toca para ver la ${tramo.ruta}',
                   excludeSemantics: true,
+                  onTap: tramo.ruta == null ? null : () => RoutePageScreen.open(context, tramo.ruta!),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(10),
                     onTap: tramo.ruta == null ? null : () => RoutePageScreen.open(context, tramo.ruta!),
