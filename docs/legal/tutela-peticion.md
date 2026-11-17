@@ -29,7 +29,7 @@ Yo, Camilo Andres Maestre Iglesias, mayor de edad, vecino de Cartagena de Indias
 2. El lunes 26 de octubre de 2026 Transcaribe S.A. acusó recibo desde el mismo correo. Le asignó el **radicado 3565-10-2026** y la remitió al área de Operaciones.
 3. Los numerales 1, 2, 3 y 4(b) piden documentos e información. Su término de diez (10) días hábiles **venció el martes 10 de noviembre de 2026**. Los numerales 4(a) y 5 tienen el término de quince (15) días hábiles, que **venció a más tardar el lunes 23 de noviembre de 2026**, aun si no se cuentan como hábiles los días cívicos del 11, 12 y 13 de noviembre (Decreto Distrital 0478 de 2026).
 4. Transcaribe S.A. no respondió. Tampoco me avisó una prórroga antes del vencimiento ni me informó que remitiera la petición a otra entidad.
-5. El martes 17 de noviembre de 2026 le envié un requerimiento al mismo correo. Le recordé que, por su silencio, la petición se entiende aceptada (Ley 1755 de 2015, art. 14, num. 1), y le pedí la entrega dentro de los tres (3) días hábiles siguientes. **Ese plazo venció el viernes 20 de noviembre de 2026 sin respuesta.**
+5. El martes 17 de noviembre de 2026 le envié un requerimiento al mismo correo. Le recordé que, por su silencio, la petición se entiende aceptada (Ley 1755 de 2015, art. 14, num. 1), y le pedí la entrega dentro de los tres (3) días hábiles siguientes. **Ese plazo venció el viernes 20 de noviembre de 2026 sin respuesta.** El mismo 17 de noviembre Transcaribe S.A. envió un acuse automático: le asignó al requerimiento el **radicado 3777-11-2026**, repitió los términos generales de la Ley 1755 y adjuntó copia de mi correo y de mi petición. No respondió de fondo ni entregó información. Ese nuevo radicado no reinicia los términos de la petición 3565-10-2026, que ya estaban vencidos.
 
 ### B. Distrito de Cartagena de Indias – Alcaldía Mayor
 
@@ -96,7 +96,7 @@ Manifiesto bajo la gravedad del juramento que no he presentado otra acción de t
 2. Acuse de recibo de Transcaribe S.A. del 26 de octubre de 2026, con el radicado 3565-10-2026.
 3. Derecho de petición firmado dirigido a la Alcaldía y constancia de envío del formulario PQRSDF del 26 de octubre de 2026.
 4. Correo del 27 de octubre de 2026 con el registro EXT-AMC-26-0128687.
-5. Requerimientos del 17 de noviembre de 2026 a los dos accionados (copia de los correos enviados).
+5. Requerimientos del 17 de noviembre de 2026 a los dos accionados (copia de los correos enviados) y acuse automático de Transcaribe S.A. del mismo día, con el radicado 3777-11-2026.
 6. [Si ya la radicaste] Constancia de radicación de las quejas ante la Personería Distrital.
 
 ## VII. Competencia

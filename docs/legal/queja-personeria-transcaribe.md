@@ -20,7 +20,8 @@ Yo, Camilo Andres Maestre Iglesias, mayor de edad, identificado con la cédula d
 4. Los numerales 4(a) y 5 tienen el término general de quince (15) días hábiles. **Venció a más tardar el lunes 23 de noviembre de 2026**, aun si no se cuentan como hábiles los días cívicos del 11, 12 y 13 de noviembre (Decreto Distrital 0478 de 2026).
 5. Transcaribe S.A. no respondió. Tampoco avisó una prórroga antes de los vencimientos ni informó que remitiera la petición a otra entidad.
 6. El martes 17 de noviembre de 2026 envié un requerimiento a `pqr@transcaribe.gov.co`. Cité el radicado y el artículo 14, numeral 1, de la Ley 1755 de 2015, y pedí la entrega dentro de los tres (3) días hábiles siguientes. **Ese plazo venció el viernes 20 de noviembre de 2026 sin respuesta.**
-7. A la fecha de esta queja no he recibido una respuesta de fondo, un aviso de prórroga ni una remisión por competencia.
+7. El mismo 17 de noviembre de 2026 Transcaribe S.A. envió un acuse automático del requerimiento. Le asignó el **radicado 3777-11-2026**, repitió los términos generales de la Ley 1755 y adjuntó copia de mi propio correo y de mi petición. No respondió de fondo ni entregó información. Ese nuevo radicado no reinicia los términos de la petición 3565-10-2026, que ya estaban vencidos.
+8. A la fecha de esta queja no he recibido una respuesta de fondo, un aviso de prórroga ni una remisión por competencia.
 
 Los hechos constan en los documentos anexos. Estoy dispuesto a ampliar esta queja si la Personería lo considera necesario.
 
@@ -49,6 +50,7 @@ Los hechos constan en los documentos anexos. Estoy dispuesto a ampliar esta quej
 1. Derecho de petición firmado y correo de envío del 25 de octubre de 2026.
 2. Acuse de recibo de Transcaribe S.A. del 26 de octubre de 2026, con el radicado 3565-10-2026.
 3. Requerimiento del 17 de noviembre de 2026 (copia del correo enviado).
+4. Acuse automático de Transcaribe S.A. del 17 de noviembre de 2026, con el radicado 3777-11-2026.
 
 ## V. Notificaciones
 

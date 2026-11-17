@@ -31,9 +31,11 @@ Son **dos quejas** porque el formulario de la Personería solo deja elegir una e
 - **Días cívicos:** el Decreto 0478 del 19 de octubre de 2026 declaró cívicos el 11, 12 y 13 de noviembre para los servidores del Distrito, salvo los servicios inaplazables. Lo anunció la propia Alcaldía. Los días en que la oficina no atiende se descuentan de los plazos (Ley 4 de 1913, art. 62: se suprimen los días «feriados y de vacantes»). No pude leer el texto del decreto, así que no sé si suspendió términos ni si cubre a Transcaribe. Por eso las quejas usan la fecha más tardía («a más tardar»), que es cierta en los dos casos.
 - **Los requerimientos del 17 de noviembre** dicen que la entrega venció el 13 y que lo demás vencía el 18. Con los días cívicos serían el 19 y el 23. No los debilita: el término de 10 días venció el 10 de noviembre de todas formas, y la queja sale cuando ya venció todo.
 
+**El acuse del requerimiento a Transcaribe (17 de noviembre, 12:24 p. m.)** es automático. Asignó el radicado 3777-11-2026, repitió los términos generales (10, 15 y 30 días) y adjuntó copia del correo y de la petición. No es una respuesta. Si Transcaribe alega que ese radicado tiene su propio plazo de 10 días (hasta el 1 de diciembre), la respuesta es que el requerimiento no es una petición nueva: los términos de la 3565-10-2026 vencieron el 10 de noviembre. Las dos quejas y la tutela ya lo dicen.
+
 **Antes de enviar, revisa el correo:**
 - **Responden completo:** no envíes esa queja.
-- **Responden en parte:** cambia los hechos 5 a 7 para decir qué falta, y pide la intervención solo por eso.
+- **Responden en parte:** cambia los hechos finales (5 a 8 en la de Transcaribe, 5 a 7 en la de la Alcaldía) para decir qué falta, y pide la intervención solo por eso.
 - **Avisaron una prórroga** de lo que tiene 15 días antes de su vencimiento: es válida solo para esos numerales, hasta el doble del plazo. La queja sigue procediendo por lo de 10 días, que venció sin aviso. Quita el hecho 4 y menciona la prórroga.
 - **Remitieron a otra entidad** (Ley 1755, art. 21): el plazo vuelve a correr allá. Guarda el oficio y no envíes esa queja por esa parte.
 
@@ -54,7 +56,8 @@ Haz **una radicación por cada queja**:
      - la petición firmada (`derecho-de-peticion-transcaribe-corregido.pdf`);
      - el correo de envío del 25 de octubre;
      - el acuse con el radicado («Gmail - RE_ Rad Int 3565 …pdf»);
-     - el requerimiento del 17 de noviembre (imprímelo a PDF desde Enviados).
+     - el requerimiento del 17 de noviembre (imprímelo a PDF desde Enviados);
+     - el acuse automático del 17 de noviembre con el radicado 3777-11-2026 (imprímelo a PDF desde Recibidos).
    - **Alcaldía:**
      - la petición firmada (`derecho-de-peticion-alcaldia_signed-1.pdf`);
      - la constancia del formulario del 26 de octubre;
@@ -79,7 +82,7 @@ Radica por **un solo canal**, para que no se abran dos expedientes por lo mismo.
 - **Asunto:** Queja por falta de respuesta de Transcaribe S.A. al derecho de petición radicado 3565-10-2026
 - **Descripción:**
 
-> Presento queja contra los servidores de Transcaribe S.A. responsables de tramitar y responder mi derecho de petición de acceso a información pública, radicado 3565-10-2026 el 26 de octubre de 2026 (datos del SITM: GTFS, paraderos y módulos de las estaciones). El término de diez días hábiles para la información venció el 10 de noviembre de 2026 sin respuesta ni aviso de prórroga (Ley 1755 de 2015, art. 14). El 17 de noviembre envié un requerimiento con plazo de tres días hábiles, que venció el 20 de noviembre sin respuesta.
+> Presento queja contra los servidores de Transcaribe S.A. responsables de tramitar y responder mi derecho de petición de acceso a información pública, radicado 3565-10-2026 el 26 de octubre de 2026 (datos del SITM: GTFS, paraderos y módulos de las estaciones). El término de diez días hábiles para la información venció el 10 de noviembre de 2026 sin respuesta ni aviso de prórroga (Ley 1755 de 2015, art. 14). El 17 de noviembre envié un requerimiento con plazo de tres días hábiles; Transcaribe solo envió un acuse automático (radicado 3777-11-2026) y el plazo venció el 20 de noviembre sin respuesta.
 >
 > Solicito: 1) que la Personería intervenga ante Transcaribe S.A. para que responda y entregue la información (Ley 1755 de 2015, art. 23); 2) que se adelante la actuación disciplinaria que corresponda (Ley 1755 de 2015, art. 31; Ley 1952 de 2019, art. 39, num. 8); 3) que se me informen el radicado y las decisiones. Los hechos, los fundamentos y las pruebas están en el documento principal y en los anexos.
 
