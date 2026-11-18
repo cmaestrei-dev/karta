@@ -11,16 +11,22 @@
 
 **Karta es una app Android gratuita y de código abierto para moverse en Transcaribe, el sistema de buses de Cartagena de Indias.** Te dice cómo llegar, te guía en el bus hasta tu parada y estima cuándo pasa el próximo bus con lo que reportan los mismos pasajeros. No tiene anuncios ni vende datos personales.
 
+<p align="center"><img src="docs/capturas/app-viaje.gif" width="300" alt="Viaje simulado en el X103 desde la Estación Bazurto hasta el aviso «¡Toca el timbre!»"></p>
+
 <table>
   <tr>
-    <td><img src="docs/capturas/inicio.jpg" width="200" alt="Inicio: mapa con la troncal, los reportes cercanos y «¿A dónde vas?»"></td>
-    <td><img src="docs/capturas/reportar.jpg" width="200" alt="Reportar: tipos de reporte ilustrados en tres grupos"></td>
-    <td><img src="docs/capturas/detalles.jpg" width="200" alt="Detalles del reporte: ruta T103 y 20 minutos de espera"></td>
-    <td><img src="docs/capturas/perfil.jpg" width="200" alt="Perfil: alias, nivel y reputación"></td>
+    <td><img src="docs/capturas/app-inicio.jpg" width="220" alt="Inicio en la Estación Bazurto: mapa con los reportes cercanos y «¿A dónde vas?»"></td>
+    <td><img src="docs/capturas/app-opciones.jpg" width="220" alt="Opciones hacia la Sede Zaragocilla: la más rápida, «el que pase primero» y el trancón en el camino"></td>
+    <td><img src="docs/capturas/app-viaje.jpg" width="220" alt="Viaje activo: «Sube al X103 en Estación Bazurto, módulo A2, hacia el Portal»"></td>
+  </tr>
+  <tr>
+    <td><img src="docs/capturas/app-timbre.jpg" width="220" alt="Aviso a pantalla completa: «¡Toca el timbre!»"></td>
+    <td><img src="docs/capturas/app-reportar.jpg" width="220" alt="Reportar en dos pasos: «El bus no paró», ruta X103, iba lleno"></td>
+    <td><img src="docs/capturas/app-perfil.jpg" width="220" alt="Perfil: nivel, reputación y «Tu impacto»"></td>
   </tr>
 </table>
 
-<sub>Capturas de la versión web con datos de demostración. La app sigue el tema claro u oscuro del teléfono.</sub>
+<sub>Grabado en un teléfono Android con una versión de demostración: datos de demostración y viaje simulado, que la app indica en pantalla. La app sigue el tema claro u oscuro del teléfono.</sub>
 
 ## Qué hace
 
