@@ -11,16 +11,22 @@
 
 **Karta is a free, open-source Android app for getting around on Transcaribe, the bus rapid transit system of Cartagena, Colombia.** It tells you how to get there, guides you on the bus to your stop, and estimates when the next bus will arrive from what riders themselves report. No ads, and it doesn't sell personal data.
 
+<p align="center"><img src="docs/capturas/app-viaje.gif" width="300" alt="Simulated trip on the X103 from Estación Bazurto to the “Ring the bell!” alert"></p>
+
 <table>
   <tr>
-    <td><img src="docs/capturas/inicio.jpg" width="200" alt="Home: map with the trunk line, nearby reports and “Where to?”"></td>
-    <td><img src="docs/capturas/reportar.jpg" width="200" alt="Report: illustrated report types in three groups"></td>
-    <td><img src="docs/capturas/detalles.jpg" width="200" alt="Report details: route T103 and a 20-minute wait"></td>
-    <td><img src="docs/capturas/perfil.jpg" width="200" alt="Profile: alias, level and reputation"></td>
+    <td><img src="docs/capturas/app-inicio.jpg" width="220" alt="Home at Estación Bazurto: map with nearby reports and “Where to?”"></td>
+    <td><img src="docs/capturas/app-opciones.jpg" width="220" alt="Options to Sede Zaragocilla: the fastest, “whichever comes first” and the traffic jam on the way"></td>
+    <td><img src="docs/capturas/app-viaje.jpg" width="220" alt="Active trip: “Board the X103 at Estación Bazurto, module A2, towards the Portal”"></td>
+  </tr>
+  <tr>
+    <td><img src="docs/capturas/app-timbre.jpg" width="220" alt="Full-screen alert: “Ring the bell!”"></td>
+    <td><img src="docs/capturas/app-reportar.jpg" width="220" alt="Reporting in two steps: “The bus didn't stop”, route X103, it was full"></td>
+    <td><img src="docs/capturas/app-perfil.jpg" width="220" alt="Profile: level, reputation and “Your impact”"></td>
   </tr>
 </table>
 
-<sub>Screenshots of the web build with demo data. The app is in Spanish and follows the phone's light or dark theme.</sub>
+<sub>Recorded on an Android phone with a demo build: demo data and a simulated trip, which the app shows on screen. The app is in Spanish and follows the phone's light or dark theme.</sub>
 
 ## What it does
 
