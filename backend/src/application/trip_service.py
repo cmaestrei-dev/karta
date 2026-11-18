@@ -261,8 +261,11 @@ class TripService:
                 tramos[k + 1] = caminata_entre((estacion_bajada.longitud, estacion_bajada.latitud),
                                                tramos[k + 1].coordenadas[-1])
             # Con «el que pase primero», el módulo solo se dice si todas las rutas paran en el mismo.
+            # Con una sola estación, el sentido sale de hacia dónde avanza el bus junto a ella.
+            rumbo = (_rumbo(tramos[k].coordenadas, al_subir=bool(estacion_subida))
+                     if bool(estacion_subida) != bool(estacion_bajada) else None)
             comos = [abordaje(r.id, estacion_subida.id if estacion_subida else None,
-                              estacion_bajada.id if estacion_bajada else None, paraderos, hacia)
+                              estacion_bajada.id if estacion_bajada else None, paraderos, hacia, rumbo)
                      for r in (ruta, *tramos[k].alternativas)]
             modulos = {c.modulo if c else None for c in comos}
             destinos = list(dict.fromkeys(c.hacia for c in comos if c and c.hacia))  # «Bocagrande o el Centro»
@@ -334,3 +337,18 @@ class TripService:
         if cercano:
             return f"Paradero cerca de {cercano[0].nombre}", None
         return "Paradero sobre la vía", None
+
+
+def _rumbo(coordenadas, al_subir: bool, metros: float = 300.0) -> tuple[tuple[float, float], tuple[float, float]] | None:
+    """Dos puntos (lon, lat) del tramo, en el orden del viaje: la subida y unos [metros] más adelante, o unos [metros]
+    antes de la bajada y la bajada."""
+    puntos = [tuple(p) for p in (coordenadas if al_subir else reversed(coordenadas))]
+    if len(puntos) < 2:
+        return None
+    andado, lejano = 0.0, puntos[-1]
+    for previo, punto in zip(puntos, puntos[1:]):
+        andado += distancia_m(previo, punto)
+        if andado >= metros:
+            lejano = punto
+            break
+    return (puntos[0], lejano) if al_subir else (lejano, puntos[0])
