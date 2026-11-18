@@ -61,3 +61,36 @@ def test_al_subir_en_madre_bernarda_advierte_que_santa_lucia_es_de_alimentadoras
                   if o["transbordos"] == 1 and o["tramos"][1]["ruta"] == "A107"]
     segundo = [t for t in con_cambio[0]["tramos"] if t["modo"] == "bus"][1]
     assert segundo["desde"] == "Estación Madre Bernarda" and segundo["advertencia"] is None
+
+
+def _q(ruta, sentido, orden, estacion, lon, modulo=None):
+    return ParaderoOficial(ruta, sentido, orden, estacion, estacion, modulo, "estacion", lon, 10.41)
+
+
+# Una pretroncal que pasa por Bazurto en los dos sentidos: de ida, del Portal (este) al Centro (oeste).
+PRETRONCAL = [
+    _q("X103", "ida", 1, "portal", -75.47, "A2"), _q("X103", "ida", 4, "bazurto", -75.52, "A1"),
+    _q("X103", "ida", 6, "centro", -75.55, "A1"),
+    _q("X103", "vuelta", 1, "centro", -75.55, "A2"), _q("X103", "vuelta", 3, "bazurto", -75.52, "A2"),
+    _q("X103", "vuelta", 6, "portal", -75.47, "A1"),
+]
+HACIA_X103 = {"X103-ida": "el Centro", "X103-vuelta": "el Portal"}
+
+
+def test_con_una_sola_estacion_el_sentido_sale_de_hacia_donde_avanza_el_bus():
+    # Sube en Bazurto y se baja en un paradero de la calle, al este: va hacia el Portal, módulo A2.
+    al_este = abordaje("X103", "bazurto", None, PRETRONCAL, HACIA_X103, rumbo=((-75.52, 10.41), (-75.517, 10.41)))
+    assert (al_este.modulo, al_este.hacia) == ("A2", "el Portal")
+    al_oeste = abordaje("X103", "bazurto", None, PRETRONCAL, HACIA_X103, rumbo=((-75.52, 10.41), (-75.523, 10.41)))
+    assert (al_oeste.modulo, al_oeste.hacia) == ("A1", "el Centro")
+    # Se sube en la calle y se baja en Bazurto viniendo del oeste: también va hacia el Portal.
+    llega = abordaje("X103", None, "bazurto", PRETRONCAL, HACIA_X103, rumbo=((-75.523, 10.41), (-75.52, 10.41)))
+    assert llega.hacia == "el Portal"
+
+
+def test_sin_coordenadas_o_con_un_rumbo_que_no_decide_se_usa_el_orden_de_la_estacion():
+    # Los paraderos de las alimentadoras sin coordenadas: se mantiene la regla del orden.
+    assert abordaje("A107", "santa-lucia", None, PARADEROS, HACIA, rumbo=((0, 0), (1, 0))).hacia == "Blas de Lezo"
+    # Un rumbo de norte a sur no coincide con ninguno de los dos sentidos (este-oeste).
+    norte_sur = abordaje("X103", "bazurto", None, PRETRONCAL, HACIA_X103, rumbo=((-75.52, 10.42), (-75.52, 10.40)))
+    assert norte_sur.hacia == "el Portal"  # la regla del orden: Bazurto va antes en la vuelta (3) que en la ida (4)
