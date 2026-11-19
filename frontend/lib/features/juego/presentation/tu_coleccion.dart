@@ -65,11 +65,30 @@ class _TuColeccionState extends State<TuColeccion> {
                         padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
                         child: Row(
                           children: [
-                            Container(
-                              width: 44,
-                              height: 44,
-                              decoration: BoxDecoration(color: b.acentoSuave, borderRadius: BorderRadius.circular(14)),
-                              child: Icon(Icons.collections_bookmark_outlined, color: b.acento),
+                            Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration:
+                                      BoxDecoration(color: b.acentoSuave, borderRadius: BorderRadius.circular(14)),
+                                  child: Icon(Icons.collections_bookmark_outlined, color: b.acento),
+                                ),
+                                if (album.nueva != null)
+                                  Positioned(
+                                    top: -3,
+                                    right: -3,
+                                    child: Container(
+                                      width: 14,
+                                      height: 14,
+                                      decoration: BoxDecoration(
+                                          color: b.reportar,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(color: b.tarjeta, width: 2.5)),
+                                    ),
+                                  ),
+                              ],
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -79,16 +98,6 @@ class _TuColeccionState extends State<TuColeccion> {
                                   Row(
                                     children: [
                                       Expanded(child: Text('Álbum de estaciones', style: texto.titleSmall)),
-                                      if (album.nueva != null)
-                                        Container(
-                                          margin: const EdgeInsets.only(right: 6),
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                                          decoration: BoxDecoration(
-                                              color: b.reportar, borderRadius: BorderRadius.circular(6)),
-                                          child: Text('Nueva',
-                                              style: texto.labelSmall?.copyWith(
-                                                  color: b.sobreReportar, fontWeight: FontWeight.w800)),
-                                        ),
                                       Text('${album.conseguidas} de ${album.total}',
                                           style: texto.bodySmall
                                               ?.copyWith(color: b.textoSuave, fontFeatures: tabularFigures)),

@@ -87,7 +87,7 @@ class _AlbumScreenState extends State<AlbumScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
                 sliver: SliverGrid.builder(
                   gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: 180,
+                    maxCrossAxisExtent: 130, // tres columnas en un teléfono
                     mainAxisSpacing: 10,
                     crossAxisSpacing: 10,
                     childAspectRatio: 0.76,

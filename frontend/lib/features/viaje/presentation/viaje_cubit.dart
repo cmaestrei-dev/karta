@@ -417,6 +417,12 @@ class ViajeCubit extends Cubit<ViajeState> {
     _porGuardar.clear();
     _ultimoABordo = null;
     _metrosABordo = 0;
+    // Se sube en una estación: entra al álbum aunque la subida se note unos metros después, ya lejos de ella.
+    final tramo = seguidor.tramoActual;
+    if (tramo.subeEnEstacion) {
+      _estacionesDeEsteBus.add(tramo.paradas.first.nombre);
+      _porGuardar.add(tramo.paradas.first.nombre);
+    }
     if (_quiereCompartir) _empezarACompartir();
     _contarSubida();
     _contadoEsteBus = false;

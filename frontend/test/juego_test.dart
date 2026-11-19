@@ -257,7 +257,7 @@ void main() {
       final progreso = await local.leer();
       expect(progreso.tarjeta.sellos, 1);
       expect(progreso.madrugadas, 1); // compartió antes de las 6
-      expect(progreso.album.laminas.keys, containsAll(['la-popa', 'chambacu', 'la-bodeguita']));
+      expect(progreso.album.laminas.keys, containsAll(['bazurto', 'la-popa', 'chambacu', 'la-bodeguita']));
       expect(progreso.kmTroncal, closeTo(2.7, 0.1)); // de donde subió a donde se bajó
       expect(logros.first, const SelloDelDia(sellos: 1, llena: false));
       expect(logros.whereType<LaminaNueva>().map((l) => l.estacion.id), containsAll(['la-popa', 'chambacu']));
