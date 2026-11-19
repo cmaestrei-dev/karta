@@ -61,6 +61,8 @@ Nunca se premia ni se castiga, porque no se puede medir. Es parte del tono de Ka
    - encuentros en persona, más adelante.
 6. **Eventos:** jornadas temáticas en las que toda la comunidad persigue una meta visible, por ejemplo «Semana de los paraderos: mapeemos los de Bocagrande».
 
+Cómo volver todo esto algo que se disfrute (coronas por paradero, álbum de estaciones, sellos de la semana), con ideas de Pokémon GO: [plan-juego.md](plan-juego.md).
+
 Los **beneficios económicos** quedan para después: por ejemplo, alianzas o cosméticos de pago, siempre distintos de los que se ganan ([plan de sostenibilidad](plan-sostenibilidad.md)).
 
 ## 4. Límites que protegen a la comunidad
