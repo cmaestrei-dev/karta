@@ -1,12 +1,17 @@
 import 'dart:async';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:karta/core/api_client.dart';
+import 'package:karta/core/design/tema.dart';
 import 'package:karta/features/juego/data/progreso_local.dart';
 import 'package:karta/features/juego/domain/album.dart';
 import 'package:karta/features/juego/domain/logros.dart';
 import 'package:karta/features/juego/domain/progreso.dart';
 import 'package:karta/features/juego/domain/sellos.dart';
+import 'package:karta/features/juego/presentation/album_screen.dart';
+import 'package:karta/features/juego/presentation/celebracion.dart';
+import 'package:karta/features/juego/presentation/lamina_screen.dart';
 import 'package:karta/features/trip/domain/trip_models.dart';
 import 'package:karta/features/viaje/data/avisos.dart';
 import 'package:karta/features/viaje/data/preferencia_de_compartir.dart';
@@ -96,6 +101,59 @@ void main() {
     expect((leido.tarjeta.sellos, leido.album.conseguidas), (1, 1)); // en fila: ninguna escritura pisa a la otra
     await local.borrar();
     expect(await local.leer(), const ProgresoDeJuego());
+  });
+
+  group('pantallas', () {
+    testWidgets('el álbum muestra cuántas lleva; la nueva se abre y deja de serlo', (tester) async {
+      tester.view.physicalSize = const Size(390, 844); // un teléfono
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final local = ProgresoLocal();
+      final hoy = DateTime.now();
+      await local.cambiar((p) {
+        var album = p.album.pasoPor('Bazurto', ruta: 'T101', cuando: hoy).album;
+        album = album.pasoPor('La Popa', ruta: 'T101', cuando: hoy).album;
+        return (progreso: p.copyWith(album: album), resultado: null);
+      });
+      await tester.pumpWidget(MaterialApp(theme: TemaBahia.oscuro, home: AlbumScreen(progreso: local)));
+      await tester.pumpAndSettle();
+      expect(find.text('2'), findsOneWidget);
+      expect(find.text(' de 19'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Chambacú'), 200);
+      await tester.pumpAndSettle();
+      expect(find.text('Nueva'), findsOneWidget);
+      expect(find.bySemanticsLabel(RegExp('Chambacú, número 17: te falta')), findsOneWidget);
+
+      await tester.tap(find.bySemanticsLabel(RegExp('La Popa, número 15, nueva')));
+      await tester.pumpAndSettle();
+      expect(find.text('La Popa'), findsOneWidget);
+      expect(find.text('La conseguiste hoy, en la T101.'), findsOneWidget);
+      expect(find.text('Nueva en tu álbum'), findsOneWidget);
+      expect((await local.leer()).album.nueva, isNull);
+    });
+
+    test('la fecha de la lámina se lee como se dice', () {
+      final ahora = DateTime(2026, 11, 18, 9);
+      expect(cuandoLaConsiguio(DateTime(2026, 11, 18, 6), ahora: ahora), 'hoy');
+      expect(cuandoLaConsiguio(DateTime(2026, 11, 17, 22), ahora: ahora), 'ayer');
+      expect(cuandoLaConsiguio(DateTime(2026, 11, 2), ahora: ahora), 'el 2 de noviembre');
+      expect(cuandoLaConsiguio(DateTime(2025, 12, 24), ahora: ahora), 'el 24 de diciembre de 2025');
+    });
+
+    testWidgets('la celebración se va sola y avisa que ya se vio', (tester) async {
+      var vistos = 0;
+      await tester.pumpWidget(MaterialApp(
+        theme: TemaBahia.oscuro,
+        home: Scaffold(
+          body: CelebracionDeLogro(logro: const SelloDelDia(sellos: 3, llena: false), onVisto: () => vistos++),
+        ),
+      ));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.text('Sello del día'), findsOneWidget);
+      expect(find.text('Llevas 3 de 7 en tu tarjeta'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 4));
+      expect(vistos, 1);
+    });
   });
 
   group('en el viaje', () {

@@ -15,6 +15,7 @@ import '../../../core/widgets/karta_map.dart';
 import '../../../core/widgets/route_capsule.dart';
 import '../../auth/data/repositories/auth_repository.dart';
 import '../../places/domain/place_models.dart';
+import '../../juego/presentation/celebracion.dart';
 import '../../trip/domain/trip_models.dart';
 import '../../trip/presentation/screens/plan_route_screen.dart';
 import '../data/avisos.dart';
@@ -317,6 +318,12 @@ class _ViajeViewState extends State<_ViajeView> {
                               },
                             ),
                           ),
+                        ),
+                      if (state.logro != null && state.pedirLaParada == null)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                          child: CelebracionDeLogro(
+                              key: ValueKey(state.logro), logro: state.logro!, onVisto: cubit.logroVisto),
                         ),
                       if (state.preguntarVarado || state.varadoReportado)
                         Padding(
