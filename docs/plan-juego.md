@@ -107,10 +107,15 @@ Quienes más usarán Karta son estudiantes (muchos menores de edad), trabajadore
 | Apodos del día ocultados por reportes | < 2 % de los publicados |
 | Quienes muestran su corona con apodo | Solo se observa: si casi nadie la muestra, la corona anónima basta |
 
-## 7. Lo que falta decidir
+## 7. Decisiones
 
-1. **El nombre del título:** «Rey o reina del paradero», o algo más costeño, como «El duro o la dura del paradero». Se puede poner a prueba en la encuesta del nombre de la comunidad (§7 del plan de la comunidad).
-2. **La corona pública:** anónima por defecto (recomendado) o con el alias.
-3. **El apodo del día:** texto libre con filtro y reportes (recomendado) o solo frases predefinidas.
-4. **La mascota:** la iguana del Centenario u otra.
-5. **Por dónde empezar:** la fase A (recomendado) o directo a las coronas.
+**Tomadas por Camilo el 18 de noviembre de 2026:**
+1. **El título:** «Rey o reina del paradero».
+2. **La corona pública:** anónima por defecto («La tiene un karteño»). Quien quiera mostrarse elige un apodo de karteño.
+3. **Por dónde empezar:** la fase A.
+
+**Pendientes:**
+- **El apodo del día:** texto libre con filtro y reportes (recomendado) o solo frases predefinidas. Se decide antes de la fase B.
+- **La mascota:** la iguana del Centenario u otra. Mientras tanto, la fase A arranca con la iguana.
+
+**Maquetas:** la hoja de una estación con su corona, la pantalla para poner el apodo, el álbum y una lámina están en un lienzo de diseño privado de Camilo.
