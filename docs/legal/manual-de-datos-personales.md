@@ -27,6 +27,10 @@ Todas las bases están en MongoDB Atlas (AWS us-east-1). Los encargados son Mong
 | `stop_answers` | Ruta, punto, día (sin la hora) y respuesta, sin cuenta | Base de conocimiento de cómo pedir la parada | 1 año (TTL) |
 | `daily_counts` | Ninguno: conteos por día y hora (consultas de llegada y cuántas tuvieron datos, viajes compartidos, reportes, confirmaciones, desmentidos, vistas y «Gracias», y cuántas personas distintas vieron o agradecieron ese día) | Indicadores del piloto ([plan-comunidad](../plan-comunidad.md), §5) | Sin plazo: nacen agregados |
 | `rate_limits` | IP o id del viajero, más un contador | Evitar abusos | La ventana: 1 min a 1 h (TTL) |
+| `users.corona`, `users.autorizaciones_de_corona` | Si participa en las coronas, si muestra su apodo de karteño y cuál es; cada respuesta con su fecha | Las coronas (docs/plan-juego.md) y la prueba de su autorización | Hasta que se borre la cuenta |
+| `crown_contributions` | Id del viajero, estación y día (sin hora ni punto), solo de quien aceptó participar | Calcular quién reina en cada estación | 31 días (TTL). Al dejar de participar o borrar la cuenta, de inmediato |
+| `crowns` | Por estación: el id de quien reina, desde qué día, el apodo del día con quién lo puso y quiénes lo reportaron (id y nivel) | Mostrar la corona y moderar el apodo | Quien reina: mientras reine. El apodo y sus reportes: 24 horas |
+| `crown_bans` | Id de quien no puede reinar | El castigo por un apodo ocultado por la comunidad | 30 días (TTL) |
 | Copias de seguridad (S3 `karta-respaldos`, AWS) | Las colecciones anteriores tal como estaban a las 3 a. m., salvo `sightings`, `live_trips` y `rate_limits`. Bucket privado y cifrado | Recuperarse de un incidente | 7 días (regla del bucket) |
 | Registros de AWS Lambda (CloudWatch) | Datos técnicos de peticiones que fallaron | Corregir errores | 7 días (retención del grupo) |
 
@@ -81,6 +85,7 @@ Son la base de la analítica para entidades del [plan de sostenibilidad](../plan
   **Historial:**
   - 1.0: primera versión.
   - 1.1 (26 de octubre de 2026): se agregó la finalidad de las estadísticas agregadas y anónimas, que pueden venderse, y el resultado de cada viaje (cuánto se tardó frente a lo estimado).
+  - 1.2 (19 de noviembre de 2026): se agregaron las coronas de las estaciones. Son una finalidad nueva, así que tienen su propia autorización: una pregunta aparte que se puede negar, `PUT /api/v1/users/me/crown`, guardada en `users.autorizaciones_de_corona` (Decreto 1377 de 2013, art. 5, parágrafo, hoy art. 2.2.2.25.2.2 del Decreto 1074 de 2015). Sin un «sí», no se anota ningún aporte.
 
 ## 3. Atención de consultas y reclamos
 
@@ -127,6 +132,8 @@ Un incidente es, por ejemplo, una llave de AWS o la contraseña de Atlas filtrad
 | Atlas abierto a cualquier IP (Lambda no tiene IP fija) | Contraseña larga generada por Atlas, TLS obligatorio, usuario sin otros permisos |
 | Reidentificar a alguien con las estadísticas que se venden o publican | Mínimo 10 personas distintas por celda; nada de recorridos, códigos ni cuentas; acuerdo con quien las recibe (sección 1) |
 | Uso por menores | El aviso pide confirmar 18 años o más durante el piloto; si se detecta un menor, se borran sus datos |
+| Una corona revela qué estación frecuenta alguien | Participar es opcional; quien reina se ve como «un karteño», salvo que active su apodo de karteño (nunca su nombre); se calcula una vez al día con los días anteriores, sin horas ni puntos, y nunca se muestra en qué otras estaciones reina |
+| Un apodo del día ofensivo, con publicidad o datos de contacto | Filtro antes de publicarlo (`backend/src/domain/apodos.py`); dos reportes de nivel 3 o cuatro de cualquiera lo ocultan; quien lo puso pierde la corona y no puede reinar en 30 días |
 
 ## 6. Encargados y transmisión internacional
 

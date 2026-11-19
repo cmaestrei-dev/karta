@@ -12,14 +12,15 @@ from pymongo.database import Database
 from pymongo.errors import DuplicateKeyError, PyMongoError
 
 from src.domain.conocimiento import ComoSePidio, RespuestaDeParada
+from src.domain.coronas import ApodoDelDia, AportesDe, Corona
 from src.domain.direcciones import Cruce, Via
 from src.domain.mapeo import EstadoDeMarca, Marca, Voto
 from src.domain.paraderos import ParaderoOficial
 from src.domain.precision import BusMedido, ResultadoDeViaje, celdas_de, mes_de
 from src.infrastructure.aportes import MESES_DE_VIGENCIA, huella
 from src.domain.models import (
-    ALIAS_SIN_CUENTA, REPUTACION_INICIAL, EmailYaRegistrado, Impacto, Estacion, IconoLugar, Incidente, LimiteLugaresGuardados,
-    Lugar, LugarGuardado, LugarGuardadoNoEncontrado, RutaTransporte, TipoViajero, Usuario,
+    ALIAS_SIN_CUENTA, REPUTACION_INICIAL, AjustesDeCorona, EmailYaRegistrado, Impacto, Estacion, IconoLugar, Incidente,
+    LimiteLugaresGuardados, Lugar, LugarGuardado, LugarGuardadoNoEncontrado, RutaTransporte, TipoViajero, Usuario,
 )
 from src.domain.horarios import HorarioRuta, en_colombia
 from src.domain.reportes import GraciasRepetidas, TipoReporte, VotoRepetido, alias_publico
@@ -51,6 +52,9 @@ class MongoUserRepository:
         # Lo que solo sirve para esa persona se borra: sus votos, «Gracias», vistas y límites de peticiones.
         for coleccion in (db.incident_votes, db.incident_thanks, db.incident_views):
             coleccion.delete_many({"usuario": uid})
+        # Y lo de las coronas: sus aportes, su veto y las coronas que tenía.
+        MongoCrownRepository(db).olvidar(user_id)
+        db.crown_bans.delete_many({"_id": uid})
         db.rate_limits.delete_many({"_id": {"$regex": f"^[^:]+:usuario:{re.escape(user_id)}:"}})
         # Sus huellas en el conteo de personas por cifra: cada una se recalcula con la clave y se quita.
         for doc in db.trip_contributors.find({}, {"_id": 1}):
@@ -133,6 +137,14 @@ class MongoUserRepository:
         if doc is None:
             raise ValueError("Esa cuenta ya tiene correo.")
         return _to_usuario(doc)
+
+    def ajustar_corona(self, user_id: str, ajustes: AjustesDeCorona, en: datetime) -> None:
+        cambios: dict = {"corona": {"participa": ajustes.participa, "visible": ajustes.visible, "apodo": ajustes.apodo}}
+        operacion: dict = {"$set": cambios}
+        if ajustes.participa is not None:
+            # Cada respuesta queda como prueba de la autorización para las coronas, con su fecha.
+            operacion["$push"] = {"autorizaciones_de_corona": {"participa": ajustes.participa, "en": en}}
+        self._users.update_one({"_id": ObjectId(user_id)}, operacion)
 
 
 class MongoIncidentRepository:
@@ -496,6 +508,8 @@ def _to_usuario(doc: dict) -> Usuario:
         alias=doc.get("alias") or (alias_publico(doc["nombre"]) if doc.get("nombre") else ALIAS_SIN_CUENTA),
         impacto=Impacto(**{k: v for k, v in doc.get("impacto", {}).items() if k in Impacto.__dataclass_fields__}),
         autorizacion=doc["autorizaciones"][-1]["version"] if doc.get("autorizaciones") else None,
+        corona=AjustesDeCorona(**{k: v for k, v in (doc.get("corona") or {}).items()
+                                  if k in AjustesDeCorona.__dataclass_fields__}),
     )
 
 
@@ -805,3 +819,69 @@ class ContadoresAgrupados:
     def dias(self, desde: str, hasta: str) -> list[dict]:
         self.vaciar()
         return self._destino.dias(desde, hasta)
+
+
+class MongoCrownRepository:
+    """
+    Coronas de las estaciones: `crown_contributions` (un aporte por viajero, estación y día; vence a los 31 días),
+    `crowns` (la corona de cada estación, su apodo del día) y `crown_bans` (quien no puede reinar, hasta cuándo).
+    """
+
+    def __init__(self, db: Database):
+        self._aportes = db.crown_contributions
+        self._coronas = db.crowns
+        self._vetos = db.crown_bans
+
+    def anotar_aporte(self, usuario_id: str, estacion: str, dia: str, expira_en: datetime) -> None:
+        self._aportes.update_one({"usuario": ObjectId(usuario_id), "estacion": estacion, "dia": dia},
+                                 {"$setOnInsert": {"expira_en": expira_en}}, upsert=True)
+
+    def aportes(self, estacion: str, desde: str, hasta: str) -> dict[str, AportesDe]:
+        grupos = self._aportes.aggregate([
+            {"$match": {"estacion": estacion, "dia": {"$gte": desde, "$lt": hasta}}},
+            {"$group": {"_id": "$usuario", "dias": {"$sum": 1}, "primero": {"$min": "$dia"}}},
+        ])
+        return {str(g["_id"]): AportesDe(dias=g["dias"], primero=datetime.fromisoformat(g["primero"]).date())
+                for g in grupos}
+
+    def dias_de(self, usuario_id: str, estacion: str, desde: str) -> int:
+        return self._aportes.count_documents({"usuario": ObjectId(usuario_id), "estacion": estacion,
+                                              "dia": {"$gte": desde}})
+
+    def corona(self, estacion: str) -> Corona | None:
+        doc = self._coronas.find_one({"_id": estacion})
+        if doc is None:
+            return None
+        a = doc.get("apodo")
+        apodo = ApodoDelDia(
+            texto=a["texto"], puesto_por=str(a["puesto_por"]), puesto_en=a["puesto_en"], hasta=a["hasta"],
+            reportes=tuple((str(r["usuario"]), r["nivel"]) for r in a.get("reportes", [])), oculto=a.get("oculto", False),
+        ) if a else None
+        dia = lambda clave: datetime.fromisoformat(doc[clave]).date() if doc.get(clave) else None
+        return Corona(estacion=estacion, rey=str(doc["rey"]) if doc.get("rey") else None, desde=dia("desde"),
+                      calculada_para=dia("calculada_para"), apodo=apodo, ultimo_apodo=doc.get("ultimo_apodo"))
+
+    def guardar(self, corona: Corona) -> None:
+        a = corona.apodo
+        self._coronas.replace_one({"_id": corona.estacion}, {
+            "rey": ObjectId(corona.rey) if corona.rey else None,
+            "desde": corona.desde.isoformat() if corona.desde else None,
+            "calculada_para": corona.calculada_para.isoformat() if corona.calculada_para else None,
+            "apodo": {"texto": a.texto, "puesto_por": ObjectId(a.puesto_por), "puesto_en": a.puesto_en,
+                      "hasta": a.hasta, "oculto": a.oculto,
+                      "reportes": [{"usuario": ObjectId(u), "nivel": n} for u, n in a.reportes]} if a else None,
+            "ultimo_apodo": corona.ultimo_apodo,
+        }, upsert=True)
+
+    def vetados(self, ahora: datetime) -> set[str]:
+        return {str(d["_id"]) for d in self._vetos.find({"hasta": {"$gt": ahora}}, {"_id": 1})}
+
+    def vetar(self, usuario_id: str, hasta: datetime) -> None:
+        self._vetos.update_one({"_id": ObjectId(usuario_id)}, {"$set": {"hasta": hasta}}, upsert=True)
+
+    def olvidar(self, usuario_id: str) -> None:
+        uid = ObjectId(usuario_id)
+        self._aportes.delete_many({"usuario": uid})
+        self._coronas.update_many({"rey": uid}, {"$set": {"rey": None, "desde": None, "apodo": None,
+                                                         "ultimo_apodo": None}})
+        self._coronas.update_many({"apodo.reportes.usuario": uid}, {"$pull": {"apodo.reportes": {"usuario": uid}}})

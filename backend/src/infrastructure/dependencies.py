@@ -4,6 +4,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pymongo.database import Database
 
 from src.application.auth_service import AuthService
+from src.application.corona_service import CoronaService
 from src.application.incident_service import IncidentService
 from src.application.mapping_service import MappingService
 from src.application.place_service import PlaceService
@@ -13,8 +14,9 @@ from src.domain.models import Usuario
 from src.infrastructure import config
 from src.infrastructure.database import get_database
 from src.infrastructure.repositories import (
-    ContadoresAgrupados, MongoContadores, MongoIncidentRepository, MongoPlaceRepository, MongoRealtimeRepository, MongoSavedPlaceRepository,
-    MongoStopMappingRepository, MongoTransitRepository, MongoUserRepository,
+    ContadoresAgrupados, MongoContadores, MongoCrownRepository, MongoIncidentRepository, MongoPlaceRepository,
+    MongoRealtimeRepository, MongoSavedPlaceRepository, MongoStopMappingRepository, MongoTransitRepository,
+    MongoUserRepository,
 )
 from src.infrastructure.security import password_hasher, token_issuer
 
@@ -44,9 +46,14 @@ def contadores(db: Database) -> ContadoresAgrupados:
     return _CONTADORES
 
 
+def get_corona_service(db: Database = Depends(get_db)) -> CoronaService:
+    return CoronaService(MongoCrownRepository(db), MongoTransitRepository(db), MongoUserRepository(db))
+
+
 def get_incident_service(db: Database = Depends(get_db)) -> IncidentService:
     return IncidentService(MongoIncidentRepository(db), MongoUserRepository(db),
-                           MongoPlaceRepository(db), MongoTransitRepository(db), contadores(db))
+                           MongoPlaceRepository(db), MongoTransitRepository(db), contadores(db),
+                           coronas=get_corona_service(db))
 
 
 def get_place_service(db: Database = Depends(get_db)) -> PlaceService:

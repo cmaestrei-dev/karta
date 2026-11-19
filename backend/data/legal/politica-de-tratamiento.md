@@ -43,6 +43,12 @@ Karta no te pide nombre, correo ni documento para funcionar. Lo que trata depend
 - **Reportes** (el bus no pasa, trancón, calle inundada, robo, acoso…): el tipo, los detalles que elijas, el punto, la hora y tu cuenta, para tu reputación. Se muestran a todos con tu alias. **Se borran solos entre 30 minutos y 12 horas después**, según el tipo; cada confirmación de otro viajero renueva ese plazo.
 - **Votos («sigue / ya no»), «Gracias» y vistas** de reportes: tu cuenta y el reporte, para que cada persona cuente una vez. **Se borran a los 2 días.**
 - **Paraderos que marcas o confirmas** y viajes de mapeo: el paradero, la ruta, el punto y tu cuenta, para tu reputación. La ubicación del paradero es un dato de la comunidad y **queda en el mapa**; el vínculo con tu cuenta se borra si borras tu cuenta.
+- **Coronas de las estaciones (opcional).** Solo si aceptas participar, que te lo preguntamos aparte:
+  - **Qué se guarda:** cuando otro viajero confirma un reporte tuyo hecho junto a una estación, o la comunidad le da la razón a tu voto sobre uno, guardamos tu cuenta, la estación y el día, **sin la hora ni el punto**. **Se borra a los 31 días.**
+  - **Para qué:** una vez al día calculamos quién aportó en más días distintos en cada estación durante los últimos 30. Esa persona tiene la corona de la estación y puede ponerle un «apodo del día» que ven todos. El apodo se muestra debajo del nombre oficial y **se borra a las 24 horas**, junto con quiénes lo reportaron.
+  - **Cómo te ven:** si reinas, los demás ven «un karteño». Tu apodo de karteño, que eliges tú y es distinto de tu nombre, se muestra solo si lo activas. **Nunca se muestra** a qué hora aportaste, si estás en la estación ni en qué otras estaciones reinas.
+  - **Si un apodo tuyo se oculta** por los reportes de la comunidad, no puedes reinar durante 30 días. Lo guardamos durante esos 30 días.
+  - **Si dejas de participar o borras tu cuenta,** tus aportes se borran de inmediato y pierdes las coronas que tengas.
 
 ### Datos técnicos
 
@@ -85,6 +91,7 @@ Karta no te pide nombre, correo ni documento para funcionar. Lo que trata depend
 
 - **Al abrir Karta por primera vez,** antes de recoger cualquier dato, te mostramos un aviso con lo esencial de esta política. Empiezas a usar la app solo si lo aceptas con un botón. Guardamos la fecha y la versión de la política que aceptaste, como prueba.
 - **Compartir dónde va el bus** se explica aparte, antes de tu primer viaje en bus.
+- **Las coronas de las estaciones** son opcionales: te preguntamos aparte si quieres participar, y tu respuesta queda guardada como prueba, con su fecha. Sin un «sí», tus aportes no se cuentan.
 - **La ubicación** la autorizas en el permiso del sistema y puedes negarla.
 - **Al registrarte** marcas tu autorización de nuevo.
 - Puedes **revocar** tu autorización cuando quieras (secciones 8 y 9).
@@ -106,8 +113,9 @@ Como titular de los datos, tienes derecho a (Ley 1581, art. 8):
 
 ## 8. Qué puedes hacer tú mismo en la app
 
-- **Borrar tu cuenta y tus datos:** Perfil › Privacidad › «Borrar mi cuenta y mis datos». Se borran la cuenta, el correo, el nombre, la contraseña, los lugares guardados, la reputación, los votos y los «Gracias». Tus reportes y los paraderos que marcaste se quedan en el mapa sin nada que los ligue a ti. No se puede deshacer.
+- **Borrar tu cuenta y tus datos:** Perfil › Privacidad › «Borrar mi cuenta y mis datos». Se borran la cuenta, el correo, el nombre, la contraseña, los lugares guardados, la reputación, los votos, los «Gracias» y lo de las coronas. Tus reportes y los paraderos que marcaste se quedan en el mapa sin nada que los ligue a ti. No se puede deshacer.
 - **Dejar de compartir dónde va el bus:** Perfil › Privacidad.
+- **Dejar de participar en las coronas** o dejar de mostrar tu apodo de karteño: Perfil › Privacidad. Al dejar de participar se borran tus aportes y pierdes las coronas que tengas.
 - **Editar o borrar tus lugares guardados:** Perfil › Lugares guardados.
 - **Revocar la ubicación:** en los permisos de Android para Karta.
 

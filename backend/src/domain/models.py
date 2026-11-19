@@ -26,6 +26,14 @@ class Impacto:
 
 
 @dataclass(frozen=True)
+class AjustesDeCorona:
+    """Si participa en las coronas de las estaciones (docs/plan-juego.md) y cómo se le muestra si reina."""
+    participa: bool | None = None  # None: todavía no ha respondido; sin «sí», sus aportes no se cuentan
+    visible: bool = False          # si reina, se ve su apodo de karteño en lugar de «un karteño»
+    apodo: str | None = None       # su apodo de karteño, distinto de su nombre
+
+
+@dataclass(frozen=True)
 class Usuario:
     """
     Un viajero. Sin correo es la cuenta invisible del teléfono: se crea sola al abrir Karta, sin nombre ni
@@ -41,6 +49,7 @@ class Usuario:
     alias: str  # nombre corto que ven los demás viajeros
     impacto: Impacto = Impacto()
     autorizacion: str | None = None  # la última versión de la política de datos que aceptó
+    corona: AjustesDeCorona = AjustesDeCorona()
 
     @property
     def nivel(self) -> int:

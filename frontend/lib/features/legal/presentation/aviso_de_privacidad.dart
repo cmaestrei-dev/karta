@@ -99,6 +99,8 @@ class _AvisoDePrivacidadState extends State<AvisoDePrivacidad> {
                             'minutos. Te lo explicamos antes del primer viaje y lo apagas cuando quieras.'),
                         punto(Icons.campaign_outlined,
                             'Tus reportes se muestran a todos con tu alias y se borran solos en horas.'),
+                        punto(Icons.workspace_premium_outlined,
+                            'Las coronas de las estaciones son opcionales: te preguntamos aparte si quieres participar.'),
                         punto(Icons.cloud_outlined,
                             'Los datos se guardan en servidores de Amazon Web Services y MongoDB en Estados Unidos.'),
                         punto(Icons.insights_outlined,

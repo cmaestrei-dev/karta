@@ -21,6 +21,7 @@ import 'features/places/presentation/cubit/saved_places_cubit.dart';
 
 import 'features/legal/data/politica_repository.dart';
 import 'features/legal/presentation/aviso_de_privacidad.dart';
+import 'features/coronas/data/corona_repository.dart';
 import 'features/mapeo/data/mapeo_repository.dart';
 import 'features/trip/data/trip_repository.dart';
 
@@ -48,6 +49,7 @@ class KartaApp extends StatelessWidget {
         RepositoryProvider(create: (context) => PlacesRepository(api: context.read<ApiClient>())),
         RepositoryProvider(create: (context) => TripRepository(api: context.read<ApiClient>())),
         RepositoryProvider(create: (context) => MapeoRepository(api: context.read<ApiClient>())),
+        RepositoryProvider(create: (context) => CoronaRepository(api: context.read<ApiClient>())),
         RepositoryProvider(create: (context) => PoliticaRepository(api: context.read<ApiClient>())),
       ],
       child: MultiBlocProvider(

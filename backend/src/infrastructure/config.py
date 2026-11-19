@@ -44,6 +44,7 @@ LIMITE_RESPUESTAS_PARADA = (int(os.getenv("LIMITE_RESPUESTAS_PARADA_POR_10_MIN",
 LIMITE_MARCAS = (int(os.getenv("LIMITE_MARCAS_POR_10_MIN", "10")), 600)  # por viajero
 LIMITE_VIAJES_DE_MAPEO = (int(os.getenv("LIMITE_VIAJES_DE_MAPEO_POR_HORA", "6")), 3600)  # por viajero
 LIMITE_POSICIONES = (int(os.getenv("LIMITE_POSICIONES_POR_10_MIN", "40")), 600)  # por viajero
+LIMITE_APODOS = (int(os.getenv("LIMITE_APODOS_POR_10_MIN", "10")), 600)  # por viajero (intentos)
 LIMITE_RESULTADOS_DE_VIAJE = (int(os.getenv("LIMITE_RESULTADOS_DE_VIAJE_POR_HORA", "6")), 3600)  # por viajero
 
 # Por IP, en memoria y para todas las rutas (limite_en_memoria.py): (por minuto, ráfaga). Un viajero activo hace
