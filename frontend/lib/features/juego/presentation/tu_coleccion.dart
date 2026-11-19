@@ -4,9 +4,11 @@ import '../../../core/design/bahia.dart';
 import '../data/progreso_local.dart';
 import '../domain/progreso.dart';
 import '../domain/sellos.dart';
+import 'iguana.dart';
 
-/// En el perfil: el álbum de estaciones y la tarjeta de sellos (docs/plan-juego.md). Todo sale del teléfono.
-class TuColeccion extends StatelessWidget {
+/// En el perfil: el álbum de estaciones, la tarjeta de sellos y la iguana (docs/plan-juego.md). Todo sale del
+/// teléfono.
+class TuColeccion extends StatefulWidget {
   final ProgresoLocal progreso;
 
   /// Para abrir el álbum después de cerrar la hoja del perfil.
@@ -16,11 +18,24 @@ class TuColeccion extends StatelessWidget {
       : progreso = progreso ?? ProgresoLocal();
 
   @override
+  State<TuColeccion> createState() => _TuColeccionState();
+}
+
+class _TuColeccionState extends State<TuColeccion> {
+  late Future<ProgresoDeJuego> _progreso = widget.progreso.leer();
+
+  Future<void> _vestir() async {
+    await abrirVestidor(context, widget.progreso);
+    if (mounted) setState(() => _progreso = widget.progreso.leer());
+  }
+
+  @override
   Widget build(BuildContext context) {
     final b = Bahia.de(context);
     final texto = Theme.of(context).textTheme;
+    final onAbrirAlbum = widget.onAbrirAlbum;
     return FutureBuilder<ProgresoDeJuego>(
-      future: progreso.leer(),
+      future: _progreso,
       builder: (context, datos) {
         final p = datos.data ?? const ProgresoDeJuego();
         final album = p.album, tarjeta = p.tarjeta;
@@ -99,8 +114,47 @@ class TuColeccion extends StatelessWidget {
                 ),
                 Divider(height: 1, indent: 16, endIndent: 16, color: b.divisor),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                   child: _Tarjeta(tarjeta: tarjeta),
+                ),
+                Divider(height: 1, indent: 16, endIndent: 16, color: b.divisor),
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: _vestir,
+                    child: Semantics(
+                      button: true,
+                      onTap: _vestir,
+                      label: 'Tu iguana: ${p.puesto?.nombre ?? 'sin accesorios'}. '
+                          '${accesorios.where((a) => a.ganado(tarjeta.llenas)).length} de ${accesorios.length} '
+                          'accesorios ganados. Vestirla',
+                      excludeSemantics: true,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 8, 8, 12),
+                        child: Row(
+                          children: [
+                            Iguana(animo: AnimoDeIguana.feliz, accesorio: p.puesto, tamano: 64),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Tu iguana del Centenario', style: texto.titleSmall),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '${accesorios.where((a) => a.ganado(tarjeta.llenas)).length} de '
+                                    '${accesorios.length} accesorios · cada tarjeta llena le gana uno',
+                                    style: texto.bodySmall?.copyWith(color: b.textoSuave),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(Icons.checkroom_outlined, color: b.textoSuave),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),

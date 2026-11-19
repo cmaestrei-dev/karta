@@ -11,12 +11,15 @@ import 'package:karta/features/juego/domain/progreso.dart';
 import 'package:karta/features/juego/domain/sellos.dart';
 import 'package:karta/features/juego/presentation/album_screen.dart';
 import 'package:karta/features/juego/presentation/celebracion.dart';
+import 'package:karta/features/juego/presentation/iguana.dart';
+import 'package:karta/features/juego/presentation/tu_coleccion.dart';
 import 'package:karta/features/juego/presentation/lamina_screen.dart';
 import 'package:karta/features/trip/domain/trip_models.dart';
 import 'package:karta/features/viaje/data/avisos.dart';
 import 'package:karta/features/viaje/data/preferencia_de_compartir.dart';
 import 'package:karta/features/viaje/data/tiempo_real_repository.dart';
 import 'package:karta/features/viaje/domain/resultado_del_viaje.dart';
+import 'package:karta/features/viaje/domain/seguidor_de_viaje.dart';
 import 'package:karta/features/viaje/presentation/viaje_cubit.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -153,6 +156,54 @@ void main() {
       expect(find.text('Llevas 3 de 7 en tu tarjeta'), findsOneWidget);
       await tester.pump(const Duration(seconds: 4));
       expect(vistos, 1);
+    });
+  });
+
+  group('la iguana', () {
+    test('su ánimo sigue el viaje', () {
+      expect(animoDelViaje(Fase.caminandoALaParada), AnimoDeIguana.tranquila);
+      expect(animoDelViaje(Fase.esperando, minutosParaElBus: 15), AnimoDeIguana.dormida);
+      expect(animoDelViaje(Fase.esperando, minutosParaElBus: 2), AnimoDeIguana.feliz);
+      expect(animoDelViaje(Fase.esperando), AnimoDeIguana.tranquila); // nadie sabe cuándo llega
+      expect(animoDelViaje(Fase.aBordo), AnimoDeIguana.feliz);
+      expect(animoDelViaje(Fase.caminandoALaParada, celebrando: true), AnimoDeIguana.feliz);
+    });
+
+    test('solo lleva puesto lo que tiene ganado', () {
+      const sinTarjetas = ProgresoDeJuego(accesorio: 'vueltiao');
+      expect(sinTarjetas.puesto, isNull);
+      const conTres = ProgresoDeJuego(accesorio: 'vueltiao', tarjeta: TarjetaDeSellos(llenas: 3));
+      expect(conTres.puesto?.nombre, 'Sombrero vueltiao');
+      expect(ProgresoDeJuego.fromJson(conTres.toJson()), conTres);
+      expect(conTres.copyWith(accesorio: () => null).accesorio, isNull);
+    });
+
+    testWidgets('en el vestidor se pone lo ganado y se puede apagar en el viaje', (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final local = ProgresoLocal();
+      await local.cambiar((p) => (progreso: p.copyWith(tarjeta: const TarjetaDeSellos(llenas: 1)), resultado: null));
+      await tester.pumpWidget(MaterialApp(
+        theme: TemaBahia.oscuro,
+        home: Scaffold(body: SingleChildScrollView(child: TuColeccion(progreso: local, onAbrirAlbum: () {}))),
+      ));
+      await tester.pumpAndSettle();
+      expect(find.text('1 de 5 accesorios · cada tarjeta llena le gana uno'), findsOneWidget);
+
+      await tester.tap(find.bySemanticsLabel(RegExp('Tu iguana: sin accesorios')));
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50))); // lee el teléfono
+      await tester.pumpAndSettle();
+      expect(find.bySemanticsLabel('Gorra de Karta: Llena 2 tarjetas'), findsOneWidget);
+      await tester.tap(find.bySemanticsLabel('Gafas de sol'));
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      expect((await local.leer()).puesto?.clave, 'gafas');
+      await tester.tap(find.bySemanticsLabel('Gorra de Karta: Llena 2 tarjetas')); // aún no la tiene
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      expect((await local.leer()).puesto?.clave, 'gafas');
+      await tester.tap(find.text('Que me acompañe en el viaje'));
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      expect((await local.leer()).iguanaEnElViaje, isFalse);
     });
   });
 
