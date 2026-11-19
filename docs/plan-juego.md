@@ -114,8 +114,23 @@ Quienes más usarán Karta son estudiantes (muchos menores de edad), trabajadore
 2. **La corona pública:** anónima por defecto («La tiene un karteño»). Quien quiera mostrarse elige un apodo de karteño.
 3. **Por dónde empezar:** la fase A.
 
-**Pendientes:**
-- **El apodo del día:** texto libre con filtro y reportes (recomendado) o solo frases predefinidas. Se decide antes de la fase B.
-- **La mascota:** la iguana del Centenario u otra. Mientras tanto, la fase A arranca con la iguana.
+**Tomadas el 19 de noviembre de 2026:**
+- **El apodo del día:** texto libre, con filtro y reportes.
+
+**Pendiente:**
+- **La mascota:** la iguana del Centenario u otra. Mientras tanto, va la iguana.
+
+## 8. Estado
+
+- **Fase A** (19 de noviembre de 2026): terminada y probada en el teléfono.
+  - La tarjeta de sellos se llama así, y no «sellos de la semana», porque no hace falta viajar todos los días.
+- **Fase B:**
+  - **Construida:** corona de las 19 estaciones, apodo del día, apodo de karteño y política 1.2.
+  - **Participar es una pregunta aparte** que dice qué se guarda. Esa respuesta es la autorización para esta finalidad nueva (Decreto 1377 de 2013, art. 5, parágrafo).
+  - **Qué suma:**
+    - un reporte junto a una estación (a 80 m) que otro confirmó;
+    - un voto al que la comunidad le dio la razón.
+  - **Para reinar** hacen falta al menos 2 días.
+  - **La medalla del paradero** queda para la fase C. Necesita guardar los aportes por más de 31 días, y eso pide pensar bien qué se guarda.
 
 **Maquetas:** la hoja de una estación con su corona, la pantalla para poner el apodo, el álbum y una lámina están en un lienzo de diseño privado de Camilo.
