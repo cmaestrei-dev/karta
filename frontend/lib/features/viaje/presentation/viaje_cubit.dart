@@ -6,6 +6,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../juego/data/progreso_local.dart';
+import '../../juego/domain/album.dart';
+import '../../juego/domain/logros.dart';
+import '../../juego/domain/progreso.dart';
+import '../../juego/domain/sellos.dart';
 import '../../trip/domain/trip_models.dart';
 import '../data/avisos.dart';
 import '../data/preferencia_de_compartir.dart';
@@ -60,6 +65,9 @@ class ViajeState extends Equatable {
   /// Al llegar: cuánto estimó Karta y cuánto tardó.
   final ResultadoDelViaje? resultado;
 
+  /// Lo que se acaba de ganar (una lámina, un sello), para celebrarlo un momento.
+  final LogroDelViaje? logro;
+
   const ViajeState({
     required this.estado,
     this.posicion,
@@ -77,6 +85,7 @@ class ViajeState extends Equatable {
     this.rutaQueLlega,
     this.rutaABordo,
     this.resultado,
+    this.logro,
   });
 
   /// Los campos que pueden volver a null se pasan como función: `llegada: () => null`.
@@ -97,6 +106,7 @@ class ViajeState extends Equatable {
     String? Function()? rutaQueLlega,
     String? Function()? rutaABordo,
     ResultadoDelViaje? Function()? resultado,
+    LogroDelViaje? Function()? logro,
   }) =>
       ViajeState(
         estado: estado ?? this.estado,
@@ -115,12 +125,14 @@ class ViajeState extends Equatable {
         rutaQueLlega: rutaQueLlega != null ? rutaQueLlega() : this.rutaQueLlega,
         rutaABordo: rutaABordo != null ? rutaABordo() : this.rutaABordo,
         resultado: resultado != null ? resultado() : this.resultado,
+        logro: logro != null ? logro() : this.logro,
       );
 
   @override
   List<Object?> get props => [
         estado, posicion, ultimoEvento, error, llegada, compartiendo, ocupacion, pedirLaParada, desvioDelBus,
         preguntarVarado, varadoReportado, preguntarComoPediste, comoSePideAqui, rutaQueLlega, rutaABordo, resultado,
+        logro,
       ];
 }
 
@@ -133,6 +145,12 @@ class ViajeCubit extends Cubit<ViajeState> {
   final SeguidorDeViaje seguidor;
   final TiempoRealRepository? tiempoReal;
   final PreferenciaDeCompartir preferencia;
+
+  /// El álbum, la tarjeta de sellos y las medallas de viaje (docs/plan-juego.md), en el teléfono.
+  final ProgresoLocal juego;
+
+  /// A esta distancia de una estación del tramo, el bus pasó por ella.
+  static const radioDeEstacionM = 60.0;
 
   /// Contar cómo va el bus o compartirlo pide sesión (el servidor la usa solo para limitar envíos).
   final bool Function() haySesion;
@@ -174,17 +192,27 @@ class ViajeCubit extends Cubit<ViajeState> {
   DateTime? _subioEn;
   final _medidos = <BusMedido>[];
 
+  // El juego: estaciones por las que pasó este bus (y las que esperan a que el servidor acepte el viaje compartido),
+  // lo recorrido a bordo para el Troncalero, y los logros por celebrar, en orden.
+  final _estacionesDeEsteBus = <String>{};
+  final _porGuardar = <String>[];
+  LatLng? _ultimoABordo;
+  double _metrosABordo = 0;
+  final _logros = <LogroDelViaje>[];
+
   ViajeCubit({
     required this.opcion,
     required this.avisos,
     required this.fuente,
     this.tiempoReal,
     PreferenciaDeCompartir? preferencia,
+    ProgresoLocal? juego,
     this.haySesion = _sinSesion,
     this.cadaCuanto = const Duration(seconds: 30),
     this.reloj = DateTime.now,
   })  : seguidor = SeguidorDeViaje(opcion),
         preferencia = preferencia ?? PreferenciaDeCompartir(),
+        juego = juego ?? ProgresoLocal(),
         super(ViajeState(estado: SeguidorDeViaje(opcion).estado));
 
   static bool _sinSesion() => false;
@@ -277,6 +305,7 @@ class ViajeCubit extends Cubit<ViajeState> {
     if (eventos.contains(EventoDelViaje.llegaste)) _alLlegar();
     _seguirLlegada();
     _enviarPosicion(punto);
+    _jugar(punto);
     if (seguidor.estado.fase == Fase.llegaste) _suscripcion?.cancel();
   }
 
@@ -384,6 +413,10 @@ class ViajeCubit extends Cubit<ViajeState> {
     _rutaPrevista = state.rutaQueLlega;
     if (state.rutaABordo != null) emit(state.copyWith(rutaABordo: () => null));
     saltarComoPedi(); // si no respondió antes de subir al siguiente bus, el momento ya pasó
+    _estacionesDeEsteBus.clear();
+    _porGuardar.clear();
+    _ultimoABordo = null;
+    _metrosABordo = 0;
     if (_quiereCompartir) _empezarACompartir();
     _contarSubida();
     _contadoEsteBus = false;
@@ -469,6 +502,9 @@ class ViajeCubit extends Cubit<ViajeState> {
   }
 
   void _alBajar(Leg bus) {
+    // Al bajarse ya no va «a bordo», pero la estación donde se bajó y el último trecho también cuentan.
+    if (state.compartiendo && state.posicion != null) _anotarRecorrido(state.posicion!, bus);
+    _sumarKmDeTroncal(bus);
     _rutaPrevista = null;
     if (state.rutaABordo != null) emit(state.copyWith(rutaABordo: () => null));
     _vigiaQuieto?.cancel();
@@ -520,6 +556,7 @@ class ViajeCubit extends Cubit<ViajeState> {
         if (!_contadoEsteBus) {
           _contadoEsteBus = true;
           await preferencia.sumarViajeCompartido(); // para «Tu impacto», solo en el teléfono
+          await _alCompartirDeVerdad();
         }
       } else {
         await tiempoReal!.terminarViajeCompartido(nuevo); // se bajó o dejó de compartir mientras tanto
@@ -527,6 +564,93 @@ class ViajeCubit extends Cubit<ViajeState> {
     } catch (_) {
       // Sin conexión o demasiados envíos: se reintenta con la próxima posición.
     }
+  }
+
+  // El juego (docs/plan-juego.md) --------------------------------------------------------------------------------
+
+  /// Mientras comparte a bordo: las estaciones del tramo a menos de [radioDeEstacionM] van al álbum (una vez por bus)
+  /// y lo recorrido cuenta para el Troncalero. Solo se guarda cuando el servidor aceptó el viaje compartido: así el
+  /// álbum se llena con viajes compartidos de verdad.
+  void _jugar(LatLng punto) {
+    if (!state.compartiendo || seguidor.estado.fase != Fase.aBordo) return;
+    _anotarRecorrido(punto, seguidor.tramoActual);
+  }
+
+  void _anotarRecorrido(LatLng punto, Leg bus) {
+    final antes = _ultimoABordo;
+    _ultimoABordo = punto;
+    if (antes != null) _metrosABordo += const Distance().as(LengthUnit.Meter, antes, punto);
+    for (final parada in bus.paradas) {
+      if (_estacionesDeEsteBus.contains(parada.nombre)) continue;
+      if (const Distance().as(LengthUnit.Meter, parada.punto, punto) <= radioDeEstacionM) {
+        _estacionesDeEsteBus.add(parada.nombre);
+        _porGuardar.add(parada.nombre);
+      }
+    }
+    if (_contadoEsteBus) _guardarEstaciones();
+  }
+
+  /// El primer envío aceptado de este bus: el sello del día y, antes de las 6, una madrugada más.
+  Future<void> _alCompartirDeVerdad() async {
+    final ahora = reloj();
+    try {
+      final sello = await juego.cambiar((p) {
+        final r = p.tarjeta.sellar(ahora);
+        final madrugo = ahora.hour < horaDelMadrugador;
+        return (progreso: p.copyWith(tarjeta: r.tarjeta, madrugadas: p.madrugadas + (madrugo ? 1 : 0)), resultado: r);
+      });
+      if (sello.sellado) {
+        _lograr(SelloDelDia(sellos: sello.llena ? TarjetaDeSellos.porTarjeta : sello.tarjeta.sellos, llena: sello.llena));
+      }
+    } catch (_) {
+      // Sin espacio en el teléfono: el viaje sigue igual.
+    }
+    _guardarEstaciones();
+  }
+
+  void _guardarEstaciones() {
+    if (_porGuardar.isEmpty) return;
+    final nombres = List.of(_porGuardar);
+    _porGuardar.clear();
+    final ruta = rutaDelBus, cuando = reloj();
+    juego.cambiar((p) {
+      var album = p.album;
+      final nuevas = <EstacionDelAlbum>[];
+      for (final nombre in nombres) {
+        final r = album.pasoPor(nombre, ruta: ruta, cuando: cuando);
+        album = r.album;
+        if (r.nueva != null) nuevas.add(r.nueva!);
+      }
+      return (progreso: p.copyWith(album: album), resultado: (nuevas: nuevas, conseguidas: album.conseguidas));
+    }).then((r) {
+      for (final (k, estacion) in r.nuevas.indexed) {
+        _lograr(LaminaNueva(estacion, conseguidas: r.conseguidas - r.nuevas.length + k + 1, total: estacionesDelAlbum.length));
+      }
+    }).catchError((_) {});
+  }
+
+  void _sumarKmDeTroncal(Leg bus) {
+    final metros = _metrosABordo;
+    _metrosABordo = 0;
+    _ultimoABordo = null;
+    final ruta = rutaDelBus ?? bus.ruta ?? '';
+    if (!_contadoEsteBus || metros <= 0 || !(bus.tipoRuta == 'troncal' || ruta.startsWith('T'))) return;
+    juego.cambiar((p) => (progreso: p.copyWith(kmTroncal: p.kmTroncal + metros / 1000), resultado: null))
+        .catchError((_) {});
+  }
+
+  /// Los logros se celebran de a uno: el siguiente sale cuando la pantalla avisa que ya mostró el anterior.
+  void _lograr(LogroDelViaje logro) {
+    if (isClosed) return;
+    _logros.add(logro);
+    if (state.logro == null) emit(state.copyWith(logro: () => _logros.first));
+  }
+
+  /// La pantalla ya celebró el logro actual.
+  void logroVisto() {
+    if (isClosed || _logros.isEmpty) return;
+    _logros.removeAt(0);
+    emit(state.copyWith(logro: () => _logros.isEmpty ? null : _logros.first));
   }
 
   // Qué tan bien estimó Karta (D17) -------------------------------------------------------------------------------
