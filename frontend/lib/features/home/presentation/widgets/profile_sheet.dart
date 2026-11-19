@@ -10,6 +10,7 @@ import '../../../auth/presentation/screens/register_screen.dart';
 import '../../../places/presentation/cubit/saved_places_cubit.dart';
 import '../../../places/presentation/screens/saved_places_screen.dart';
 import '../../../legal/presentation/politica_screen.dart';
+import '../../../coronas/presentation/ajustes_de_coronas.dart';
 import '../../../juego/data/progreso_local.dart';
 import '../../../juego/domain/progreso.dart';
 import '../../../juego/presentation/album_screen.dart';
@@ -861,6 +862,7 @@ class _PrivacidadState extends State<_Privacidad> {
               style: texto.bodySmall?.copyWith(color: b.textoSuave),
             ),
           ),
+          const AjustesDeCoronas(),
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.policy_outlined),

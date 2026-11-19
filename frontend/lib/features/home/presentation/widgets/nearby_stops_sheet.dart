@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../coronas/presentation/estacion_screen.dart';
 import '../../../../core/design/bahia.dart';
 import '../../../../core/format.dart';
 import '../../../../core/widgets/route_capsule.dart';
-import '../../../places/domain/place_models.dart';
 import '../../../trip/domain/trip_models.dart';
 import '../../../trip/presentation/cubit/trip_cubits.dart';
-import '../../../trip/presentation/screens/plan_route_screen.dart';
 import '../../../trip/presentation/screens/route_page_screen.dart';
 
 /// Contenido de la hoja inferior del inicio: lo que va arriba ([encabezado]) y las estaciones cerca.
@@ -149,14 +148,12 @@ class _TarjetaDeEstacion extends StatelessWidget {
     final ocultas = estacion.rutas.length - visibles.length;
     final aPie = '${metros(estacion.caminataM)} · ${minutos(estacion.caminataMin)} a pie';
     final radio = BorderRadius.circular(18);
-    void irALaEstacion() => PlanRouteScreen.open(
-          context,
-          destino: TripPoint(nombre: 'Estación ${estacion.nombre}', punto: estacion.punto),
-        );
+    // La página de la estación: cómo llegar, sus rutas y su corona.
+    void irALaEstacion() => EstacionScreen.open(context, estacion);
 
     return Semantics(
       button: true,
-      label: 'Estación ${estacion.nombre}, $aPie. Rutas ${estacion.rutas.join(', ')}. Toca para ver cómo llegar',
+      label: 'Estación ${estacion.nombre}, $aPie. Rutas ${estacion.rutas.join(', ')}. Toca para ver la estación',
       excludeSemantics: true,
       onTap: irALaEstacion,
       child: Material(
