@@ -15,6 +15,9 @@ import '../../../core/widgets/karta_map.dart';
 import '../../../core/widgets/route_capsule.dart';
 import '../../auth/data/repositories/auth_repository.dart';
 import '../../places/domain/place_models.dart';
+import '../../juego/domain/progreso.dart';
+import '../../juego/presentation/celebracion.dart';
+import '../../juego/presentation/iguana.dart';
 import '../../trip/domain/trip_models.dart';
 import '../../trip/presentation/screens/plan_route_screen.dart';
 import '../data/avisos.dart';
@@ -83,6 +86,17 @@ class _ViajeViewState extends State<_ViajeView> {
 
   /// El mapa sigue al viajero hasta que lo mueve con el dedo; el botón de ubicar lo vuelve a seguir.
   bool _siguiendo = true;
+
+  /// La iguana que acompaña el viaje (docs/plan-juego.md); null si la apagó o aún no se sabe.
+  ProgresoDeJuego? _iguana;
+
+  @override
+  void initState() {
+    super.initState();
+    context.read<ViajeCubit>().juego.leer().then((p) {
+      if (mounted && p.iguanaEnElViaje) setState(() => _iguana = p);
+    }).catchError((_) {});
+  }
 
   Future<void> _terminar() async {
     final cubit = context.read<ViajeCubit>();
@@ -302,21 +316,37 @@ class _ViajeViewState extends State<_ViajeView> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      if (!_siguiendo)
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: Padding(
-                            padding: const EdgeInsets.only(right: 16, bottom: 12),
-                            child: MapIconButton(
-                              icon: Icons.my_location,
-                              tooltip: 'Seguir mi ubicación',
-                              color: b.acento,
-                              onPressed: () {
-                                setState(() => _siguiendo = true);
-                                if (state.posicion != null) _mapa.move(state.posicion!, 16);
-                              },
-                            ),
+                      if (!_siguiendo || _iguana != null)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 10, right: 16, bottom: 12),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              if (_iguana != null && state.pedirLaParada == null)
+                                Iguana(
+                                  accesorio: _iguana!.puesto,
+                                  animo: animoDelViaje(state.estado.fase,
+                                      minutosParaElBus: state.llegada?.minutos, celebrando: state.logro != null),
+                                ),
+                              const Spacer(),
+                              if (!_siguiendo)
+                                MapIconButton(
+                                  icon: Icons.my_location,
+                                  tooltip: 'Seguir mi ubicación',
+                                  color: b.acento,
+                                  onPressed: () {
+                                    setState(() => _siguiendo = true);
+                                    if (state.posicion != null) _mapa.move(state.posicion!, 16);
+                                  },
+                                ),
+                            ],
                           ),
+                        ),
+                      if (state.logro != null && state.pedirLaParada == null)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                          child: CelebracionDeLogro(
+                              key: ValueKey(state.logro), logro: state.logro!, onVisto: cubit.logroVisto),
                         ),
                       if (state.preguntarVarado || state.varadoReportado)
                         Padding(

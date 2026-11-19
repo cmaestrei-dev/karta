@@ -10,6 +10,10 @@ import '../../../auth/presentation/screens/register_screen.dart';
 import '../../../places/presentation/cubit/saved_places_cubit.dart';
 import '../../../places/presentation/screens/saved_places_screen.dart';
 import '../../../legal/presentation/politica_screen.dart';
+import '../../../juego/data/progreso_local.dart';
+import '../../../juego/domain/progreso.dart';
+import '../../../juego/presentation/album_screen.dart';
+import '../../../juego/presentation/tu_coleccion.dart';
 import '../../../viaje/data/preferencia_de_compartir.dart';
 import 'avatar_de_viajero.dart';
 
@@ -44,6 +48,10 @@ void showProfileSheet(BuildContext context) {
                         children: [
                           _Reputacion(usuario: state.usuario),
                           _TuImpacto(impacto: state.usuario.impacto),
+                          TuColeccion(onAbrirAlbum: () {
+                            Navigator.of(hoja).pop();
+                            Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => AlbumScreen()));
+                          }),
                           _Insignias(usuario: state.usuario),
                           _ColeccionDeMarcos(usuario: state.usuario),
                           if (state.usuario.sinCuenta) _CrearCuenta(hoja: hoja, raiz: context),
@@ -176,7 +184,7 @@ class _BorrarCuenta extends StatelessWidget {
             title: const Text('¿Borrar tu cuenta y tus datos?'),
             content: Text(
               'Se borran tu cuenta${conCorreo ? ', tu correo' : ''}, tus lugares guardados, tu reputación, tus '
-              'insignias y tus votos. Tus reportes y los paraderos que marcaste se quedan en el mapa para los demás, '
+              'insignias, tu álbum y tus votos. Tus reportes y los paraderos que marcaste se quedan en el mapa para los demás, '
               'pero ya sin nada que los ligue a ti.\n\nNo se puede deshacer.',
             ),
             actions: [
@@ -191,6 +199,7 @@ class _BorrarCuenta extends StatelessWidget {
         );
         if (confirmar == true && raiz.mounted) {
           raiz.read<SavedPlacesCubit>().clear();
+          ProgresoLocal().borrar(); // el álbum, los sellos y las medallas de viaje
           auth.add(const AccountDeletionRequested());
         }
       },
@@ -531,13 +540,53 @@ const medallas = {
   'viajero_solidario': (Color(0xFF2EC4B6), Icons.directions_bus_outlined),
   'kartografo': (Color(0xFFB39DFF), Icons.where_to_vote_outlined),
   'gran_kartografo': (Color(0xFF7FD4FF), Icons.map_outlined),
+  'madrugador': (Color(0xFFFFB86B), Icons.wb_twilight),
+  'troncalero': (Color(0xFF4BE38B), Icons.route),
 };
+
+const _nombreDelNivel = {
+  NivelDeMedalla.bronce: 'bronce',
+  NivelDeMedalla.plata: 'plata',
+  NivelDeMedalla.oro: 'oro',
+  NivelDeMedalla.platino: 'platino',
+};
+
+/// Las medallas de viaje (docs/plan-juego.md): ganadas, con su nivel, y la siguiente de las que ya empezó.
+({List<Insignia> ganadas, List<AvanceDeInsignia> proximas}) _medallasDeViaje(ProgresoDeJuego progreso) {
+  final ganadas = <Insignia>[], proximas = <AvanceDeInsignia>[];
+  for (final medalla in medallasDeViaje) {
+    final llevas = progreso.llevas(medalla);
+    final nivel = medalla.nivel(llevas);
+    if (nivel != NivelDeMedalla.ninguno) {
+      ganadas.add(Insignia(
+          clave: medalla.clave, nombre: '${medalla.nombre} · ${_nombreDelNivel[nivel]}', descripcion: medalla.descripcion));
+    }
+    final meta = medalla.siguienteMeta(llevas);
+    if (meta != null && llevas > 0) {
+      final siguiente = NivelDeMedalla.values[nivel.index + 1];
+      proximas.add(AvanceDeInsignia(
+        insignia: Insignia(
+            clave: medalla.clave,
+            nombre: '${medalla.nombre} · ${_nombreDelNivel[siguiente]}',
+            descripcion: medalla.descripcion),
+        llevas: llevas.floor(),
+        meta: meta.round(),
+        unidad: medalla.unidad,
+      ));
+    }
+  }
+  return (ganadas: ganadas, proximas: proximas);
+}
 const tintaDeMedalla = Color(0xFF14181F);
 
 /// Compartir la posición del bus es anónimo: su insignia se cuenta en el teléfono, no en el servidor.
 const _viajeroSolidario = Insignia(
     clave: 'viajero_solidario', nombre: 'Viajero solidario', descripcion: 'Compartiste la posición de 5 buses');
 const _busesParaSerSolidario = 5;
+
+/// Lo que se cuenta en el teléfono: los buses compartidos y el progreso del juego.
+Future<(int, ProgresoDeJuego)> _insigniasDelTelefono() async =>
+    (await PreferenciaDeCompartir().viajesCompartidos(), await ProgresoLocal().leer());
 
 /// Las insignias ganadas y la que está más cerca, con cuánto falta.
 class _Insignias extends StatelessWidget {
@@ -549,17 +598,19 @@ class _Insignias extends StatelessWidget {
   Widget build(BuildContext context) {
     final b = Bahia.de(context);
     final texto = Theme.of(context).textTheme;
-    return FutureBuilder<int>(
-      future: PreferenciaDeCompartir().viajesCompartidos(),
-      builder: (context, viajes) {
-        final buses = viajes.data ?? 0;
+    return FutureBuilder<(int, ProgresoDeJuego)>(
+      future: _insigniasDelTelefono(),
+      builder: (context, datos) {
+        final buses = datos.data?.$1 ?? 0;
+        final deViaje = _medallasDeViaje(datos.data?.$2 ?? const ProgresoDeJuego());
         final solidario = buses >= _busesParaSerSolidario;
-        final ganadas = [...usuario.insignias, if (solidario) _viajeroSolidario];
+        final ganadas = [...usuario.insignias, if (solidario) _viajeroSolidario, ...deViaje.ganadas];
         final proximas = [
           if (usuario.siguienteInsignia != null) usuario.siguienteInsignia!,
           if (!solidario)
             AvanceDeInsignia(
                 insignia: _viajeroSolidario, llevas: buses, meta: _busesParaSerSolidario, unidad: 'buses compartidos'),
+          ...deViaje.proximas,
         ];
         return Padding(
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
