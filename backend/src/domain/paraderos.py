@@ -1,7 +1,7 @@
 """
-Los paraderos oficiales de cada ruta (data/paraderos.json, de scripts/importar_paraderos.py) y lo que dicen de cómo
-abordar: en qué módulo de la estación para la ruta en el sentido del viaje («Madre Bernarda A1») y hacia dónde va
-(«hacia Bocagrande»). Todo aquí es puro.
+Los paraderos oficiales de cada ruta (data/paraderos.json, de scripts/importar_gtfs.py o, sin el GTFS, de
+scripts/importar_paraderos.py) y lo que dicen de cómo abordar: en qué módulo de la estación para la ruta en el sentido
+del viaje («Madre Bernarda A1») y hacia dónde va («hacia Bocagrande»). Todo aquí es puro.
 """
 import math
 from dataclasses import dataclass
@@ -15,7 +15,9 @@ class ParaderoOficial:
     nombre: str           # «Madre Bernarda A1», «Kr 68 entre Cl 16 y 17»
     estacion: str | None  # id de la estación, si es una
     modulo: str | None    # «A1»: el 1 es hacia el Centro, el 2 hacia el Portal; la letra, la mitad de la plataforma
-    precision: str | None  # estacion | direccion | estimado | comunidad (lo ubicó la comunidad) | None (sin ubicar)
+    # estacion | oficial (coordenadas del GTFS de Transcaribe) | direccion | estimado | comunidad (lo ubicó la
+    # comunidad) | None (sin ubicar)
+    precision: str | None
     longitud: float | None = None
     latitud: float | None = None
     id: str | None = None  # «A107-ida-05»

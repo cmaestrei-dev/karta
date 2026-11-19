@@ -214,18 +214,19 @@ class TripService:
     def nearby_routes(self, lat: float, lon: float, radio_m: float, limite: int) -> list[tuple[PasoCercano, str]]:
         """
         Caso de Uso: Ver las rutas que pasan cerca y por dónde tomarlas («Paradero Av. Kennedy con Calle 18»).
-        Los paraderos oficiales no tienen coordenadas publicadas: es el punto de la vía más cercano donde la ruta
-        recoge pasajeros, nombrado por el cruce de calles.
+        Es el punto de la vía más cercano donde la ruta recoge pasajeros, nombrado por el paradero oficial que quede a
+        pocos metros (con las coordenadas del GTFS o ubicado por su dirección) o, si no hay, por el cruce de calles.
         """
         estaciones = self.transit.list_stations()
         cercanas = self.transit.routes_intersecting_any([circulo(lon, lat, radio_m)])
         pasos = sorted((p for r in cercanas if r.cortes_en_osm <= MAX_CORTES_CONFIABLES
                         if (p := donde_pasa_cerca(r, estaciones, (lon, lat), radio_m))),
                        key=lambda p: p.distancia_m)[:limite]
-        oficiales = [o for o in self.transit.official_stops([p.ruta.id for p in pasos]) if o.precision == "direccion"]
+        oficiales = [o for o in self.transit.official_stops([p.ruta.id for p in pasos])
+                     if o.precision in ("oficial", "direccion")]
 
         def nombre(paso: PasoCercano) -> str:
-            # El paradero oficial de esa ruta, si hay uno ubicado por su dirección a pocos metros.
+            # El paradero oficial de esa ruta, si hay uno a pocos metros con coordenadas confiables.
             cerca = [(distancia_m((paso.longitud, paso.latitud), (o.longitud, o.latitud)), o)
                      for o in oficiales if o.ruta == paso.ruta.id]
             distancia, oficial = min(cerca, key=lambda par: par[0], default=(None, None))

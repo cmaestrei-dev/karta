@@ -119,12 +119,14 @@ class _ParaderosDeLaRutaState extends State<ParaderosDeLaRuta> {
                     style: texto.bodySmall?.copyWith(color: b.textoSuave, fontFeatures: tabularFigures)),
               ],
             ),
-            const SizedBox(height: 4),
-            Text(
-              'Los que faltan los marcan los Kartógrafos: mueves el mapa hasta el paradero y otros viajeros que '
-              'pasen por ahí lo confirman.',
-              style: texto.bodySmall?.copyWith(color: b.textoSuave),
-            ),
+            if (datos.ubicados < datos.total) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Los que faltan los marcan los Kartógrafos: mueves el mapa hasta el paradero y otros viajeros que '
+                'pasen por ahí lo confirman.',
+                style: texto.bodySmall?.copyWith(color: b.textoSuave),
+              ),
+            ],
             if (datos.sentidos.length > 1) ...[
               const SizedBox(height: 12),
               SingleChildScrollView(
@@ -157,8 +159,10 @@ class _ParaderosDeLaRutaState extends State<ParaderosDeLaRuta> {
               ),
             const SizedBox(height: 8),
             Text(
-              'Paraderos: «Paradero_Transcaribe 2025», Portal de Datos Abiertos de Cartagena (CC BY), ubicados con '
-              'calles de OpenStreetMap y por la comunidad.',
+              datos.sentidos.any((s) => s.paraderos.any((p) => p.estado == EstadoDeParadero.oficial))
+                  ? 'Paraderos: Transcaribe S.A., GTFS del SITM.'
+                  : 'Paraderos: «Paradero_Transcaribe 2025», Portal de Datos Abiertos de Cartagena (CC BY), ubicados '
+                      'con calles de OpenStreetMap y por la comunidad.',
               style: texto.bodySmall?.copyWith(color: b.textoSuave),
             ),
           ],
@@ -181,13 +185,14 @@ class _FilaDeParadero extends StatelessWidget {
     final texto = Theme.of(context).textTheme;
     final marca = paradero.marca;
     final (color, relleno) = switch (paradero.estado) {
-      EstadoDeParadero.estacion || EstadoDeParadero.direccion || EstadoDeParadero.estimado ||
-      EstadoDeParadero.comunidad => (b.acento, true),
+      EstadoDeParadero.estacion || EstadoDeParadero.oficial || EstadoDeParadero.direccion ||
+      EstadoDeParadero.estimado || EstadoDeParadero.comunidad => (b.acento, true),
       EstadoDeParadero.porConfirmar => (b.via, true),
       EstadoDeParadero.sinUbicar => (b.textoSuave, false),
     };
     final detalle = switch (paradero.estado) {
       EstadoDeParadero.estacion => paradero.modulo != null ? 'Estación · módulo ${paradero.modulo}' : 'Estación',
+      EstadoDeParadero.oficial => 'En el mapa · ubicación oficial de Transcaribe',
       EstadoDeParadero.direccion => 'En el mapa',
       EstadoDeParadero.estimado => 'En el mapa · ubicación estimada por la dirección',
       EstadoDeParadero.comunidad => 'En el mapa · lo ubicó la comunidad',

@@ -33,9 +33,10 @@ def route_stops(codigo: str = Path(..., pattern=r"^[ATXC]\d{3}E?$"),
                 usuario: Usuario | None = Depends(get_optional_user),
                 service: MappingService = Depends(get_mapping_service)):
     """
-    Los paraderos oficiales de la ruta (archivo de Transcaribe de 2025), por sentido y en orden, con su estado:
-    `estacion`, `direccion` (ubicado por su dirección), `estimado` (su dirección, con un cruce que falta en OSM
-    estimado sobre la misma vía), `comunidad` (lo ubicaron los viajeros), `por_confirmar` o `sin_ubicar`. Las pistas son lugares donde varios viajeros se subieron a la ruta.
+    Los paraderos oficiales de la ruta (del GTFS de Transcaribe o, sin él, del archivo de 2025), por sentido y en orden,
+    con su estado: `estacion`, `oficial` (en el punto del GTFS), `direccion` (ubicado por su dirección), `estimado` (su
+    dirección, con un cruce que falta en OSM estimado sobre la misma vía), `comunidad` (lo ubicaron los viajeros),
+    `por_confirmar` o `sin_ubicar`. Las pistas son lugares donde varios viajeros se subieron a la ruta.
     """
     datos = service.route_stops(codigo)
     if datos is None:
