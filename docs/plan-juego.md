@@ -11,10 +11,10 @@ Quienes más usarán Karta son estudiantes (muchos menores de edad), trabajadore
 - **Sin notificaciones de juego,** salvo las que la persona pida.
 - **Liviano:** el álbum, los sellos y la mascota se guardan en el teléfono. No gastan datos ni dejan rastro en el servidor.
 - **Apto para todo público:**
-  - sin azar a cambio de nada;
+  - sin cajas sorpresa ni premios al azar;
   - sin violencia;
   - sin peleas entre equipos;
-  - sin premios por estar en la calle a deshoras.
+  - sin premios por salir a la calle de noche ni por ir a un lugar solo para ganar algo.
 
 ## 1. Qué hace Pokémon GO y qué toma Karta
 
@@ -25,7 +25,7 @@ Quienes más usarán Karta son estudiantes (muchos menores de edad), trabajadore
 | **PokéStops e investigación de campo** | Se visitan a diario y dan tareas cortas | **Preguntas del paradero:** «¿Tiene techo?», «¿Hay rampa?», «¿Funciona la luz?». Arman la base de conocimiento (D12) sobre la comodidad y la accesibilidad de cada paradero |
 | **Rachas e investigación** | La racha exige 7 días seguidos ([ayuda oficial](https://scopelyexplore.helpshift.com/hc/faq/1097-daily-bonuses/)). La «investigación» junta 7 sellos, uno por día, sin exigir días seguidos, y da un premio al completarlos ([fuente](https://www.dexerto.com/pokemon/pokemon-go-research-breakthrough-tasks-1545588/)) | **Sellos de la semana:** 7 sellos sin días seguidos, uno por día con un aporte útil. Es la versión que no castiga (plan de la comunidad, §4) |
 | **Pokédex** | Coleccionar todas las especies | **Álbum de estaciones:** 19 láminas (17 estaciones, el Portal y Santa Lucía), cada una ilustrada con su barrio. Se llena al pasar por ellas en un viaje compartido |
-| **Medallas por niveles** | Medallas de bronce a platino por kilómetros caminados, capturas y demás | Las insignias de hoy con niveles: «Madrugador» (viajes compartidos antes de las 6 a. m.), «Troncalero» (km por la troncal) y «Kartógrafo» |
+| **Medallas por niveles** | Medallas de bronce a platino por kilómetros caminados, capturas y demás | Las insignias de hoy con niveles: «Madrugador» (viajes compartidos en la primera hora de servicio, cuando menos datos hay; premia a quien ya viaja a esa hora, no invita a salir), «Troncalero» (km por la troncal) y «Kartógrafo» |
 | **Compañero** | Un Pokémon que camina contigo y reacciona | **La iguana del Centenario:** acompaña el modo viaje, se alegra cuando llega el bus y se viste con lo que ganan los sellos. Solo visual |
 | **Día de la Comunidad y temporadas** | Un evento al mes y temporadas de unos tres meses, con bonos | **Día karteño:** una meta común al mes («confirmemos 500 reportes en la troncal»), con un premio visual para todos los que ayudaron. **Temporadas de Cartagena:** Independencia, lluvias (reportar estaciones encharcadas) y regreso a clases |
 | **Wayfarer** | Los jugadores proponen y revisan nuevas PokéStops. En el foro se quejan de revisiones que tardan meses ([ejemplo](https://community.wayfarer.nianticlabs.com/t/concern-about-wayfarer-review-time-in-our-local-community/116039)) | Los Kartógrafos verifican paraderos y responden preguntas. La lección: **revisar rápido**, o la gente se cansa |
