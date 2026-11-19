@@ -51,7 +51,7 @@ El backend sigue una arquitectura hexagonal (puertos y adaptadores):
 |---|---|
 | `backend/src/domain` | Entidades, reglas de negocio (`reportes.py` con el catálogo y la validación comunitaria, `trip_planning.py`, `route_risk.py`, `geo.py`), puertos (`ports.py`) y esquemas Pydantic de la API. No depende de FastAPI ni de MongoDB |
 | `backend/src/application` | Casos de uso: `AuthService`, `IncidentService`, `PlaceService` (buscador y lugares guardados) y `TripService` (rutas sugeridas, estaciones cercanas) |
-| `backend/data`, `backend/scripts` | Rutas, estaciones, lugares y cruces de calles de OpenStreetMap (`importar_osm.py`, `importar_cruces.py`) y horarios oficiales de Transcaribe (`importar_horarios.py`); se cargan al arrancar la API |
+| `backend/data`, `backend/scripts` | Rutas, estaciones, lugares y cruces de calles de OpenStreetMap (`importar_osm.py`, `importar_cruces.py`) y horarios oficiales de Transcaribe (`importar_horarios.py`, o `importar_gtfs.py` con el GTFS de Transcaribe, que también trae los paraderos); se cargan al arrancar la API |
 | `backend/src/infrastructure` | Adaptadores: FastAPI y routers, repositorios MongoDB, Argon2 + JWT, configuración |
 | `frontend/lib/core` | Configuración y servicios compartidos (URL de la API, GPS, errores de la API), sistema de diseño «Bahía» (`design/`) y capa del mapa (`map/`) |
 | `frontend/lib/features/<funcionalidad>` | `data` (repositorios HTTP), `domain` (modelos), `presentation` (BLoC y pantallas) |
@@ -73,7 +73,7 @@ El backend sigue una arquitectura hexagonal (puertos y adaptadores):
 | `transit_routes` | `nombre`, `tipo`, `desde`, `hasta`, `geometria` (LineString) | `2dsphere` en `geometria` |
 | `route_schedules` | `_id` = código de ruta; primer y último despacho de `lunes_a_viernes`, `sabado` y `domingo_y_festivos` | — |
 | `intersections` | `nombre` («Av. Pedro de Heredia con Cra. 28»), `ubicacion` (Point) | `2dsphere` |
-| `route_stops` | Paraderos oficiales ubicados (`scripts/importar_paraderos.py`): `ruta`, `sentido`, `orden`, `nombre`, `estacion`, `modulo` («A1»), `precision` (`estacion` o `direccion`), `ubicacion` | (`ruta`, `sentido`, `orden`); `2dsphere` |
+| `route_stops` | Paraderos oficiales (`scripts/importar_paraderos.py` o `scripts/importar_gtfs.py`): `ruta`, `sentido`, `orden`, `nombre`, `estacion`, `modulo` («A1»), `precision` (`estacion`, `oficial`, `direccion` o `estimado`), `ubicacion` | (`ruta`, `sentido`, `orden`); `2dsphere` |
 | `route_directions` | `_id` = «T101-ida», `hacia` («el Centro») | — |
 | `address_crossings` | `nombre`, `vias` (`calle:9`, `carrera:3`), `ubicacion`: cruces de vías numeradas para ubicar direcciones | `vias` |
 

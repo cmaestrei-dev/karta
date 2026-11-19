@@ -37,6 +37,12 @@ void main() {
     expect(datos.pistas.single.subidas, 4);
   });
 
+  test('los paraderos con el punto del GTFS de Transcaribe cuentan como ubicados', () {
+    expect(EstadoDeParadero.deApi('oficial'), EstadoDeParadero.oficial);
+    expect(EstadoDeParadero.oficial.ubicado, isTrue);
+    expect(EstadoDeParadero.deApi('algo_nuevo'), EstadoDeParadero.sinUbicar);
+  });
+
   test('para marcar uno, se empieza entre sus vecinos ya ubicados', () {
     final ida = ParaderosDeRuta.fromJson(json).sentidos.single;
     final vecinos = ida.vecinos(ida.paraderos[1]);

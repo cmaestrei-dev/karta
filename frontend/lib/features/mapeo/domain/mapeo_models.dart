@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 /// Cómo se sabe dónde está un paradero oficial.
 enum EstadoDeParadero {
   estacion('estacion'),
+  oficial('oficial'),
   direccion('direccion'),
   estimado('estimado'),
   comunidad('comunidad'),
@@ -17,7 +18,7 @@ enum EstadoDeParadero {
   static EstadoDeParadero deApi(String? valor) =>
       values.firstWhere((e) => e.api == valor, orElse: () => EstadoDeParadero.sinUbicar);
 
-  bool get ubicado => this == estacion || this == direccion || this == estimado || this == comunidad;
+  bool get ubicado => this == estacion || this == oficial || this == direccion || this == estimado || this == comunidad;
 }
 
 /// Una marca de la comunidad: dónde dice un Kartógrafo que está el paradero, y cuánto apoyo tiene.
