@@ -8,8 +8,9 @@ from src.domain.direcciones import Cruce
 from src.domain.mapeo import EstadoDeMarca, Marca, Voto
 from src.domain.paraderos import ParaderoOficial
 from src.domain.precision import ResultadoDeViaje
+from src.domain.coronas import AportesDe, Corona
 from src.domain.models import (
-    Estacion, IconoLugar, Incidente, Lugar, LugarGuardado, RutaTransporte, TipoViajero, Usuario,
+    AjustesDeCorona, Estacion, IconoLugar, Incidente, Lugar, LugarGuardado, RutaTransporte, TipoViajero, Usuario,
 )
 from src.domain.reportes import TipoReporte
 from src.domain.tiempo_real import Observacion, Ocupacion
@@ -55,6 +56,37 @@ class UserRepository(Protocol):
     def upgrade(self, user_id: str, *, email: str, password_hash: str, nombre: str, alias: str,
                 tipo_viajero: TipoViajero, terminos_aceptados_en: datetime) -> Usuario:
         """Le pone correo a una cuenta invisible: deja de ser anónima y se desliga del teléfono."""
+        ...
+
+    def ajustar_corona(self, user_id: str, ajustes: AjustesDeCorona, en: datetime) -> None:
+        """Guarda si participa en las coronas y cómo se muestra. Responder «sí» queda como prueba de la
+        autorización para esa finalidad (Decreto 1377 de 2013, art. 5, parágrafo)."""
+        ...
+
+
+class CrownRepository(Protocol):
+    """Las coronas de las estaciones (src/domain/coronas.py)."""
+
+    def anotar_aporte(self, usuario_id: str, estacion: str, dia: str, expira_en: datetime) -> None:
+        """Un aporte de ese viajero en esa estación ese día (uno por día; vence solo)."""
+        ...
+
+    def aportes(self, estacion: str, desde: str, hasta: str) -> dict[str, AportesDe]:
+        """Por viajero, los días con aportes en la estación entre [desde] y [hasta], sin incluirlo (AAAA-MM-DD)."""
+        ...
+
+    def dias_de(self, usuario_id: str, estacion: str, desde: str) -> int: ...
+
+    def corona(self, estacion: str) -> Corona | None: ...
+
+    def guardar(self, corona: Corona) -> None: ...
+
+    def vetados(self, ahora: datetime) -> set[str]: ...
+
+    def vetar(self, usuario_id: str, hasta: datetime) -> None: ...
+
+    def olvidar(self, usuario_id: str) -> None:
+        """Deja de participar: sus aportes se borran y, si reinaba, la corona queda libre."""
         ...
 
 

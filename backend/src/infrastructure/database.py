@@ -62,6 +62,13 @@ def ensure_indexes(db: Database) -> None:
     db.trip_results.create_index([("expira_en", ASCENDING)], expireAfterSeconds=0)
     # Las huellas que cuentan personas distintas por cifra y mes (aportes.py); vencen a los 7 meses.
     db.trip_contributors.create_index([("expira_en", ASCENDING)], expireAfterSeconds=0)
+    # Coronas de las estaciones (docs/plan-juego.md): un aporte por viajero, estación y día, que vence a los 31 días;
+    # y quien no puede reinar, hasta cuándo.
+    db.crown_contributions.create_index([("usuario", ASCENDING), ("estacion", ASCENDING), ("dia", ASCENDING)],
+                                        unique=True)
+    db.crown_contributions.create_index([("estacion", ASCENDING), ("dia", ASCENDING)])
+    db.crown_contributions.create_index([("expira_en", ASCENDING)], expireAfterSeconds=0)
+    db.crown_bans.create_index([("hasta", ASCENDING)], expireAfterSeconds=0)
     migrar(db)
 
 

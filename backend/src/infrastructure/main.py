@@ -13,7 +13,7 @@ from src.infrastructure.limite_en_memoria import LimitarPorIp
 from src.infrastructure.reference_data import cargar_datos_de_referencia
 from src.infrastructure.routers import (
     auth_router, user_router, incident_router, legal_router, mapping_router, route_router, place_router, stop_router,
-    realtime_router,
+    realtime_router, corona_router,
 )
 
 
@@ -63,6 +63,7 @@ app.include_router(stop_router.router)
 app.include_router(realtime_router.router)
 app.include_router(mapping_router.router)
 app.include_router(legal_router.router)
+app.include_router(corona_router.router)
 
 @app.get("/", include_in_schema=False)
 async def root():

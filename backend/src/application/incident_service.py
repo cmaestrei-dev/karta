@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 
 from src.domain.geo import corredor_de_ruta
 from src.domain.models import Incidente, Usuario
@@ -30,18 +31,29 @@ class ResultadoDeVoto:
     retirado: bool
 
 
+if TYPE_CHECKING:
+    from src.application.corona_service import CoronaService
+
+
 class IncidentService:
     MAX_INCIDENTES_EN_MAPA = 500
     RADIO_NOMBRE_M = 300  # el sitio se nombra por el lugar conocido más cercano dentro de este radio
     MISMO_LUGAR_M = 75
 
     def __init__(self, incidents: IncidentRepository, users: UserRepository,
-                 places: PlaceRepository, transit: TransitRepository, contadores: Contadores | None = None):
+                 places: PlaceRepository, transit: TransitRepository, contadores: Contadores | None = None,
+                 coronas: "CoronaService | None" = None):
         self.incidents = incidents
         self.users = users
         self.places = places
         self.transit = transit
         self.contadores = contadores
+        self.coronas = coronas
+
+    def _aporte_de_corona(self, usuario_id: str, incidente: Incidente, ahora: datetime) -> None:
+        """Un aporte validado para la corona de la estación donde fue el reporte, si fue en una (docs/plan-juego.md)."""
+        if self.coronas is not None:
+            self.coronas.anotar(usuario_id, incidente.longitud, incidente.latitud, ahora)
 
     def _contar(self, ahora: datetime, campos: dict[str, int]) -> None:
         """Los indicadores del piloto (docs/plan-comunidad.md, §5), sin quién."""
@@ -128,9 +140,11 @@ class IncidentService:
             actualizado = self.incidents.apply_confirmation(incidente_id, nueva)
             self.users.ajustar_reputacion(incidente.reportado_por, REPUTACION_POR_CONFIRMACION)
             self.users.sumar_impacto(incidente.reportado_por, "confirmaciones")
+            self._aporte_de_corona(incidente.reportado_por, incidente, ahora)
             # Este «sigue ahí» les da la razón a quienes lo dijeron antes.
             for votante in self.incidents.reward_voters(incidente_id, True, excepto=usuario.id):
                 self.users.ajustar_reputacion(votante, REPUTACION_POR_VOTAR)
+                self._aporte_de_corona(votante, incidente, ahora)
             return ResultadoDeVoto(actualizado, retirado=False)
 
         actualizado, racha = self.incidents.apply_denial(incidente_id)
@@ -140,6 +154,7 @@ class IncidentService:
             # El reporte salió: todos los que dijeron «ya no está», incluido este, tenían razón.
             for votante in self.incidents.reward_voters(incidente_id, False):
                 self.users.ajustar_reputacion(votante, REPUTACION_POR_VOTAR)
+                self._aporte_de_corona(votante, incidente, ahora)
             return ResultadoDeVoto(actualizado, retirado=True)
         return ResultadoDeVoto(actualizado, retirado=False)
 

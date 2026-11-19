@@ -9,7 +9,8 @@ import re
 
 # Cambiarla obliga a que cada viajero vuelva a aceptar el aviso antes de seguir (un cambio sustancial de la política).
 # 1.1 (26 de octubre de 2026): las estadísticas agregadas y anónimas, que pueden venderse, son una finalidad más.
-VERSION_POLITICA = "1.1"
+# 1.2 (19 de noviembre de 2026): las coronas de las estaciones, opcionales y con su propia autorización.
+VERSION_POLITICA = "1.2"
 
 
 def politica_con_datos(plantilla: str, **datos: str) -> str:
